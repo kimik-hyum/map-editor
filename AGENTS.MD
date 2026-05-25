@@ -24,3 +24,9 @@
 - Styling: `tailwindcss`, `@tailwindcss/vite`.
 - Map/editor: `ol`.
 - Geometry utilities: `@turf/area`, `@turf/length`, `@turf/bbox`, `@turf/helpers`.
+- Git hooks: `husky`.
+
+## Git Rules
+
+- 커밋 메시지는 한글로만 작성한다.
+- 영문 알파벳이 포함된 커밋 메시지는 Husky `commit-msg` 훅에서 거부된다.
