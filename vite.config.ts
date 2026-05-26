@@ -5,4 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   base: "./",
   plugins: [tailwindcss(), react()],
+  preview: {
+    allowedHosts: ["parenting-john-index-passion.trycloudflare.com"],
+  },
 });

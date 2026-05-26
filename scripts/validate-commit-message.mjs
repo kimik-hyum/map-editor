@@ -13,15 +13,45 @@ const message = readFileSync(messagePath, "utf8")
   .join("\n")
   .trim();
 
-const hasHangul = /[가-힣]/.test(message);
-const hasLatinLetters = /[A-Za-z]/.test(message);
+const allowedTypes = [
+  "feat",
+  "fix",
+  "docs",
+  "style",
+  "refactor",
+  "perf",
+  "test",
+  "build",
+  "ci",
+  "chore",
+  "revert",
+];
 
 if (!message) {
   console.error("커밋 메시지를 입력해주세요.");
   process.exit(1);
 }
 
+const [header = "", ...bodyLines] = message.split("\n");
+const commitPattern = new RegExp(
+  `^(${allowedTypes.join("|")})(\\([a-z0-9-]+\\))?!?:\\s+(.+)$`,
+);
+const match = header.match(commitPattern);
+
+if (!match) {
+  console.error(
+    `커밋 메시지는 "${allowedTypes.join("|")}: 한글 메시지" 형식으로 작성해주세요.`,
+  );
+  process.exit(1);
+}
+
+const subject = match[3];
+const body = bodyLines.join("\n").trim();
+const koreanContent = [subject, body].filter(Boolean).join("\n");
+const hasHangul = /[가-힣]/.test(koreanContent);
+const hasLatinLetters = /[A-Za-z]/.test(koreanContent);
+
 if (!hasHangul || hasLatinLetters) {
-  console.error("커밋 메시지는 한글로만 작성해주세요. 영문 알파벳은 사용할 수 없습니다.");
+  console.error("커밋 타입 뒤의 메시지는 한글로 작성해주세요. 영문 알파벳은 사용할 수 없습니다.");
   process.exit(1);
 }

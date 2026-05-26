@@ -28,5 +28,7 @@
 
 ## Git Rules
 
-- 커밋 메시지는 한글로만 작성한다.
-- 영문 알파벳이 포함된 커밋 메시지는 Husky `commit-msg` 훅에서 거부된다.
+- 커밋 메시지는 Conventional Commit 타입을 사용한다. 예: `feat: 편집기 추가`, `chore: 설정 변경`.
+- 허용 타입: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+- 타입과 선택적 scope를 제외한 메시지 본문은 한글로 작성한다.
+- 타입 뒤 메시지에 영문 알파벳이 포함되면 Husky `commit-msg` 훅에서 거부된다.

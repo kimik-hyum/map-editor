@@ -2,6 +2,24 @@
   min-height: 100vh;
 }
 
+.docs-layout,
+.demo-layout,
+.editor-layout {
+  min-height: 100vh;
+}
+
+.docs-layout {
+  background: #f7faf9;
+}
+
+.demo-layout {
+  background: #fbf9f5;
+}
+
+.editor-layout {
+  background: #f8fafc;
+}
+
 .app-navigation {
   align-items: center;
   background: rgba(247, 250, 249, 0.92);
@@ -39,6 +57,49 @@
 .nav-link.active {
   background: #e5f3ef;
   color: #0f766e;
+}
+
+.demo-layout .app-navigation {
+  background: rgba(251, 249, 245, 0.94);
+}
+
+.demo-layout-frame,
+.editor-layout-frame {
+  display: grid;
+}
+
+.demo-layout-frame {
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: calc(100vh - 65px);
+}
+
+.editor-layout-frame {
+  grid-template-columns: 300px minmax(0, 1fr);
+  height: 100vh;
+  overflow: hidden;
+}
+
+.layout-rail {
+  border-right: 1px solid #d6e0e7;
+  color: #172033;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 32px 24px;
+}
+
+.editor-sidebar {
+  background: #ffffff;
+  border-right: 1px solid #d6e0e7;
+  min-width: 0;
+}
+
+.rail-kicker {
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .docs-page {
@@ -213,12 +274,19 @@
 .placeholder-page {
   margin: 0 auto;
   max-width: 860px;
-  min-height: 100vh;
+  min-height: calc(100vh - 65px);
   padding: 72px 24px;
 }
 
 .editor-placeholder {
   max-width: 960px;
+}
+
+.demo-layout-frame .placeholder-page,
+.editor-layout-frame .placeholder-page {
+  margin: 0;
+  max-width: none;
+  padding: 56px 48px;
 }
 
 .text-link {
@@ -230,8 +298,15 @@
 
 @media (max-width: 900px) {
   .docs-hero,
-  .info-grid {
+  .info-grid,
+  .demo-layout-frame {
     grid-template-columns: 1fr;
+  }
+
+  .layout-rail {
+    border-bottom: 1px solid #d6e0e7;
+    border-right: 0;
+    padding: 20px 24px;
   }
 
   .docs-hero {
