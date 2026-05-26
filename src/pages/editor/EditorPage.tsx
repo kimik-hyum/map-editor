@@ -1,17 +1,40 @@
-import { Link } from "react-router";
+import { useEffect, useRef } from "react";
+import Map from "ol/Map";
+import View from "ol/View";
+import TileLayer from "ol/layer/Tile";
+import { fromLonLat } from "ol/proj";
+import OSM from "ol/source/OSM";
+import "ol/ol.css";
 
 export function EditorPage() {
+  const mapElementRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!mapElementRef.current) {
+      return;
+    }
+
+    const map = new Map({
+      layers: [
+        new TileLayer({
+          source: new OSM(),
+        }),
+      ],
+      target: mapElementRef.current,
+      view: new View({
+        center: fromLonLat([126.978, 37.5665]),
+        zoom: 12,
+      }),
+    });
+
+    return () => {
+      map.setTarget(undefined);
+    };
+  }, []);
+
   return (
-    <main className="placeholder-page editor-placeholder">
-      <p className="eyebrow">Editor</p>
-      <h1>권역 편집 페이지</h1>
-      <p className="lead">
-        이 페이지는 OpenLayers 기반 지도와 polygon/path 편집 도구가 들어갈 실제
-        편집기 화면입니다.
-      </p>
-      <Link className="text-link" to="/">
-        Docs로 돌아가기
-      </Link>
+    <main className="editor-map-shell">
+      <div ref={mapElementRef} className="editor-map" aria-label="OSM map editor" />
     </main>
   );
 }

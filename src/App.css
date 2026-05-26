@@ -278,15 +278,21 @@
   padding: 72px 24px;
 }
 
-.editor-placeholder {
-  max-width: 960px;
-}
-
 .demo-layout-frame .placeholder-page,
 .editor-layout-frame .placeholder-page {
   margin: 0;
   max-width: none;
   padding: 56px 48px;
+}
+
+.editor-map-shell {
+  min-height: 0;
+  min-width: 0;
+}
+
+.editor-map {
+  height: 100vh;
+  width: 100%;
 }
 
 .text-link {
