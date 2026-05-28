@@ -1,14 +1,15 @@
 import { create } from "zustand";
-import { sampleEditorDocument } from "../fixtures/sampleEditorDocument";
 import {
   EditorToolMode,
   FeatureLifecycle,
   type EditorDocument,
   type EditorLayerViewState,
+  type EditorInitMessage,
   type GeoJsonGeometry,
 } from "../types/editorTypes";
 
 type EditorStoreState = {
+  sessionId: string | null;
   document: EditorDocument | null;
   activeLayerId: string | null;
   selectedFeatureIds: string[];
@@ -18,8 +19,9 @@ type EditorStoreState = {
 };
 
 type EditorStoreActions = {
+  initializeFromMessage: (message: EditorInitMessage) => void;
   setDocument: (document: EditorDocument) => void;
-  resetDocument: (document?: EditorDocument) => void;
+  resetDocument: () => void;
   setActiveLayerId: (layerId: string | null) => void;
   setHoveredFeatureId: (featureId: string | null) => void;
   setSelectedFeatureIds: (featureIds: string[]) => void;
@@ -91,15 +93,24 @@ function updateFeatureGeometryInDocument(
   };
 }
 
-const initialDocument = sampleEditorDocument;
-
 export const useEditorStore = create<EditorStore>((set) => ({
-  document: initialDocument,
-  activeLayerId: getInitialActiveLayerId(initialDocument),
+  sessionId: null,
+  document: null,
+  activeLayerId: null,
   selectedFeatureIds: [],
   hoveredFeatureId: null,
   toolMode: EditorToolMode.Select,
   dirty: false,
+  initializeFromMessage: (message) =>
+    set({
+      sessionId: message.sessionId,
+      document: message.document,
+      activeLayerId: getInitialActiveLayerId(message.document),
+      selectedFeatureIds: [],
+      hoveredFeatureId: null,
+      toolMode: EditorToolMode.Select,
+      dirty: false,
+    }),
   setDocument: (document) =>
     set({
       document,
@@ -108,10 +119,11 @@ export const useEditorStore = create<EditorStore>((set) => ({
       hoveredFeatureId: null,
       dirty: false,
     }),
-  resetDocument: (document = initialDocument) =>
+  resetDocument: () =>
     set({
-      document,
-      activeLayerId: getInitialActiveLayerId(document),
+      sessionId: null,
+      document: null,
+      activeLayerId: null,
       selectedFeatureIds: [],
       hoveredFeatureId: null,
       toolMode: EditorToolMode.Select,
