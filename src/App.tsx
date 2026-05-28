@@ -15,7 +15,13 @@ const EditorPage = lazy(() =>
 
 function EditorRoute() {
   return (
-    <Suspense fallback={<div className="route-loading">불러오는 중...</div>}>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center font-extrabold text-[#506174]">
+          불러오는 중...
+        </div>
+      }
+    >
       <EditorPage />
     </Suspense>
   );

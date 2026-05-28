@@ -21,6 +21,12 @@ type FloatingPanelProps = {
   minWidth?: number;
 };
 
+const panelDragHandleClassName = "floating-panel-drag-handle";
+
+function joinClassNames(...classNames: Array<string | undefined>) {
+  return classNames.filter(Boolean).join(" ");
+}
+
 export function FloatingPanel({
   title,
   children,
@@ -38,17 +44,27 @@ export function FloatingPanel({
   return (
     <Rnd
       bounds="parent"
-      className={["floating-panel", className].filter(Boolean).join(" ")}
+      className={joinClassNames("z-[5]", className)}
       default={defaultValue}
-      dragHandleClassName="floating-panel__header"
+      dragHandleClassName={panelDragHandleClassName}
       minHeight={minHeight}
       minWidth={minWidth}
     >
-      <section className="floating-panel__surface" aria-label={title}>
-        <header className="floating-panel__header">
-          <h2>{title}</h2>
+      <section
+        className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg border border-slate-400/70 bg-white/95 text-[#172033] shadow-[0_18px_50px_rgba(15,23,42,0.16)]"
+        aria-label={title}
+      >
+        <header
+          className={joinClassNames(
+            panelDragHandleClassName,
+            "flex min-h-11 cursor-move select-none items-center border-b border-[#d6e0e7] bg-[#f8fafc] px-3.5",
+          )}
+        >
+          <h2 className="m-0 text-sm font-black leading-[1.2] text-[#172033]">
+            {title}
+          </h2>
         </header>
-        <div className="floating-panel__body">{children}</div>
+        <div className="min-h-0 flex-1 overflow-auto p-3">{children}</div>
       </section>
     </Rnd>
   );
