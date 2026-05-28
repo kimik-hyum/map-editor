@@ -56,7 +56,7 @@ test("에디터 지도에 샘플 폴리곤이 렌더링된다", async ({ page })
     countSimilarPixels(image, color),
   );
 
-  expect(matchedColorCounts.filter((count) => count > 20).length).toBeGreaterThanOrEqual(
-    3,
-  );
+  expect(
+    matchedColorCounts.filter((count) => count > 20).length,
+  ).toBeGreaterThanOrEqual(3);
 });

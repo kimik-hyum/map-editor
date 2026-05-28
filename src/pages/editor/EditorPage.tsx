@@ -27,7 +27,7 @@ export function EditorPage() {
 
   return (
     <main className="editor-map-shell">
-      <div ref={mapElementRef} className="editor-map" aria-label="OSM map editor" />
+      <section ref={mapElementRef} className="editor-map" aria-label="OSM map editor" />
     </main>
   );
 }

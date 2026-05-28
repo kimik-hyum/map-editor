@@ -26,10 +26,7 @@ type EditorStoreActions = {
   setHoveredFeatureId: (featureId: string | null) => void;
   setSelectedFeatureIds: (featureIds: string[]) => void;
   setToolMode: (toolMode: EditorToolMode) => void;
-  updateLayerView: (
-    layerId: string,
-    view: Partial<EditorLayerViewState>,
-  ) => void;
+  updateLayerView: (layerId: string, view: Partial<EditorLayerViewState>) => void;
   updateFeatureGeometry: (featureId: string, geometry: GeoJsonGeometry) => void;
 };
 

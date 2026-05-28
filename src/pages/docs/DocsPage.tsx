@@ -9,11 +9,11 @@ export function DocsPage() {
           <p className="eyebrow">Maps Editor</p>
           <h1>지도 도형 편집기 설계 메모</h1>
           <p className="lead">
-            OSM 기반 지도 위에서 polygon과 path를 편집하고, 외부 서비스와
-            postMessage로 GeoJSON을 주고받는 정적 Vite 앱입니다.
+            OSM 기반 지도 위에서 polygon과 path를 편집하고, 외부 서비스와 postMessage로
+            GeoJSON을 주고받는 정적 Vite 앱입니다.
           </p>
         </div>
-        <div className="map-preview" aria-label="지도 편집기 미리보기">
+        <div className="map-preview" role="img" aria-label="지도 편집기 미리보기">
           <div className="route-line" />
           <div className="polygon-shape" />
           <span className="pin pin-a" />

@@ -52,6 +52,8 @@ const hasHangul = /[가-힣]/.test(koreanContent);
 const hasLatinLetters = /[A-Za-z]/.test(koreanContent);
 
 if (!hasHangul || hasLatinLetters) {
-  console.error("커밋 타입 뒤의 메시지는 한글로 작성해주세요. 영문 알파벳은 사용할 수 없습니다.");
+  console.error(
+    "커밋 타입 뒤의 메시지는 한글로 작성해주세요. 영문 알파벳은 사용할 수 없습니다.",
+  );
   process.exit(1);
 }

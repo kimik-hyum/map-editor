@@ -136,8 +136,7 @@
   aspect-ratio: 4 / 3;
   background:
     linear-gradient(90deg, rgba(26, 94, 84, 0.08) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(26, 94, 84, 0.08) 1px, transparent 1px),
-    #eef6f2;
+    linear-gradient(0deg, rgba(26, 94, 84, 0.08) 1px, transparent 1px), #eef6f2;
   background-size: 42px 42px;
   border: 1px solid #bdd6cd;
   border-radius: 8px;
