@@ -86,6 +86,20 @@ export enum SelectionState {
   Active = "active",
 }
 
+// 사용자가 현재 선택한 지도 편집 도구입니다.
+export enum EditorToolMode {
+  // 지도 이동과 기본 선택을 위한 상태입니다.
+  Select = "select",
+  // 폴리곤을 새로 그리는 상태입니다.
+  DrawPolygon = "drawPolygon",
+  // 길이나 경로를 새로 그리는 상태입니다.
+  DrawPath = "drawPath",
+  // 기존 폴리곤이나 경로의 꼭짓점과 위치를 수정하는 상태입니다.
+  EditGeometry = "editGeometry",
+  // 선택한 도형을 다른 경계나 도형과 병합하는 상태입니다.
+  MergeGeometry = "mergeGeometry",
+}
+
 // 원본 대비 도형이 어떤 변경 상태인지 나타냅니다.
 export enum FeatureLifecycle {
   // 초기 입력값과 동일한 변경 없음 상태입니다.
