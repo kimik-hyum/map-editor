@@ -10,8 +10,10 @@ import type {
 } from "./enums";
 import type { EditorCoordinate, GeoJsonFeature } from "./geometry";
 import type { EditorValidationIssue } from "./validation";
+import type { EditorPolygonThemeToken } from "../theme/editorTheme";
 
 export type EditorStyle = {
+  themeToken?: EditorPolygonThemeToken;
   strokeColor?: string;
   strokeWidth?: number;
   fillColor?: string;
