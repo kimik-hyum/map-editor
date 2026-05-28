@@ -1,4 +1,4 @@
-import Map from "ol/Map";
+import OpenLayersMap from "ol/Map";
 import type { EditorDocument } from "../../types/editorTypes";
 import { createOpenLayersLayers } from "./createOpenLayersLayer";
 import { createOpenLayersMapView } from "./createOpenLayersMapView";
@@ -14,11 +14,8 @@ export function createOpenLayersMap({
   target,
   editorDocument,
 }: CreateOpenLayersMapOptions) {
-  return new Map({
-    layers: [
-      createOpenStreetMapLayer(),
-      ...createOpenLayersLayers(editorDocument),
-    ],
+  return new OpenLayersMap({
+    layers: [createOpenStreetMapLayer(), ...createOpenLayersLayers(editorDocument)],
     target,
     view: createOpenLayersMapView(editorDocument),
   });

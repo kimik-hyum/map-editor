@@ -40,12 +40,16 @@ test("에디터 지도에 샘플 폴리곤이 렌더링된다", async ({ page })
   await page.goto("/editor");
 
   const map = page.getByLabel("OSM map editor");
+  const mapCanvas = map.locator("canvas");
+
   await expect(map).toBeVisible();
   await expect(page.locator(".ol-viewport")).toBeVisible();
-  await expect(page.locator(".editor-map canvas")).toHaveCount(1);
+  await expect(mapCanvas).toHaveCount(1);
 
   await page.waitForFunction(() => {
-    const canvas = document.querySelector<HTMLCanvasElement>(".editor-map canvas");
+    const canvas = document.querySelector<HTMLCanvasElement>(
+      '[aria-label="OSM map editor"] canvas',
+    );
 
     return Boolean(canvas && canvas.width > 0 && canvas.height > 0);
   });
@@ -56,7 +60,7 @@ test("에디터 지도에 샘플 폴리곤이 렌더링된다", async ({ page })
     countSimilarPixels(image, color),
   );
 
-  expect(matchedColorCounts.filter((count) => count > 20).length).toBeGreaterThanOrEqual(
-    3,
-  );
+  expect(
+    matchedColorCounts.filter((count) => count > 20).length,
+  ).toBeGreaterThanOrEqual(3);
 });

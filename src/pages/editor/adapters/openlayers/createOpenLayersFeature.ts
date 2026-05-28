@@ -4,10 +4,7 @@ import { createOpenLayersGeometry } from "./createOpenLayersGeometry";
 import { createOpenLayersStyle } from "./createOpenLayersStyle";
 
 // 에디터 도형 하나를 OpenLayers Feature로 변환하고 렌더링 style을 연결합니다.
-export function createOpenLayersFeature(
-  feature: EditorFeature,
-  layer: EditorLayer,
-) {
+export function createOpenLayersFeature(feature: EditorFeature, layer: EditorLayer) {
   const geometry = createOpenLayersGeometry(feature.feature.geometry);
 
   if (!geometry) {

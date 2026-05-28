@@ -6,13 +6,13 @@
 
 ## Recommended Order
 
-| Step | Phase | Main Work | Done When |
-| --- | --- | --- | --- |
-| 1 | EditorDocument Fixture Rendering | 샘플 폴리곤을 `EditorDocument -> EditorLayer[] -> EditorFeature[]` fixture로 전환 | OpenLayers가 fixture의 layers/features를 읽어 지도에 렌더링한다 |
-| 2 | Layer System UI | 사이드바에 레이어 목록, 역할, visible, lock, active, feature count를 표시 | visible/lock/zIndex 변경이 UI와 지도에 반영된다 |
-| 3 | postMessage + Zod Validation | demo에서 editor를 열고 `MAP_EDITOR_INIT`으로 document를 전달하며 Zod로 검증 | 검증 성공 시 전달된 document가 렌더링되고 실패 시 `MAP_EDITOR_ERROR`를 반환한다 |
-| 4 | Editing Modes | 선택, 폴리곤 수정, path 수정, draw 모드를 도입 | editable/lock 상태에 따라 수정 가능 여부가 제어되고 변경 이벤트가 발생한다 |
-| 5 | Administrative Boundary Merge | 샘플 행정구역 fixture로 merge 흐름을 검증한 뒤 실제 데이터 연동을 확장 | 선택한 경계와 기존 도형을 병합하고 검증 상태를 갱신한다 |
+| Step | Phase                            | Main Work                                                                         | Done When                                                                       |
+| ---- | -------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 1    | EditorDocument Fixture Rendering | 샘플 폴리곤을 `EditorDocument -> EditorLayer[] -> EditorFeature[]` fixture로 전환 | OpenLayers가 fixture의 layers/features를 읽어 지도에 렌더링한다                 |
+| 2    | Layer System UI                  | 사이드바에 레이어 목록, 역할, visible, lock, active, feature count를 표시         | visible/lock/zIndex 변경이 UI와 지도에 반영된다                                 |
+| 3    | postMessage + Zod Validation     | demo에서 editor를 열고 `MAP_EDITOR_INIT`으로 document를 전달하며 Zod로 검증       | 검증 성공 시 전달된 document가 렌더링되고 실패 시 `MAP_EDITOR_ERROR`를 반환한다 |
+| 4    | Editing Modes                    | 선택, 폴리곤 수정, path 수정, draw 모드를 도입                                    | editable/lock 상태에 따라 수정 가능 여부가 제어되고 변경 이벤트가 발생한다      |
+| 5    | Administrative Boundary Merge    | 샘플 행정구역 fixture로 merge 흐름을 검증한 뒤 실제 데이터 연동을 확장            | 선택한 경계와 기존 도형을 병합하고 검증 상태를 갱신한다                         |
 
 ### 1. EditorDocument Fixture Rendering
 

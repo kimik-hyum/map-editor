@@ -6,6 +6,8 @@
 - Client state: Zustand (`zustand`) for editor UI/domain state when local state grows.
 - Runtime validation: Zod (`zod`) for `postMessage` payloads and imported geometry data.
 - Styling: Tailwind CSS via `tailwindcss` and `@tailwindcss/vite`.
+- Formatting: Prettier (`prettier`).
+- Linting: Biome (`@biomejs/biome`) with formatter disabled.
 - Map/editor engine: OpenLayers (`ol`).
 - Basemap: OSM tile layer.
 - Geometry standard: GeoJSON.
@@ -22,6 +24,8 @@
 - Runtime validation: `zod`.
 - Build: `vite`, `@vitejs/plugin-react`, `typescript`.
 - Styling: `tailwindcss`, `@tailwindcss/vite`.
+- Formatting: `prettier`.
+- Linting: `@biomejs/biome`.
 - Map/editor: `ol`.
 - Geometry utilities: `@turf/area`, `@turf/length`, `@turf/bbox`, `@turf/helpers`.
 - Git hooks: `husky`.

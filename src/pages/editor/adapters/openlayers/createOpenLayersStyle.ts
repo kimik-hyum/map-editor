@@ -50,8 +50,7 @@ function resolvePolygonThemeToken(
   }
 
   return (
-    layerRoleThemeTokens.find(([role]) => layer.roles.includes(role))?.[1] ??
-    "editable"
+    layerRoleThemeTokens.find(([role]) => layer.roles.includes(role))?.[1] ?? "editable"
   );
 }
 

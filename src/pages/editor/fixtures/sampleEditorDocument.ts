@@ -89,9 +89,7 @@ function createLayer(
     },
     behavior: {
       lock: isEditable ? LockState.Unlocked : LockState.Locked,
-      editability: isEditable
-        ? EditabilityState.Editable
-        : EditabilityState.Readonly,
+      editability: isEditable ? EditabilityState.Editable : EditabilityState.Readonly,
       selectable: !isBackground,
       deletable: isEditable,
       draggable: isEditable,

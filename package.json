@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint . --write",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test:e2e": "playwright test",
     "prepare": "husky",
     "preview": "vite preview --host 0.0.0.0"
@@ -20,12 +24,14 @@
     "ol": "^10.9.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-rnd": "^10.5.3",
     "react-router": "^7.15.1",
     "tailwindcss": "^4.3.0",
     "zod": "^4.4.3",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.16",
     "@playwright/test": "^1.60.0",
     "@types/pngjs": "^6.0.5",
     "@types/react": "^18.3.12",
@@ -33,6 +39,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "husky": "^9.1.7",
     "pngjs": "^7.0.0",
+    "prettier": "^3.8.3",
     "typescript": "^5.6.3",
     "vite": "^6.0.3"
   }
