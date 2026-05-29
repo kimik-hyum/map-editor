@@ -1,4 +1,4 @@
-import { editorDefaultTheme } from "../../../theme/editorTheme";
+import { resolvePolygonStyle } from "../../../theme/editorStyleResolver";
 import {
   SelectionState,
   VisibilityState,
@@ -60,22 +60,9 @@ function getFeatureName(feature: EditorFeature) {
   return feature.id;
 }
 
-function getFeatureAccentColor(feature: EditorFeature) {
-  const themeToken = feature.style?.themeToken;
-
-  if (feature.style?.strokeColor) {
-    return feature.style.strokeColor;
-  }
-
-  if (themeToken) {
-    return editorDefaultTheme.polygon[themeToken].strokeColor;
-  }
-
-  return "#94a3b8";
-}
-
 function createLayerFeatureListItemViewModel(
   feature: EditorFeature,
+  layer: EditorLayer,
 ): LayerFeatureListItemViewModel {
   return {
     id: feature.id,
@@ -83,7 +70,7 @@ function createLayerFeatureListItemViewModel(
     geometryKind: feature.geometryKind,
     geometryKindLabel: geometryKindLabels[feature.geometryKind],
     selectionLabel: selectionLabels[feature.state.selection] ?? null,
-    accentColor: getFeatureAccentColor(feature),
+    accentColor: resolvePolygonStyle(feature, layer).strokeColor,
   };
 }
 
@@ -102,7 +89,9 @@ function createLayerListItemViewModel(
     orderLabel: `#${stackIndex + 1}`,
     roleLabels: layer.roles.map((role) => layerRoleLabels[role]),
     featureCount: layer.features.length,
-    features: layer.features.map(createLayerFeatureListItemViewModel),
+    features: layer.features.map((feature) =>
+      createLayerFeatureListItemViewModel(feature, layer),
+    ),
   };
 }
 
