@@ -169,4 +169,22 @@ describe("createLayerPanelViewModel", () => {
       editorDefaultTheme.polygon.warning.strokeColor,
     );
   });
+
+  it("dimmed 레이어 opacity는 지도와 같은 effective opacity로 표시한다", () => {
+    const layer = createLayer({
+      view: {
+        visibility: VisibilityState.Dimmed,
+        opacity: 1,
+        zIndex: 10,
+        labelVisible: true,
+      },
+    });
+
+    const viewModel = createLayerPanelViewModel(createDocument([layer]), null);
+
+    expect(viewModel.layers[0]).toMatchObject({
+      isDimmed: true,
+      opacity: 0.5,
+    });
+  });
 });

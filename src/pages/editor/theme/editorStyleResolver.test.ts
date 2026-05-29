@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { editorDefaultTheme } from "./editorTheme";
-import { resolvePolygonStyle, resolvePolygonThemeToken } from "./editorStyleResolver";
+import {
+  resolveLayerEffectiveOpacity,
+  resolvePolygonStyle,
+  resolvePolygonThemeToken,
+} from "./editorStyleResolver";
 import {
   EditabilityState,
   FeatureLifecycle,
@@ -124,5 +128,29 @@ describe("resolvePolygonStyle", () => {
       fillColor: "rgba(1, 2, 3, 0.4)",
       strokeColor: "#111111",
     });
+  });
+});
+
+describe("resolveLayerEffectiveOpacity", () => {
+  it("visible 레이어는 원본 opacity를 그대로 사용한다", () => {
+    expect(
+      resolveLayerEffectiveOpacity({
+        visibility: VisibilityState.Visible,
+        opacity: 0.7,
+        zIndex: 10,
+        labelVisible: true,
+      }),
+    ).toBe(0.7);
+  });
+
+  it("dimmed 레이어는 지도 렌더링과 같은 절반 opacity를 사용한다", () => {
+    expect(
+      resolveLayerEffectiveOpacity({
+        visibility: VisibilityState.Dimmed,
+        opacity: 1,
+        zIndex: 10,
+        labelVisible: true,
+      }),
+    ).toBe(0.5);
   });
 });

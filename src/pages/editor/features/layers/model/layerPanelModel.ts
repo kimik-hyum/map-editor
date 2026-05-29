@@ -1,4 +1,7 @@
-import { resolvePolygonStyle } from "../../../theme/editorStyleResolver";
+import {
+  resolveLayerEffectiveOpacity,
+  resolvePolygonStyle,
+} from "../../../theme/editorStyleResolver";
 import {
   SelectionState,
   VisibilityState,
@@ -85,7 +88,7 @@ function createLayerListItemViewModel(
     isActive: layer.id === activeLayerId,
     isDimmed: layer.view.visibility === VisibilityState.Dimmed,
     isVisible: layer.view.visibility !== VisibilityState.Hidden,
-    opacity: layer.view.opacity,
+    opacity: resolveLayerEffectiveOpacity(layer.view),
     orderLabel: `#${stackIndex + 1}`,
     roleLabels: layer.roles.map((role) => layerRoleLabels[role]),
     featureCount: layer.features.length,

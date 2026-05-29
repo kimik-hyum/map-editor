@@ -5,7 +5,9 @@ import {
   ValidationState,
   type EditorFeature,
   type EditorLayer,
+  type EditorLayerViewState,
   type EditorStyle,
+  VisibilityState,
 } from "../types/editorTypes";
 
 const layerRoleThemeTokens: Array<[LayerRole, EditorPolygonThemeToken]> = [
@@ -63,4 +65,8 @@ export function resolvePolygonStyle(
     ...layer.style,
     ...feature.style,
   };
+}
+
+export function resolveLayerEffectiveOpacity(view: EditorLayerViewState) {
+  return view.visibility === VisibilityState.Dimmed ? view.opacity * 0.5 : view.opacity;
 }

@@ -1,5 +1,6 @@
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
+import { resolveLayerEffectiveOpacity } from "../../theme/editorStyleResolver";
 import {
   VisibilityState,
   type EditorDocument,
@@ -14,10 +15,7 @@ export function createOpenLayersVectorLayer(layer: EditorLayer) {
 
     return openLayersFeature ? [openLayersFeature] : [];
   });
-  const opacity =
-    layer.view.visibility === VisibilityState.Dimmed
-      ? layer.view.opacity * 0.5
-      : layer.view.opacity;
+  const opacity = resolveLayerEffectiveOpacity(layer.view);
 
   return new VectorLayer({
     opacity,
