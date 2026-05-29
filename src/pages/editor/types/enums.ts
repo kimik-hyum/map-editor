@@ -106,18 +106,24 @@ export enum SelectionState {
   Active = "active",
 }
 
-// 사용자가 현재 선택한 지도 편집 도구입니다.
-export enum EditorToolMode {
-  // 지도 이동과 기본 선택을 위한 상태입니다.
-  Select = "select",
-  // 폴리곤을 새로 그리는 상태입니다.
-  DrawPolygon = "drawPolygon",
-  // 길이나 경로를 새로 그리는 상태입니다.
-  DrawPath = "drawPath",
-  // 기존 폴리곤이나 경로의 꼭짓점과 위치를 수정하는 상태입니다.
-  EditGeometry = "editGeometry",
-  // 선택한 도형을 다른 경계나 도형과 병합하는 상태입니다.
-  MergeGeometry = "mergeGeometry",
+// 사용자가 현재 선택한 편집 모드입니다.
+// 좌측 모드 패널과 editorStore가 공유하는 단일 모드 개념이며, 화면 표시용 카탈로그는
+// features/modes/model/editorModeModel.ts의 editorModeOptions가 담당합니다.
+export enum EditorMode {
+  // 폴리곤·패스를 직접 수동으로 편집합니다.
+  ManualEdit = "manual-edit",
+  // 행정동 경계를 선택해 편집합니다.
+  AdministrativeDong = "administrative-dong",
+  // 법정동 경계를 선택해 편집합니다.
+  LegalDong = "legal-dong",
+  // 반경 거리로 도형을 잘라냅니다.
+  RadiusCut = "radius-cut",
+  // 선택한 도형을 병합하거나 제외합니다.
+  MergeCut = "merge-cut",
+  // 꼭짓점·선을 스냅하고 정렬을 보정합니다.
+  SnapAlign = "snap-align",
+  // 오류·면적 등 검증 상태를 확인합니다.
+  Inspect = "inspect",
 }
 
 // 원본 대비 도형이 어떤 변경 상태인지 나타냅니다.

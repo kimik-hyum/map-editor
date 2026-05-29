@@ -1,6 +1,6 @@
 :root {
-  background-color: #f7faf9;
-  color: #172033;
+  background-color: var(--color-surface);
+  color: var(--color-ink);
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   font-synthesis: none;
   font-weight: 400;

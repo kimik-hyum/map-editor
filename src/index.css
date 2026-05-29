@@ -1,1 +1,16 @@
 @import "tailwindcss";
+
+/* 앱 전역 UI 크롬(네비게이션·문서·데모·에디터 패널)이 공유하는 색상 토큰입니다.
+   raw hex 대신 text-ink / bg-surface / border-line / text-brand 등으로 사용합니다.
+   지도 도형 색상은 OpenLayers에 JS로 주입되므로 theme/editorTheme.ts에서 별도 관리합니다. */
+@theme {
+  --color-ink: #172033;
+  --color-ink-soft: #506174;
+  --color-ink-muted: #5f6f82;
+  --color-line: #d6e0e7;
+  --color-surface: #f8fafc;
+  --color-surface-warm: #fbf9f5;
+  --color-brand: #0f766e;
+  --color-brand-soft: #e5f3ef;
+  --color-brand-line: #9bcfc3;
+}

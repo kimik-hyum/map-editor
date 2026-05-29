@@ -26,10 +26,7 @@ export function LayerList({ viewModel }: LayerListProps) {
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
         <div>
-          <p className="m-0 text-xs font-black uppercase text-teal-700">Visual Stack</p>
-          <p className="m-0 text-[11px] font-bold text-slate-500">
-            위에 있을수록 지도에서도 위에 렌더링됩니다.
-          </p>
+          <p className="m-0 text-xs font-black uppercase text-teal-700">Stack</p>
         </div>
         <div className="shrink-0 text-right text-[11px] font-black text-slate-500">
           <span className="block">{viewModel.layerCount} layers</span>
