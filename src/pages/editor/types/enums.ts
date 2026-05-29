@@ -30,6 +30,16 @@ export enum GeometryKind {
   MultiPath = "multiPath",
 }
 
+// 도형 종류 enum을 화면에 표시할 때 사용하는 공통 한글 라벨입니다.
+export const geometryKindLabels = {
+  [GeometryKind.Point]: "점",
+  [GeometryKind.MultiPoint]: "여러 점",
+  [GeometryKind.Polygon]: "폴리곤",
+  [GeometryKind.MultiPolygon]: "멀티 폴리곤",
+  [GeometryKind.Path]: "패스",
+  [GeometryKind.MultiPath]: "멀티 패스",
+} satisfies Record<GeometryKind, string>;
+
 // 레이어가 에디터 안에서 맡는 역할입니다. 하나의 레이어가 여러 역할을 가질 수 있습니다.
 export enum LayerRole {
   // 사용자가 실제로 수정하는 대상 레이어입니다.
@@ -45,6 +55,16 @@ export enum LayerRole {
   // 꼭짓점이나 선을 붙일 수 있는 스냅 기준 레이어입니다.
   SnapTarget = "snapTarget",
 }
+
+// 레이어 역할 enum을 화면에 표시할 때 사용하는 공통 한글 라벨입니다.
+export const layerRoleLabels = {
+  [LayerRole.Editable]: "편집",
+  [LayerRole.Readonly]: "읽기",
+  [LayerRole.Reference]: "참고",
+  [LayerRole.Background]: "배경",
+  [LayerRole.Mask]: "마스크",
+  [LayerRole.SnapTarget]: "스냅",
+} satisfies Record<LayerRole, string>;
 
 // 레이어나 도형이 화면에 표시되는 방식입니다.
 export enum VisibilityState {

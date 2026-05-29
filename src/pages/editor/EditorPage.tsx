@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import "ol/ol.css";
 import { createOpenLayersMap } from "./adapters/openlayers";
-import { FloatingPanel } from "./components/FloatingPanel";
+import { LayerPanel } from "./features/layers";
 import { useEditorStore } from "./state/editorStore";
 import { useTempEditorDocumentMessage } from "./temp/useTempEditorDocumentMessage";
 
@@ -33,7 +33,7 @@ export function EditorPage() {
         className="h-screen w-full"
         aria-label="OSM map editor"
       />
-      <FloatingPanel title="레이어" />
+      <LayerPanel />
     </main>
   );
 }
