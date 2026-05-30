@@ -19,7 +19,6 @@ export function useEditorHost() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const childRef = useRef<Window | null>(null);
   const sessionIdRef = useRef<string | null>(null);
-  const initSentRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
 
   const clearCloseTimer = useCallback(() => {
@@ -38,14 +37,10 @@ export function useEditorHost() {
       const messageType = getMessageType(event.data);
 
       if (messageType === EditorMessageType.Ready) {
-        // 한 창당 INIT은 1회만 보낸다. StrictMode 개발 모드의 중복 READY 등에도 견고하게 동작한다.
-        if (initSentRef.current) {
-          return;
-        }
-
+        // READY -> INIT은 idempotent하게 응답한다. 같은 창의 재마운트/새로고침으로 다시 온
+        // READY에도 INIT을 보내야 에디터가 복구된다. 세션 ID는 창 단위로 유지한다.
         const sessionId = sessionIdRef.current ?? crypto.randomUUID();
         sessionIdRef.current = sessionId;
-        initSentRef.current = true;
         childRef.current?.postMessage(
           createInitMessage(sessionId, sampleEditorScene),
           event.origin,
@@ -79,7 +74,6 @@ export function useEditorHost() {
 
     childRef.current = child;
     sessionIdRef.current = null;
-    initSentRef.current = false;
     setErrorMessage(null);
     setStatus("opening");
 
