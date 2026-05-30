@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import {
-  EditorToolMode,
+  EditorMode,
   FeatureLifecycle,
   type EditorDocument,
   type EditorLayerViewState,
@@ -8,13 +8,16 @@ import {
   type GeoJsonGeometry,
 } from "../types/editorTypes";
 
+// 편집 모드의 기본값입니다. 모드 패널의 초기 선택과 store 초기화가 같은 값을 공유합니다.
+const DEFAULT_EDITOR_MODE = EditorMode.AdministrativeDong;
+
 type EditorStoreState = {
   sessionId: string | null;
   document: EditorDocument | null;
   activeLayerId: string | null;
   selectedFeatureIds: string[];
   hoveredFeatureId: string | null;
-  toolMode: EditorToolMode;
+  activeMode: EditorMode;
   dirty: boolean;
 };
 
@@ -25,7 +28,7 @@ type EditorStoreActions = {
   setActiveLayerId: (layerId: string | null) => void;
   setHoveredFeatureId: (featureId: string | null) => void;
   setSelectedFeatureIds: (featureIds: string[]) => void;
-  setToolMode: (toolMode: EditorToolMode) => void;
+  setActiveMode: (mode: EditorMode) => void;
   updateLayerView: (layerId: string, view: Partial<EditorLayerViewState>) => void;
   updateFeatureGeometry: (featureId: string, geometry: GeoJsonGeometry) => void;
 };
@@ -96,7 +99,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
   activeLayerId: null,
   selectedFeatureIds: [],
   hoveredFeatureId: null,
-  toolMode: EditorToolMode.Select,
+  activeMode: DEFAULT_EDITOR_MODE,
   dirty: false,
   initializeFromMessage: (message) =>
     set({
@@ -105,7 +108,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
       activeLayerId: getInitialActiveLayerId(message.document),
       selectedFeatureIds: [],
       hoveredFeatureId: null,
-      toolMode: EditorToolMode.Select,
+      activeMode: DEFAULT_EDITOR_MODE,
       dirty: false,
     }),
   setDocument: (document) =>
@@ -123,13 +126,13 @@ export const useEditorStore = create<EditorStore>((set) => ({
       activeLayerId: null,
       selectedFeatureIds: [],
       hoveredFeatureId: null,
-      toolMode: EditorToolMode.Select,
+      activeMode: DEFAULT_EDITOR_MODE,
       dirty: false,
     }),
   setActiveLayerId: (activeLayerId) => set({ activeLayerId }),
   setHoveredFeatureId: (hoveredFeatureId) => set({ hoveredFeatureId }),
   setSelectedFeatureIds: (selectedFeatureIds) => set({ selectedFeatureIds }),
-  setToolMode: (toolMode) => set({ toolMode }),
+  setActiveMode: (activeMode) => set({ activeMode }),
   updateLayerView: (layerId, view) =>
     set((state) => ({
       document: state.document

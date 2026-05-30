@@ -17,7 +17,7 @@ function EditorRoute() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center font-extrabold text-[#506174]">
+        <div className="flex min-h-screen items-center justify-center font-extrabold text-ink-soft">
           불러오는 중...
         </div>
       }

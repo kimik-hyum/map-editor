@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { Rnd, type Props as RndProps } from "react-rnd";
+import { cn } from "../../../shared/utils/cn";
+import { PanelShell } from "./PanelShell";
 
 type FloatingPanelSize = {
   width: number;
@@ -23,10 +25,6 @@ type FloatingPanelProps = {
 
 const panelDragHandleClassName = "floating-panel-drag-handle";
 
-function joinClassNames(...classNames: Array<string | undefined>) {
-  return classNames.filter(Boolean).join(" ");
-}
-
 export function FloatingPanel({
   title,
   children,
@@ -44,28 +42,26 @@ export function FloatingPanel({
   return (
     <Rnd
       bounds="parent"
-      className={joinClassNames("z-[5]", className)}
+      className={cn("z-[5]", className)}
       default={defaultValue}
       dragHandleClassName={panelDragHandleClassName}
       minHeight={minHeight}
       minWidth={minWidth}
     >
-      <section
-        className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg border border-slate-400/70 bg-white/95 text-[#172033] shadow-[0_18px_50px_rgba(15,23,42,0.16)]"
-        aria-label={title}
+      <PanelShell
+        ariaLabel={title}
+        className="rounded-lg border border-slate-400/70 bg-white/95 text-ink shadow-[0_18px_50px_rgba(15,23,42,0.16)]"
+        headerClassName={cn(
+          panelDragHandleClassName,
+          "flex min-h-11 cursor-move select-none items-center bg-surface px-3.5",
+        )}
+        bodyClassName="p-3"
+        header={
+          <h2 className="m-0 text-sm font-black leading-[1.2] text-ink">{title}</h2>
+        }
       >
-        <header
-          className={joinClassNames(
-            panelDragHandleClassName,
-            "flex min-h-11 cursor-move select-none items-center border-b border-[#d6e0e7] bg-[#f8fafc] px-3.5",
-          )}
-        >
-          <h2 className="m-0 text-sm font-black leading-[1.2] text-[#172033]">
-            {title}
-          </h2>
-        </header>
-        <div className="min-h-0 flex-1 overflow-auto p-3">{children}</div>
-      </section>
+        {children}
+      </PanelShell>
     </Rnd>
   );
 }
