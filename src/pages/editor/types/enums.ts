@@ -170,4 +170,6 @@ export enum ValidationIssueCode {
   InvalidGeometry = "invalidGeometry",
   // 현재 에디터가 지원하지 않는 도형 타입입니다.
   UnsupportedGeometry = "unsupportedGeometry",
+  // postMessage 페이로드가 스키마 구조 검증을 통과하지 못했습니다.
+  InvalidPayload = "invalidPayload",
 }

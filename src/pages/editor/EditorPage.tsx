@@ -3,6 +3,7 @@ import type OpenLayersMap from "ol/Map";
 import "ol/ol.css";
 import { createOpenLayersMap, syncOpenLayersMapScene } from "./adapters/openlayers";
 import { LayerPanel } from "./features/layers";
+import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
 import { useTempEditorSceneMessage } from "./temp/useTempEditorSceneMessage";
 
@@ -11,6 +12,8 @@ export function EditorPage() {
   const mapElementRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<OpenLayersMap | null>(null);
   const scene = useEditorStore((state) => state.scene);
+  // 부모 창이 있으면 postMessage로 scene을 받고, 없으면(단독 실행) 샘플 fixture를 주입합니다.
+  useEditorMessaging();
   useTempEditorSceneMessage();
 
   useEffect(() => {
