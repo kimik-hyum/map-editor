@@ -1,15 +1,21 @@
 import type {
   LayerFeatureListItemViewModel,
+  LayerListItemViewModel,
   LayerPanelViewModel,
 } from "../model/layerPanelModel";
 import { LayerListItem } from "./LayerListItem";
 
 type LayerListProps = {
   viewModel: LayerPanelViewModel;
+  onToggleLayerVisibility: (layer: LayerListItemViewModel) => void;
   onToggleFeatureVisibility: (feature: LayerFeatureListItemViewModel) => void;
 };
 
-export function LayerList({ viewModel, onToggleFeatureVisibility }: LayerListProps) {
+export function LayerList({
+  viewModel,
+  onToggleLayerVisibility,
+  onToggleFeatureVisibility,
+}: LayerListProps) {
   if (!viewModel.isReady) {
     return (
       <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm font-bold text-slate-500">
@@ -43,6 +49,7 @@ export function LayerList({ viewModel, onToggleFeatureVisibility }: LayerListPro
           <li key={layer.id}>
             <LayerListItem
               layer={layer}
+              onToggleLayerVisibility={onToggleLayerVisibility}
               onToggleFeatureVisibility={onToggleFeatureVisibility}
             />
           </li>

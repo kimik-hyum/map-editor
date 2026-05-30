@@ -22,8 +22,12 @@ const selectionLabels: Partial<Record<SelectionState, string>> = {
 export type LayerFeatureListItemViewModel = {
   id: string;
   name: string;
+  // 도형 자체의 표시 상태입니다(토글 다음 상태 계산에 사용).
   visibility: VisibilityState;
+  // 부모 레이어까지 반영한 유효 표시 상태입니다(레이어가 숨김이면 false).
   isVisible: boolean;
+  // 부모 레이어가 숨김이면 도형 토글을 막습니다(레이어를 먼저 표시해야 함).
+  isToggleDisabled: boolean;
   geometryKind: GeometryKind;
   geometryKindLabel: string;
   selectionLabel: string | null;
@@ -58,6 +62,13 @@ export function getNextFeatureVisibility(visibility: VisibilityState) {
     : VisibilityState.Hidden;
 }
 
+// 레이어 표시 토글의 다음 상태입니다. Hidden이면 Visible로, 그 외(Visible/Dimmed)는 Hidden으로 전환합니다.
+export function getNextLayerVisibility(visibility: VisibilityState) {
+  return visibility === VisibilityState.Hidden
+    ? VisibilityState.Visible
+    : VisibilityState.Hidden;
+}
+
 function getFeatureVisibility(feature: EditorFeature) {
   return feature.view?.visibility ?? VisibilityState.Visible;
 }
@@ -81,12 +92,16 @@ function createLayerFeatureListItemViewModel(
   layer: EditorLayer,
 ): LayerFeatureListItemViewModel {
   const visibility = getFeatureVisibility(feature);
+  // 부모 레이어가 숨김이면 그 아래 도형은 모두 유효 숨김으로 본다(도형 자체 상태는 보존).
+  const layerVisible = layer.view.visibility !== VisibilityState.Hidden;
+  const featureVisible = visibility !== VisibilityState.Hidden;
 
   return {
     id: feature.id,
     name: getFeatureName(feature),
     visibility,
-    isVisible: visibility !== VisibilityState.Hidden,
+    isVisible: layerVisible && featureVisible,
+    isToggleDisabled: !layerVisible,
     geometryKind: feature.geometryKind,
     geometryKindLabel: geometryKindLabels[feature.geometryKind],
     selectionLabel: selectionLabels[feature.state.selection] ?? null,

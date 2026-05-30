@@ -2,11 +2,14 @@ import { useCallback } from "react";
 import { useEditorStore } from "../../../state/editorStore";
 import {
   getNextFeatureVisibility,
+  getNextLayerVisibility,
   type LayerFeatureListItemViewModel,
+  type LayerListItemViewModel,
 } from "../model/layerPanelModel";
 
 export function useLayerPanelActions() {
   const updateFeatureView = useEditorStore((state) => state.updateFeatureView);
+  const updateLayerView = useEditorStore((state) => state.updateLayerView);
 
   const toggleFeatureVisibility = useCallback(
     (feature: LayerFeatureListItemViewModel) => {
@@ -17,7 +20,17 @@ export function useLayerPanelActions() {
     [updateFeatureView],
   );
 
+  const toggleLayerVisibility = useCallback(
+    (layer: LayerListItemViewModel) => {
+      updateLayerView(layer.id, {
+        visibility: getNextLayerVisibility(layer.visibility),
+      });
+    },
+    [updateLayerView],
+  );
+
   return {
     toggleFeatureVisibility,
+    toggleLayerVisibility,
   };
 }
