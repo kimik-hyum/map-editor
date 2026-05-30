@@ -118,19 +118,42 @@ describe("createLayerPanelViewModel", () => {
     });
     const layer = createLayer({
       id: "reference-layer",
-      roles: [LayerRole.Readonly, LayerRole.Reference],
+      roles: [LayerRole.Reference],
       features: [feature],
     });
 
     const viewModel = createLayerPanelViewModel(createScene([layer]), null);
 
-    expect(viewModel.layers[0].roleLabels).toEqual(["읽기", "참고"]);
+    expect(viewModel.layers[0].roleLabels).toEqual(["참고"]);
     expect(viewModel.layers[0].features[0]).toMatchObject({
       name: "주행 경로",
       geometryKindLabel: "패스",
       isVisible: true,
       visibility: VisibilityState.Visible,
     });
+  });
+
+  it("편집 불가 레이어는 editability 배지 라벨을 노출하고, 편집 가능 레이어는 노출하지 않는다", () => {
+    const readonlyLayer = createLayer({
+      id: "readonly-layer",
+      behavior: {
+        lock: LockState.Unlocked,
+        editability: EditabilityState.Readonly,
+        selectable: true,
+        deletable: true,
+        draggable: true,
+      },
+    });
+    const editableLayer = createLayer({ id: "editable-layer" });
+
+    const viewModel = createLayerPanelViewModel(
+      createScene([readonlyLayer, editableLayer]),
+      null,
+    );
+    const byId = (id: string) => viewModel.layers.find((layer) => layer.id === id);
+
+    expect(byId("readonly-layer")?.editabilityLabel).toBe("읽기");
+    expect(byId("editable-layer")?.editabilityLabel).toBeNull();
   });
 
   it("도형별 visibility를 표시한다", () => {

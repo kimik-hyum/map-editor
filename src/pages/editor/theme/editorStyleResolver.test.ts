@@ -96,7 +96,7 @@ describe("resolvePolygonThemeToken", () => {
         issues: [],
       },
     });
-    const layer = createLayer({ roles: [LayerRole.Readonly] });
+    const layer = createLayer({ roles: [LayerRole.Reference] });
 
     expect(resolvePolygonThemeToken(feature, layer)).toBe("active");
   });
@@ -117,14 +117,14 @@ describe("resolvePolygonStyle", () => {
       },
     });
     const layer = createLayer({
-      roles: [LayerRole.Readonly],
+      roles: [LayerRole.Reference],
       style: {
         fillColor: "rgba(1, 2, 3, 0.4)",
       },
     });
 
     expect(resolvePolygonStyle(feature, layer)).toMatchObject({
-      ...editorDefaultTheme.polygon.readonly,
+      ...editorDefaultTheme.polygon.reference,
       fillColor: "rgba(1, 2, 3, 0.4)",
       strokeColor: "#111111",
     });

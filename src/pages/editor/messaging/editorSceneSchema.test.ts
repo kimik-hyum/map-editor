@@ -133,4 +133,36 @@ describe("parseInitMessage", () => {
 
     expect(result.ok).toBe(false);
   });
+
+  it("제거된 readonly 역할이 들어와도 통과시키고 내부에서 버린다(v1 호환)", () => {
+    const result = parseInitMessage({
+      type: EditorMessageType.Init,
+      sessionId: "session-1",
+      scene: {
+        version: 1,
+        layers: [
+          {
+            id: "l1",
+            name: "레이어",
+            roles: ["readonly", "reference"], // 과거 v1 payload
+            geometryKinds: ["polygon"],
+            view: { visibility: "visible", opacity: 1, zIndex: 1, labelVisible: true },
+            behavior: {
+              lock: "unlocked",
+              editability: "readonly", // 역량은 editability로 유지
+              selectable: true,
+              deletable: true,
+              draggable: true,
+            },
+            features: [],
+          },
+        ],
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.message.scene.layers[0].roles).toEqual(["reference"]);
+    }
+  });
 });
