@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { sampleEditorScene } from "../../editor/fixtures/sampleEditorScene";
+import { sampleEditorScene } from "../fixtures/sampleEditorScene";
 import {
   createInitMessage,
   getMessageType,
@@ -19,6 +19,7 @@ export function useEditorHost() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const childRef = useRef<Window | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const initSentRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
 
   const clearCloseTimer = useCallback(() => {
@@ -37,8 +38,14 @@ export function useEditorHost() {
       const messageType = getMessageType(event.data);
 
       if (messageType === EditorMessageType.Ready) {
+        // 한 창당 INIT은 1회만 보낸다. StrictMode 개발 모드의 중복 READY 등에도 견고하게 동작한다.
+        if (initSentRef.current) {
+          return;
+        }
+
         const sessionId = sessionIdRef.current ?? crypto.randomUUID();
         sessionIdRef.current = sessionId;
+        initSentRef.current = true;
         childRef.current?.postMessage(
           createInitMessage(sessionId, sampleEditorScene),
           event.origin,
@@ -72,6 +79,7 @@ export function useEditorHost() {
 
     childRef.current = child;
     sessionIdRef.current = null;
+    initSentRef.current = false;
     setErrorMessage(null);
     setStatus("opening");
 

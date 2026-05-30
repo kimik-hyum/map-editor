@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sampleEditorScene } from "../fixtures/sampleEditorScene";
+import { sampleEditorScene } from "../../demo/fixtures/sampleEditorScene";
 import { EditorMessageType } from "../types/editorTypes";
 import { parseInitMessage } from "./editorSceneSchema";
 
