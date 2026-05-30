@@ -1,10 +1,15 @@
 import type { LayerFeatureListItemViewModel } from "../model/layerPanelModel";
+import { LayerVisibilityIcon } from "./LayerVisibilityIcon";
 
 type LayerFeatureListProps = {
   features: LayerFeatureListItemViewModel[];
+  onToggleFeatureVisibility: (feature: LayerFeatureListItemViewModel) => void;
 };
 
-export function LayerFeatureList({ features }: LayerFeatureListProps) {
+export function LayerFeatureList({
+  features,
+  onToggleFeatureVisibility,
+}: LayerFeatureListProps) {
   if (features.length === 0) {
     return <p className="m-0 text-xs font-semibold text-slate-400">도형 없음</p>;
   }
@@ -16,6 +21,11 @@ export function LayerFeatureList({ features }: LayerFeatureListProps) {
           className="flex min-w-0 items-start gap-2 rounded-md bg-slate-50 px-2 py-1.5"
           key={feature.id}
         >
+          <LayerVisibilityIcon
+            isDimmed={false}
+            isVisible={feature.isVisible}
+            onToggle={() => onToggleFeatureVisibility(feature)}
+          />
           <span
             className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
             style={{ backgroundColor: feature.accentColor }}

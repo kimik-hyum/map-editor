@@ -1,11 +1,13 @@
 import { FloatingPanel } from "../../../components/FloatingPanel";
 import { SegmentedTabs } from "../../../components/SegmentedTabs";
+import { useLayerPanelActions } from "../hooks/useLayerPanelActions";
 import { useLayerPanelViewModel } from "../hooks/useLayerPanelViewModel";
 import { LayerFeatureSummary } from "./LayerFeatureSummary";
 import { LayerList } from "./LayerList";
 
 export function LayerPanel() {
   const viewModel = useLayerPanelViewModel();
+  const { toggleFeatureVisibility } = useLayerPanelActions();
 
   return (
     <FloatingPanel
@@ -28,13 +30,19 @@ export function LayerPanel() {
           className="mt-3 min-h-0 flex-1 overflow-auto"
           value="layers"
         >
-          <LayerList viewModel={viewModel} />
+          <LayerList
+            viewModel={viewModel}
+            onToggleFeatureVisibility={toggleFeatureVisibility}
+          />
         </SegmentedTabs.Panel>
         <SegmentedTabs.Panel
           className="mt-3 min-h-0 flex-1 overflow-auto"
           value="features"
         >
-          <LayerFeatureSummary viewModel={viewModel} />
+          <LayerFeatureSummary
+            viewModel={viewModel}
+            onToggleFeatureVisibility={toggleFeatureVisibility}
+          />
         </SegmentedTabs.Panel>
       </SegmentedTabs.Root>
     </FloatingPanel>

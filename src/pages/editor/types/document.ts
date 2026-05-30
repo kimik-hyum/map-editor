@@ -36,12 +36,17 @@ export type EditorFeatureBehavior = {
   vertexEditable?: boolean;
 };
 
+export type EditorFeatureViewState = {
+  visibility: VisibilityState;
+};
+
 export type EditorFeature = {
   id: string;
   name?: string;
   geometryKind: GeometryKind;
   feature: GeoJsonFeature;
   state: EditorFeatureState;
+  view?: EditorFeatureViewState;
   behavior?: EditorFeatureBehavior;
   style?: EditorStyle;
 };

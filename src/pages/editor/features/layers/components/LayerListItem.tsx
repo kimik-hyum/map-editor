@@ -1,13 +1,19 @@
 import { Collapsible } from "@base-ui/react/collapsible";
-import type { LayerListItemViewModel } from "../model/layerPanelModel";
+import type {
+  LayerFeatureListItemViewModel,
+  LayerListItemViewModel,
+} from "../model/layerPanelModel";
 import { LayerFeatureList } from "./LayerFeatureList";
-import { LayerVisibilityIcon } from "./LayerVisibilityIcon";
 
 type LayerListItemProps = {
   layer: LayerListItemViewModel;
+  onToggleFeatureVisibility: (feature: LayerFeatureListItemViewModel) => void;
 };
 
-export function LayerListItem({ layer }: LayerListItemProps) {
+export function LayerListItem({
+  layer,
+  onToggleFeatureVisibility,
+}: LayerListItemProps) {
   return (
     <Collapsible.Root
       className={
@@ -18,8 +24,6 @@ export function LayerListItem({ layer }: LayerListItemProps) {
       defaultOpen
     >
       <div className="flex min-w-0 gap-2.5">
-        <LayerVisibilityIcon isDimmed={layer.isDimmed} isVisible={layer.isVisible} />
-
         <div className="min-w-0 flex-1">
           <Collapsible.Trigger className="group flex w-full min-w-0 items-start justify-between gap-2 text-left">
             <span className="min-w-0">
@@ -62,7 +66,10 @@ export function LayerListItem({ layer }: LayerListItemProps) {
           </div>
 
           <Collapsible.Panel className="mt-2" keepMounted>
-            <LayerFeatureList features={layer.features} />
+            <LayerFeatureList
+              features={layer.features}
+              onToggleFeatureVisibility={onToggleFeatureVisibility}
+            />
           </Collapsible.Panel>
         </div>
       </div>
