@@ -8,7 +8,7 @@ type CreateOpenLayersMapOptions = {
   scene?: EditorScene | null;
 };
 
-// 에디터 문서와 DOM target을 받아 OpenLayers Map 인스턴스를 생성합니다.
+// 에디터 씬과 DOM target을 받아 OpenLayers Map 인스턴스를 생성합니다.
 export function createOpenLayersMap({ target, scene }: CreateOpenLayersMapOptions) {
   return new OpenLayersMap({
     layers: [createOpenStreetMapLayer()],

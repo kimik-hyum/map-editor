@@ -101,7 +101,7 @@ function createLayer(
 export const sampleEditorScene: EditorScene = {
   version: 1,
   id: "sample-seoul-editor-scene",
-  name: "서울 샘플 편집 문서",
+  name: "서울 샘플 편집 씬",
   viewport: {
     center: [126.98, 37.57],
     zoom: 12,

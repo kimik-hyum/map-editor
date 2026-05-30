@@ -6,7 +6,7 @@ import { LayerPanel } from "./features/layers";
 import { useEditorStore } from "./state/editorStore";
 import { useTempEditorSceneMessage } from "./temp/useTempEditorSceneMessage";
 
-// 에디터 페이지의 지도 DOM을 준비하고 Zustand의 EditorScene를 OpenLayers 지도에 렌더링합니다.
+// 에디터 페이지의 지도 DOM을 준비하고 Zustand의 EditorScene을 OpenLayers 지도에 렌더링합니다.
 export function EditorPage() {
   const mapElementRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<OpenLayersMap | null>(null);
