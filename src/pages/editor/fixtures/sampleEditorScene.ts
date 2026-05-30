@@ -8,7 +8,7 @@ import {
   ValidationState,
   VisibilityState,
   type EditorCoordinate,
-  type EditorDocument,
+  type EditorScene,
   type EditorFeature,
   type EditorLayer,
 } from "../types/editorTypes";
@@ -98,9 +98,9 @@ function createLayer(
   };
 }
 
-export const sampleEditorDocument: EditorDocument = {
+export const sampleEditorScene: EditorScene = {
   version: 1,
-  id: "sample-seoul-editor-document",
+  id: "sample-seoul-editor-scene",
   name: "서울 샘플 편집 문서",
   viewport: {
     center: [126.98, 37.57],

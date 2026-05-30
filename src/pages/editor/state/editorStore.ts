@@ -3,7 +3,7 @@ import {
   EditorMode,
   FeatureLifecycle,
   VisibilityState,
-  type EditorDocument,
+  type EditorScene,
   type EditorFeatureViewState,
   type EditorLayerViewState,
   type EditorInitMessage,
@@ -15,7 +15,7 @@ const DEFAULT_EDITOR_MODE = EditorMode.AdministrativeDong;
 
 type EditorStoreState = {
   sessionId: string | null;
-  document: EditorDocument | null;
+  scene: EditorScene | null;
   activeLayerId: string | null;
   selectedFeatureIds: string[];
   hoveredFeatureId: string | null;
@@ -25,8 +25,8 @@ type EditorStoreState = {
 
 type EditorStoreActions = {
   initializeFromMessage: (message: EditorInitMessage) => void;
-  setDocument: (document: EditorDocument) => void;
-  resetDocument: () => void;
+  setScene: (scene: EditorScene) => void;
+  resetScene: () => void;
   setActiveLayerId: (layerId: string | null) => void;
   setHoveredFeatureId: (featureId: string | null) => void;
   setSelectedFeatureIds: (featureIds: string[]) => void;
@@ -38,18 +38,18 @@ type EditorStoreActions = {
 
 export type EditorStore = EditorStoreState & EditorStoreActions;
 
-function getInitialActiveLayerId(document: EditorDocument | null) {
-  return document?.layers[0]?.id ?? null;
+function getInitialActiveLayerId(scene: EditorScene | null) {
+  return scene?.layers[0]?.id ?? null;
 }
 
-function updateLayerViewInDocument(
-  document: EditorDocument,
+function updateLayerViewInScene(
+  scene: EditorScene,
   layerId: string,
   view: Partial<EditorLayerViewState>,
-): EditorDocument {
+): EditorScene {
   return {
-    ...document,
-    layers: document.layers.map((layer) =>
+    ...scene,
+    layers: scene.layers.map((layer) =>
       layer.id === layerId
         ? {
             ...layer,
@@ -63,14 +63,14 @@ function updateLayerViewInDocument(
   };
 }
 
-function updateFeatureGeometryInDocument(
-  document: EditorDocument,
+function updateFeatureGeometryInScene(
+  scene: EditorScene,
   featureId: string,
   geometry: GeoJsonGeometry,
-): EditorDocument {
+): EditorScene {
   return {
-    ...document,
-    layers: document.layers.map((layer) => ({
+    ...scene,
+    layers: scene.layers.map((layer) => ({
       ...layer,
       features: layer.features.map((feature) => {
         if (feature.id !== featureId) {
@@ -96,14 +96,14 @@ function updateFeatureGeometryInDocument(
   };
 }
 
-function updateFeatureViewInDocument(
-  document: EditorDocument,
+function updateFeatureViewInScene(
+  scene: EditorScene,
   featureId: string,
   view: Partial<EditorFeatureViewState>,
-): EditorDocument {
+): EditorScene {
   return {
-    ...document,
-    layers: document.layers.map((layer) => ({
+    ...scene,
+    layers: scene.layers.map((layer) => ({
       ...layer,
       features: layer.features.map((feature) =>
         feature.id === featureId
@@ -123,7 +123,7 @@ function updateFeatureViewInDocument(
 
 export const useEditorStore = create<EditorStore>((set) => ({
   sessionId: null,
-  document: null,
+  scene: null,
   activeLayerId: null,
   selectedFeatureIds: [],
   hoveredFeatureId: null,
@@ -132,25 +132,25 @@ export const useEditorStore = create<EditorStore>((set) => ({
   initializeFromMessage: (message) =>
     set({
       sessionId: message.sessionId,
-      document: message.document,
-      activeLayerId: getInitialActiveLayerId(message.document),
+      scene: message.scene,
+      activeLayerId: getInitialActiveLayerId(message.scene),
       selectedFeatureIds: [],
       hoveredFeatureId: null,
       activeMode: DEFAULT_EDITOR_MODE,
       dirty: false,
     }),
-  setDocument: (document) =>
+  setScene: (scene) =>
     set({
-      document,
-      activeLayerId: getInitialActiveLayerId(document),
+      scene,
+      activeLayerId: getInitialActiveLayerId(scene),
       selectedFeatureIds: [],
       hoveredFeatureId: null,
       dirty: false,
     }),
-  resetDocument: () =>
+  resetScene: () =>
     set({
       sessionId: null,
-      document: null,
+      scene: null,
       activeLayerId: null,
       selectedFeatureIds: [],
       hoveredFeatureId: null,
@@ -163,23 +163,23 @@ export const useEditorStore = create<EditorStore>((set) => ({
   setActiveMode: (activeMode) => set({ activeMode }),
   updateLayerView: (layerId, view) =>
     set((state) => ({
-      document: state.document
-        ? updateLayerViewInDocument(state.document, layerId, view)
-        : state.document,
-      dirty: Boolean(state.document),
+      scene: state.scene
+        ? updateLayerViewInScene(state.scene, layerId, view)
+        : state.scene,
+      dirty: Boolean(state.scene),
     })),
   updateFeatureView: (featureId, view) =>
     set((state) => ({
-      document: state.document
-        ? updateFeatureViewInDocument(state.document, featureId, view)
-        : state.document,
-      dirty: Boolean(state.document),
+      scene: state.scene
+        ? updateFeatureViewInScene(state.scene, featureId, view)
+        : state.scene,
+      dirty: Boolean(state.scene),
     })),
   updateFeatureGeometry: (featureId, geometry) =>
     set((state) => ({
-      document: state.document
-        ? updateFeatureGeometryInDocument(state.document, featureId, geometry)
-        : state.document,
-      dirty: Boolean(state.document),
+      scene: state.scene
+        ? updateFeatureGeometryInScene(state.scene, featureId, geometry)
+        : state.scene,
+      dirty: Boolean(state.scene),
     })),
 }));

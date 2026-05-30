@@ -1,11 +1,11 @@
 import type { EditorMessageType } from "./enums";
-import type { EditorDocument } from "./document";
+import type { EditorScene } from "./scene";
 import type { EditorValidationIssue } from "./validation";
 
 export type EditorInitMessage = {
   type: EditorMessageType.Init;
   sessionId: string;
-  document: EditorDocument;
+  scene: EditorScene;
 };
 
 export type EditorReadyMessage = {
@@ -16,7 +16,7 @@ export type EditorReadyMessage = {
 export type EditorChangeMessage = {
   type: EditorMessageType.Change;
   sessionId: string;
-  document: EditorDocument;
+  scene: EditorScene;
   changedFeatureIds: string[];
   changedLayerIds: string[];
 };
@@ -24,7 +24,7 @@ export type EditorChangeMessage = {
 export type EditorSubmitMessage = {
   type: EditorMessageType.Submit;
   sessionId: string;
-  document: EditorDocument;
+  scene: EditorScene;
 };
 
 export type EditorCancelMessage = {

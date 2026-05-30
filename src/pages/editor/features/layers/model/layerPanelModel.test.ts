@@ -10,7 +10,7 @@ import {
   SelectionState,
   ValidationState,
   VisibilityState,
-  type EditorDocument,
+  type EditorScene,
   type EditorFeature,
   type EditorLayer,
 } from "../../../types/editorTypes";
@@ -65,7 +65,7 @@ function createLayer(overrides: Partial<EditorLayer> = {}): EditorLayer {
   };
 }
 
-function createDocument(layers: EditorLayer[]): EditorDocument {
+function createScene(layers: EditorLayer[]): EditorScene {
   return {
     version: 1,
     layers,
@@ -74,7 +74,7 @@ function createDocument(layers: EditorLayer[]): EditorDocument {
 
 describe("createLayerPanelViewModel", () => {
   it("레이어를 zIndex 높은 순서로 시각화한다", () => {
-    const document = createDocument([
+    const scene = createScene([
       createLayer({
         id: "bottom",
         name: "아래",
@@ -97,7 +97,7 @@ describe("createLayerPanelViewModel", () => {
       }),
     ]);
 
-    const viewModel = createLayerPanelViewModel(document, "top");
+    const viewModel = createLayerPanelViewModel(scene, "top");
 
     expect(viewModel.layers.map((layer) => layer.id)).toEqual(["top", "bottom"]);
     expect(viewModel.layers[0]).toMatchObject({
@@ -118,7 +118,7 @@ describe("createLayerPanelViewModel", () => {
       features: [feature],
     });
 
-    const viewModel = createLayerPanelViewModel(createDocument([layer]), null);
+    const viewModel = createLayerPanelViewModel(createScene([layer]), null);
 
     expect(viewModel.layers[0].roleLabels).toEqual(["읽기", "참고"]);
     expect(viewModel.layers[0].features[0]).toMatchObject({
@@ -137,7 +137,7 @@ describe("createLayerPanelViewModel", () => {
     });
     const layer = createLayer({ features: [feature] });
 
-    const viewModel = createLayerPanelViewModel(createDocument([layer]), null);
+    const viewModel = createLayerPanelViewModel(createScene([layer]), null);
 
     expect(viewModel.layers[0].features[0]).toMatchObject({
       isVisible: false,
@@ -162,7 +162,7 @@ describe("createLayerPanelViewModel", () => {
     });
     const layer = createLayer({ features: [feature] });
 
-    const viewModel = createLayerPanelViewModel(createDocument([layer]), null);
+    const viewModel = createLayerPanelViewModel(createScene([layer]), null);
 
     expect(viewModel.layers[0].features[0].name).toBe("속성 이름");
   });
@@ -181,7 +181,7 @@ describe("createLayerPanelViewModel", () => {
       features: [warningFeature],
     });
 
-    const viewModel = createLayerPanelViewModel(createDocument([layer]), null);
+    const viewModel = createLayerPanelViewModel(createScene([layer]), null);
 
     expect(viewModel.layers[0].features[0].accentColor).toBe(
       editorDefaultTheme.polygon.warning.strokeColor,
@@ -198,7 +198,7 @@ describe("createLayerPanelViewModel", () => {
       },
     });
 
-    const viewModel = createLayerPanelViewModel(createDocument([layer]), null);
+    const viewModel = createLayerPanelViewModel(createScene([layer]), null);
 
     expect(viewModel.layers[0]).toMatchObject({
       isDimmed: true,

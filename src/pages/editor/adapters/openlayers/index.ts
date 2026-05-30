@@ -5,4 +5,4 @@ export * from "./createOpenLayersMap";
 export * from "./createOpenLayersMapView";
 export * from "./createOpenLayersStyle";
 export * from "./createOpenStreetMapLayer";
-export * from "./syncOpenLayersMapDocument";
+export * from "./syncOpenLayersMapScene";

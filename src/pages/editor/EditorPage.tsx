@@ -1,17 +1,17 @@
 import { useEffect, useRef } from "react";
 import type OpenLayersMap from "ol/Map";
 import "ol/ol.css";
-import { createOpenLayersMap, syncOpenLayersMapDocument } from "./adapters/openlayers";
+import { createOpenLayersMap, syncOpenLayersMapScene } from "./adapters/openlayers";
 import { LayerPanel } from "./features/layers";
 import { useEditorStore } from "./state/editorStore";
-import { useTempEditorDocumentMessage } from "./temp/useTempEditorDocumentMessage";
+import { useTempEditorSceneMessage } from "./temp/useTempEditorSceneMessage";
 
-// 에디터 페이지의 지도 DOM을 준비하고 Zustand의 EditorDocument를 OpenLayers 지도에 렌더링합니다.
+// 에디터 페이지의 지도 DOM을 준비하고 Zustand의 EditorScene를 OpenLayers 지도에 렌더링합니다.
 export function EditorPage() {
   const mapElementRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<OpenLayersMap | null>(null);
-  const editorDocument = useEditorStore((state) => state.document);
-  useTempEditorDocumentMessage();
+  const scene = useEditorStore((state) => state.scene);
+  useTempEditorSceneMessage();
 
   useEffect(() => {
     if (!mapElementRef.current || mapRef.current) {
@@ -33,8 +33,8 @@ export function EditorPage() {
       return;
     }
 
-    syncOpenLayersMapDocument(mapRef.current, editorDocument);
-  }, [editorDocument]);
+    syncOpenLayersMapScene(mapRef.current, scene);
+  }, [scene]);
 
   return (
     <main className="relative min-h-0 min-w-0">

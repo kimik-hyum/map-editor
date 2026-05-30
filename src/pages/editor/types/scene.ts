@@ -97,7 +97,7 @@ export type EditorViewport = {
   fitFeatureIds?: string[];
 };
 
-export type EditorDocument = {
+export type EditorScene = {
   version: 1;
   id?: string;
   name?: string;
