@@ -40,12 +40,11 @@ export const geometryKindLabels = {
   [GeometryKind.MultiPath]: "멀티 패스",
 } satisfies Record<GeometryKind, string>;
 
-// 레이어가 에디터 안에서 맡는 역할입니다. 하나의 레이어가 여러 역할을 가질 수 있습니다.
+// 레이어가 에디터 안에서 맡는 "용도"입니다. 하나의 레이어가 여러 역할을 가질 수 있습니다.
+// 편집 가능 여부(역량)는 역할이 아니라 EditabilityState로 표현합니다(중복 방지).
 export enum LayerRole {
   // 사용자가 실제로 수정하는 대상 레이어입니다.
   Editable = "editable",
-  // 선택이나 조회는 가능하지만 수정은 하지 않는 레이어입니다.
-  Readonly = "readonly",
   // 편집 판단에 참고되는 보조 레이어입니다.
   Reference = "reference",
   // 배경처럼 표시만 하고 상호작용하지 않는 레이어입니다.
@@ -59,7 +58,6 @@ export enum LayerRole {
 // 레이어 역할 enum을 화면에 표시할 때 사용하는 공통 한글 라벨입니다.
 export const layerRoleLabels = {
   [LayerRole.Editable]: "편집",
-  [LayerRole.Readonly]: "읽기",
   [LayerRole.Reference]: "참고",
   [LayerRole.Background]: "배경",
   [LayerRole.Mask]: "마스크",

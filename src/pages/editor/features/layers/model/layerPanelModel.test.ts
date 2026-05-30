@@ -118,13 +118,13 @@ describe("createLayerPanelViewModel", () => {
     });
     const layer = createLayer({
       id: "reference-layer",
-      roles: [LayerRole.Readonly, LayerRole.Reference],
+      roles: [LayerRole.Reference],
       features: [feature],
     });
 
     const viewModel = createLayerPanelViewModel(createScene([layer]), null);
 
-    expect(viewModel.layers[0].roleLabels).toEqual(["읽기", "참고"]);
+    expect(viewModel.layers[0].roleLabels).toEqual(["참고"]);
     expect(viewModel.layers[0].features[0]).toMatchObject({
       name: "주행 경로",
       geometryKindLabel: "패스",

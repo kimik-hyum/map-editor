@@ -138,7 +138,7 @@ export const sampleEditorScene: EditorScene = {
     createLayer({
       id: "reference-area-layer",
       name: "참고 권역",
-      roles: [LayerRole.Readonly, LayerRole.Reference],
+      roles: [LayerRole.Reference],
       zIndex: 20,
       features: [
         createPolygonFeature({

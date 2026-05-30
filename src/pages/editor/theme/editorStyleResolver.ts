@@ -15,7 +15,6 @@ const layerRoleThemeTokens: Array<[LayerRole, EditorPolygonThemeToken]> = [
   [LayerRole.Mask, "mask"],
   [LayerRole.SnapTarget, "snapTarget"],
   [LayerRole.Reference, "reference"],
-  [LayerRole.Readonly, "readonly"],
   [LayerRole.Editable, "editable"],
 ];
 
