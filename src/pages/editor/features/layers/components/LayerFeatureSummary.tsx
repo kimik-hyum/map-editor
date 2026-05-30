@@ -1,10 +1,18 @@
-import type { LayerPanelViewModel } from "../model/layerPanelModel";
+import type {
+  LayerFeatureListItemViewModel,
+  LayerPanelViewModel,
+} from "../model/layerPanelModel";
+import { LayerVisibilityIcon } from "./LayerVisibilityIcon";
 
 type LayerFeatureSummaryProps = {
   viewModel: LayerPanelViewModel;
+  onToggleFeatureVisibility: (feature: LayerFeatureListItemViewModel) => void;
 };
 
-export function LayerFeatureSummary({ viewModel }: LayerFeatureSummaryProps) {
+export function LayerFeatureSummary({
+  viewModel,
+  onToggleFeatureVisibility,
+}: LayerFeatureSummaryProps) {
   if (!viewModel.isReady) {
     return (
       <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm font-bold text-slate-500">
@@ -35,6 +43,11 @@ export function LayerFeatureSummary({ viewModel }: LayerFeatureSummaryProps) {
           className="flex min-w-0 items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm"
           key={feature.id}
         >
+          <LayerVisibilityIcon
+            isDimmed={false}
+            isVisible={feature.isVisible}
+            onToggle={() => onToggleFeatureVisibility(feature)}
+          />
           <span
             className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
             style={{ backgroundColor: feature.accentColor }}

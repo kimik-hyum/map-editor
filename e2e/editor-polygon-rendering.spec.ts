@@ -64,3 +64,32 @@ test("에디터 지도에 샘플 폴리곤이 렌더링된다", async ({ page })
     matchedColorCounts.filter((count) => count > 20).length,
   ).toBeGreaterThanOrEqual(3);
 });
+
+test("도형 눈 아이콘으로 표시 상태를 토글하고 지도 인스턴스를 유지한다", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+
+  const mapViewport = page.locator(".ol-viewport");
+  const hideButton = page.getByRole("button", { name: "도형 숨기기" }).first();
+
+  await expect(mapViewport).toBeVisible();
+  await mapViewport.evaluate((element) => {
+    element.setAttribute("data-map-stability-check", "stable");
+  });
+  await expect(hideButton).toBeVisible();
+  await expect(hideButton).toHaveAttribute("aria-pressed", "true");
+
+  await hideButton.click();
+
+  const showButton = page.getByRole("button", { name: "도형 보이기" }).first();
+
+  await expect(showButton).toBeVisible();
+  await expect(showButton).toHaveAttribute("aria-pressed", "false");
+  await expect(mapViewport).toHaveAttribute("data-map-stability-check", "stable");
+
+  await showButton.click();
+
+  await expect(hideButton).toHaveAttribute("aria-pressed", "true");
+  await expect(mapViewport).toHaveAttribute("data-map-stability-check", "stable");
+});

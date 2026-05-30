@@ -1,11 +1,15 @@
-import type { LayerPanelViewModel } from "../model/layerPanelModel";
+import type {
+  LayerFeatureListItemViewModel,
+  LayerPanelViewModel,
+} from "../model/layerPanelModel";
 import { LayerListItem } from "./LayerListItem";
 
 type LayerListProps = {
   viewModel: LayerPanelViewModel;
+  onToggleFeatureVisibility: (feature: LayerFeatureListItemViewModel) => void;
 };
 
-export function LayerList({ viewModel }: LayerListProps) {
+export function LayerList({ viewModel, onToggleFeatureVisibility }: LayerListProps) {
   if (!viewModel.isReady) {
     return (
       <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm font-bold text-slate-500">
@@ -37,7 +41,10 @@ export function LayerList({ viewModel }: LayerListProps) {
       <ol className="m-0 grid min-h-0 list-none gap-2 overflow-auto p-0">
         {viewModel.layers.map((layer) => (
           <li key={layer.id}>
-            <LayerListItem layer={layer} />
+            <LayerListItem
+              layer={layer}
+              onToggleFeatureVisibility={onToggleFeatureVisibility}
+            />
           </li>
         ))}
       </ol>

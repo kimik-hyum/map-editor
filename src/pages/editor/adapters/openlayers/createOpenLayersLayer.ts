@@ -8,6 +8,8 @@ import {
 } from "../../types/editorTypes";
 import { createOpenLayersFeature } from "./createOpenLayersFeature";
 
+export const editorLayerIdProperty = "mapEditorLayerId";
+
 // 에디터 레이어 하나를 OpenLayers VectorLayer로 변환합니다.
 export function createOpenLayersVectorLayer(layer: EditorLayer) {
   const features = layer.features.flatMap((feature) => {
@@ -17,7 +19,7 @@ export function createOpenLayersVectorLayer(layer: EditorLayer) {
   });
   const opacity = resolveLayerEffectiveOpacity(layer.view);
 
-  return new VectorLayer({
+  const openLayersLayer = new VectorLayer({
     opacity,
     source: new VectorSource({
       features,
@@ -25,6 +27,10 @@ export function createOpenLayersVectorLayer(layer: EditorLayer) {
     visible: layer.view.visibility !== VisibilityState.Hidden,
     zIndex: layer.view.zIndex,
   });
+
+  openLayersLayer.set(editorLayerIdProperty, layer.id);
+
+  return openLayersLayer;
 }
 
 // EditorDocument의 레이어 목록을 OpenLayers가 사용할 레이어 목록으로 변환합니다.

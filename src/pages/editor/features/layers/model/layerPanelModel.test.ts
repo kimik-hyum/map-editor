@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createLayerPanelViewModel } from "./layerPanelModel";
+import { createLayerPanelViewModel, getNextFeatureVisibility } from "./layerPanelModel";
 import { editorDefaultTheme } from "../../../theme/editorTheme";
 import {
   EditabilityState,
@@ -124,6 +124,24 @@ describe("createLayerPanelViewModel", () => {
     expect(viewModel.layers[0].features[0]).toMatchObject({
       name: "주행 경로",
       geometryKindLabel: "패스",
+      isVisible: true,
+      visibility: VisibilityState.Visible,
+    });
+  });
+
+  it("도형별 visibility를 표시한다", () => {
+    const feature = createFeature({
+      view: {
+        visibility: VisibilityState.Hidden,
+      },
+    });
+    const layer = createLayer({ features: [feature] });
+
+    const viewModel = createLayerPanelViewModel(createDocument([layer]), null);
+
+    expect(viewModel.layers[0].features[0]).toMatchObject({
+      isVisible: false,
+      visibility: VisibilityState.Hidden,
     });
   });
 
@@ -185,6 +203,22 @@ describe("createLayerPanelViewModel", () => {
     expect(viewModel.layers[0]).toMatchObject({
       isDimmed: true,
       opacity: 0.5,
+      visibility: VisibilityState.Dimmed,
     });
+  });
+
+  it("눈 아이콘 토글은 보이는 도형을 숨긴다", () => {
+    expect(getNextFeatureVisibility(VisibilityState.Visible)).toBe(
+      VisibilityState.Hidden,
+    );
+    expect(getNextFeatureVisibility(VisibilityState.Dimmed)).toBe(
+      VisibilityState.Hidden,
+    );
+  });
+
+  it("눈 아이콘 토글은 숨긴 도형을 다시 표시한다", () => {
+    expect(getNextFeatureVisibility(VisibilityState.Hidden)).toBe(
+      VisibilityState.Visible,
+    );
   });
 });

@@ -1,17 +1,31 @@
+import { Button } from "@base-ui/react/button";
+
 type LayerVisibilityIconProps = {
   isDimmed: boolean;
   isVisible: boolean;
+  onToggle: () => void;
 };
 
-export function LayerVisibilityIcon({ isDimmed, isVisible }: LayerVisibilityIconProps) {
-  const label = isVisible ? (isDimmed ? "흐리게 표시" : "표시") : "숨김";
+export function LayerVisibilityIcon({
+  isDimmed,
+  isVisible,
+  onToggle,
+}: LayerVisibilityIconProps) {
+  const statusLabel = isVisible ? (isDimmed ? "흐리게 표시" : "표시") : "숨김";
+  const actionLabel = isVisible ? "도형 숨기기" : "도형 보이기";
 
   return (
-    <span
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-600"
-      aria-label={label}
-      role="img"
-      title={label}
+    <Button
+      className={
+        isVisible
+          ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-600 transition-colors hover:border-teal-400 hover:text-teal-700"
+          : "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-100 text-slate-400 transition-colors hover:border-teal-400 hover:text-teal-700"
+      }
+      aria-label={actionLabel}
+      aria-pressed={isVisible}
+      title={statusLabel}
+      type="button"
+      onClick={onToggle}
     >
       {isVisible ? (
         <svg
@@ -44,6 +58,6 @@ export function LayerVisibilityIcon({ isDimmed, isVisible }: LayerVisibilityIcon
           <path d="M6.2 6.2A17.3 17.3 0 0 0 2 12s3.5 8 10 8a10.6 10.6 0 0 0 3.8-.7" />
         </svg>
       )}
-    </span>
+    </Button>
   );
 }

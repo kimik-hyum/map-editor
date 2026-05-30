@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
+import type OpenLayersMap from "ol/Map";
 import "ol/ol.css";
-import { createOpenLayersMap } from "./adapters/openlayers";
+import { createOpenLayersMap, syncOpenLayersMapDocument } from "./adapters/openlayers";
 import { LayerPanel } from "./features/layers";
 import { useEditorStore } from "./state/editorStore";
 import { useTempEditorDocumentMessage } from "./temp/useTempEditorDocumentMessage";
@@ -8,22 +9,31 @@ import { useTempEditorDocumentMessage } from "./temp/useTempEditorDocumentMessag
 // 에디터 페이지의 지도 DOM을 준비하고 Zustand의 EditorDocument를 OpenLayers 지도에 렌더링합니다.
 export function EditorPage() {
   const mapElementRef = useRef<HTMLElement | null>(null);
+  const mapRef = useRef<OpenLayersMap | null>(null);
   const editorDocument = useEditorStore((state) => state.document);
   useTempEditorDocumentMessage();
 
   useEffect(() => {
-    if (!mapElementRef.current || !editorDocument) {
+    if (!mapElementRef.current || mapRef.current) {
       return;
     }
 
-    const map = createOpenLayersMap({
+    mapRef.current = createOpenLayersMap({
       target: mapElementRef.current,
-      editorDocument,
     });
 
     return () => {
-      map.setTarget(undefined);
+      mapRef.current?.setTarget(undefined);
+      mapRef.current = null;
     };
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current) {
+      return;
+    }
+
+    syncOpenLayersMapDocument(mapRef.current, editorDocument);
   }, [editorDocument]);
 
   return (

@@ -22,6 +22,8 @@ const selectionLabels: Partial<Record<SelectionState, string>> = {
 export type LayerFeatureListItemViewModel = {
   id: string;
   name: string;
+  visibility: VisibilityState;
+  isVisible: boolean;
   geometryKind: GeometryKind;
   geometryKindLabel: string;
   selectionLabel: string | null;
@@ -31,6 +33,7 @@ export type LayerFeatureListItemViewModel = {
 export type LayerListItemViewModel = {
   id: string;
   name: string;
+  visibility: VisibilityState;
   isActive: boolean;
   isDimmed: boolean;
   isVisible: boolean;
@@ -48,6 +51,16 @@ export type LayerPanelViewModel = {
   featureCount: number;
   layers: LayerListItemViewModel[];
 };
+
+export function getNextFeatureVisibility(visibility: VisibilityState) {
+  return visibility === VisibilityState.Hidden
+    ? VisibilityState.Visible
+    : VisibilityState.Hidden;
+}
+
+function getFeatureVisibility(feature: EditorFeature) {
+  return feature.view?.visibility ?? VisibilityState.Visible;
+}
 
 function getFeatureName(feature: EditorFeature) {
   const propertyLabel = feature.feature.properties?.label;
@@ -67,9 +80,13 @@ function createLayerFeatureListItemViewModel(
   feature: EditorFeature,
   layer: EditorLayer,
 ): LayerFeatureListItemViewModel {
+  const visibility = getFeatureVisibility(feature);
+
   return {
     id: feature.id,
     name: getFeatureName(feature),
+    visibility,
+    isVisible: visibility !== VisibilityState.Hidden,
     geometryKind: feature.geometryKind,
     geometryKindLabel: geometryKindLabels[feature.geometryKind],
     selectionLabel: selectionLabels[feature.state.selection] ?? null,
@@ -85,6 +102,7 @@ function createLayerListItemViewModel(
   return {
     id: layer.id,
     name: layer.name,
+    visibility: layer.view.visibility,
     isActive: layer.id === activeLayerId,
     isDimmed: layer.view.visibility === VisibilityState.Dimmed,
     isVisible: layer.view.visibility !== VisibilityState.Hidden,

@@ -2,7 +2,9 @@ import { create } from "zustand";
 import {
   EditorMode,
   FeatureLifecycle,
+  VisibilityState,
   type EditorDocument,
+  type EditorFeatureViewState,
   type EditorLayerViewState,
   type EditorInitMessage,
   type GeoJsonGeometry,
@@ -30,6 +32,7 @@ type EditorStoreActions = {
   setSelectedFeatureIds: (featureIds: string[]) => void;
   setActiveMode: (mode: EditorMode) => void;
   updateLayerView: (layerId: string, view: Partial<EditorLayerViewState>) => void;
+  updateFeatureView: (featureId: string, view: Partial<EditorFeatureViewState>) => void;
   updateFeatureGeometry: (featureId: string, geometry: GeoJsonGeometry) => void;
 };
 
@@ -93,6 +96,31 @@ function updateFeatureGeometryInDocument(
   };
 }
 
+function updateFeatureViewInDocument(
+  document: EditorDocument,
+  featureId: string,
+  view: Partial<EditorFeatureViewState>,
+): EditorDocument {
+  return {
+    ...document,
+    layers: document.layers.map((layer) => ({
+      ...layer,
+      features: layer.features.map((feature) =>
+        feature.id === featureId
+          ? {
+              ...feature,
+              view: {
+                visibility: feature.view?.visibility ?? VisibilityState.Visible,
+                ...(feature.view ?? {}),
+                ...view,
+              },
+            }
+          : feature,
+      ),
+    })),
+  };
+}
+
 export const useEditorStore = create<EditorStore>((set) => ({
   sessionId: null,
   document: null,
@@ -137,6 +165,13 @@ export const useEditorStore = create<EditorStore>((set) => ({
     set((state) => ({
       document: state.document
         ? updateLayerViewInDocument(state.document, layerId, view)
+        : state.document,
+      dirty: Boolean(state.document),
+    })),
+  updateFeatureView: (featureId, view) =>
+    set((state) => ({
+      document: state.document
+        ? updateFeatureViewInDocument(state.document, featureId, view)
         : state.document,
       dirty: Boolean(state.document),
     })),
