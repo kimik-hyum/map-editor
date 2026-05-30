@@ -6,7 +6,7 @@ import {
   SelectionState,
   VisibilityState,
   geometryKindLabels,
-  type EditorDocument,
+  type EditorScene,
   type EditorFeature,
   type EditorLayer,
   type GeometryKind,
@@ -116,8 +116,8 @@ function createLayerListItemViewModel(
   };
 }
 
-function getLayersByVisualStack(document: EditorDocument) {
-  return document.layers
+function getLayersByVisualStack(scene: EditorScene) {
+  return scene.layers
     .map((layer, sourceIndex) => ({ layer, sourceIndex }))
     .sort((left, right) => {
       const zIndexDiff = right.layer.view.zIndex - left.layer.view.zIndex;
@@ -127,10 +127,10 @@ function getLayersByVisualStack(document: EditorDocument) {
 }
 
 export function createLayerPanelViewModel(
-  document: EditorDocument | null,
+  scene: EditorScene | null,
   activeLayerId: string | null,
 ): LayerPanelViewModel {
-  if (!document) {
+  if (!scene) {
     return {
       isReady: false,
       isEmpty: true,
@@ -140,7 +140,7 @@ export function createLayerPanelViewModel(
     };
   }
 
-  const orderedLayers = getLayersByVisualStack(document);
+  const orderedLayers = getLayersByVisualStack(scene);
   const layers = orderedLayers.map(({ layer }, stackIndex) =>
     createLayerListItemViewModel(layer, activeLayerId, stackIndex),
   );

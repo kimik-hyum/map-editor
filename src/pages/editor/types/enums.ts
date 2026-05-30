@@ -2,7 +2,7 @@
 export enum EditorMessageType {
   // 에디터가 로딩되어 초기 데이터를 받을 준비가 된 상태입니다.
   Ready = "MAP_EDITOR_READY",
-  // 부모 창이 에디터에 초기 문서, 레이어, 도형 데이터를 전달합니다.
+  // 부모 창이 에디터에 초기 씬, 레이어, 도형 데이터를 전달합니다.
   Init = "MAP_EDITOR_INIT",
   // 편집 중 도형이나 레이어 상태가 변경되었음을 알립니다.
   Change = "MAP_EDITOR_CHANGE",

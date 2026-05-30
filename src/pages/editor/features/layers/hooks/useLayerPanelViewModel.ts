@@ -3,11 +3,11 @@ import { useEditorStore } from "../../../state/editorStore";
 import { createLayerPanelViewModel } from "../model/layerPanelModel";
 
 export function useLayerPanelViewModel() {
-  const document = useEditorStore((state) => state.document);
+  const scene = useEditorStore((state) => state.scene);
   const activeLayerId = useEditorStore((state) => state.activeLayerId);
 
   return useMemo(
-    () => createLayerPanelViewModel(document, activeLayerId),
-    [activeLayerId, document],
+    () => createLayerPanelViewModel(scene, activeLayerId),
+    [activeLayerId, scene],
   );
 }

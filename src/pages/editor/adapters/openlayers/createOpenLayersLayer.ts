@@ -3,7 +3,7 @@ import VectorSource from "ol/source/Vector";
 import { resolveLayerEffectiveOpacity } from "../../theme/editorStyleResolver";
 import {
   VisibilityState,
-  type EditorDocument,
+  type EditorScene,
   type EditorLayer,
 } from "../../types/editorTypes";
 import { createOpenLayersFeature } from "./createOpenLayersFeature";
@@ -33,7 +33,7 @@ export function createOpenLayersVectorLayer(layer: EditorLayer) {
   return openLayersLayer;
 }
 
-// EditorDocument의 레이어 목록을 OpenLayers가 사용할 레이어 목록으로 변환합니다.
-export function createOpenLayersLayers(editorDocument: EditorDocument) {
-  return editorDocument.layers.map(createOpenLayersVectorLayer);
+// EditorScene의 레이어 목록을 OpenLayers가 사용할 레이어 목록으로 변환합니다.
+export function createOpenLayersLayers(scene: EditorScene) {
+  return scene.layers.map(createOpenLayersVectorLayer);
 }
