@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createLayerPanelViewModel, getNextFeatureVisibility } from "./layerPanelModel";
+import {
+  createLayerPanelViewModel,
+  getNextFeatureVisibility,
+  getNextLayerVisibility,
+} from "./layerPanelModel";
 import { editorDefaultTheme } from "../../../theme/editorTheme";
 import {
   EditabilityState,
@@ -145,6 +149,27 @@ describe("createLayerPanelViewModel", () => {
     });
   });
 
+  it("상위 레이어가 숨김이면 하위 도형도 유효 숨김 + 토글 비활성으로 표시한다", () => {
+    const feature = createFeature(); // 도형 자체는 Visible
+    const layer = createLayer({
+      view: {
+        visibility: VisibilityState.Hidden,
+        opacity: 1,
+        zIndex: 10,
+        labelVisible: true,
+      },
+      features: [feature],
+    });
+
+    const viewModel = createLayerPanelViewModel(createScene([layer]), null);
+
+    expect(viewModel.layers[0].features[0]).toMatchObject({
+      visibility: VisibilityState.Visible, // 도형 자체 상태는 보존
+      isVisible: false, // 레이어 숨김 → 유효 숨김
+      isToggleDisabled: true,
+    });
+  });
+
   it("도형 이름이 없으면 GeoJSON label 속성을 이름으로 사용한다", () => {
     const feature = createFeature({
       name: undefined,
@@ -218,6 +243,21 @@ describe("createLayerPanelViewModel", () => {
 
   it("눈 아이콘 토글은 숨긴 도형을 다시 표시한다", () => {
     expect(getNextFeatureVisibility(VisibilityState.Hidden)).toBe(
+      VisibilityState.Visible,
+    );
+  });
+});
+
+describe("getNextLayerVisibility", () => {
+  it("보이는(또는 흐린) 레이어를 숨긴다", () => {
+    expect(getNextLayerVisibility(VisibilityState.Visible)).toBe(
+      VisibilityState.Hidden,
+    );
+    expect(getNextLayerVisibility(VisibilityState.Dimmed)).toBe(VisibilityState.Hidden);
+  });
+
+  it("숨긴 레이어를 다시 표시한다", () => {
+    expect(getNextLayerVisibility(VisibilityState.Hidden)).toBe(
       VisibilityState.Visible,
     );
   });

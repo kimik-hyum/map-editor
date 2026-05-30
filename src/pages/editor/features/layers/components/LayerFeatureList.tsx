@@ -22,9 +22,11 @@ export function LayerFeatureList({
           key={feature.id}
         >
           <LayerVisibilityIcon
+            disabled={feature.isToggleDisabled}
             isDimmed={false}
             isVisible={feature.isVisible}
             onToggle={() => onToggleFeatureVisibility(feature)}
+            subject="도형"
           />
           <span
             className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"

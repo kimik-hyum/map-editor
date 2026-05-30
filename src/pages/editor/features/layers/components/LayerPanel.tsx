@@ -7,7 +7,7 @@ import { LayerList } from "./LayerList";
 
 export function LayerPanel() {
   const viewModel = useLayerPanelViewModel();
-  const { toggleFeatureVisibility } = useLayerPanelActions();
+  const { toggleLayerVisibility, toggleFeatureVisibility } = useLayerPanelActions();
 
   return (
     <FloatingPanel
@@ -32,6 +32,7 @@ export function LayerPanel() {
         >
           <LayerList
             viewModel={viewModel}
+            onToggleLayerVisibility={toggleLayerVisibility}
             onToggleFeatureVisibility={toggleFeatureVisibility}
           />
         </SegmentedTabs.Panel>

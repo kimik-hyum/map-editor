@@ -4,14 +4,17 @@ import type {
   LayerListItemViewModel,
 } from "../model/layerPanelModel";
 import { LayerFeatureList } from "./LayerFeatureList";
+import { LayerVisibilityIcon } from "./LayerVisibilityIcon";
 
 type LayerListItemProps = {
   layer: LayerListItemViewModel;
+  onToggleLayerVisibility: (layer: LayerListItemViewModel) => void;
   onToggleFeatureVisibility: (feature: LayerFeatureListItemViewModel) => void;
 };
 
 export function LayerListItem({
   layer,
+  onToggleLayerVisibility,
   onToggleFeatureVisibility,
 }: LayerListItemProps) {
   return (
@@ -24,6 +27,13 @@ export function LayerListItem({
       defaultOpen
     >
       <div className="flex min-w-0 gap-2.5">
+        <LayerVisibilityIcon
+          isDimmed={layer.isDimmed}
+          isVisible={layer.isVisible}
+          onToggle={() => onToggleLayerVisibility(layer)}
+          subject="레이어"
+        />
+
         <div className="min-w-0 flex-1">
           <Collapsible.Trigger className="group flex w-full min-w-0 items-start justify-between gap-2 text-left">
             <span className="min-w-0">
