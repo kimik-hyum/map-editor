@@ -11,8 +11,8 @@ import {
   type EditorScene,
   type EditorFeature,
   type EditorLayer,
-} from "../types/editorTypes";
-import type { EditorPolygonThemeToken } from "../theme/editorTheme";
+} from "../../editor/types/editorTypes";
+import type { EditorPolygonThemeToken } from "../../editor/theme/editorTheme";
 
 type SamplePolygonFixture = {
   id: string;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { sampleEditorScene } from "../../editor/fixtures/sampleEditorScene";
+import { sampleEditorScene } from "../fixtures/sampleEditorScene";
 import {
   createInitMessage,
   getMessageType,
@@ -37,6 +37,8 @@ export function useEditorHost() {
       const messageType = getMessageType(event.data);
 
       if (messageType === EditorMessageType.Ready) {
+        // READY -> INIT은 idempotent하게 응답한다. 같은 창의 재마운트/새로고침으로 다시 온
+        // READY에도 INIT을 보내야 에디터가 복구된다. 세션 ID는 창 단위로 유지한다.
         const sessionId = sessionIdRef.current ?? crypto.randomUUID();
         sessionIdRef.current = sessionId;
         childRef.current?.postMessage(

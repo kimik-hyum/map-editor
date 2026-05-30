@@ -5,16 +5,14 @@ import { createOpenLayersMap, syncOpenLayersMapScene } from "./adapters/openlaye
 import { LayerPanel } from "./features/layers";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
-import { useTempEditorSceneMessage } from "./temp/useTempEditorSceneMessage";
 
 // 에디터 페이지의 지도 DOM을 준비하고 Zustand의 EditorScene을 OpenLayers 지도에 렌더링합니다.
+// 에디터는 순수 consumer입니다. scene은 부모(호스트) 창이 postMessage로 전달해야만 채워집니다.
 export function EditorPage() {
   const mapElementRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<OpenLayersMap | null>(null);
   const scene = useEditorStore((state) => state.scene);
-  // 부모 창이 있으면 postMessage로 scene을 받고, 없으면(단독 실행) 샘플 fixture를 주입합니다.
   useEditorMessaging();
-  useTempEditorSceneMessage();
 
   useEffect(() => {
     if (!mapElementRef.current || mapRef.current) {
@@ -46,7 +44,18 @@ export function EditorPage() {
         className="h-screen w-full"
         aria-label="OSM map editor"
       />
-      <LayerPanel />
+      {scene ? (
+        <LayerPanel />
+      ) : (
+        <div
+          className="pointer-events-none absolute inset-0 flex items-center justify-center"
+          aria-live="polite"
+        >
+          <p className="rounded-lg bg-white/90 px-4 py-2 text-sm font-bold text-ink-soft shadow">
+            호스트(부모 창)에서 데이터를 기다리는 중…
+          </p>
+        </div>
+      )}
     </main>
   );
 }

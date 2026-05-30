@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { PNG } from "pngjs";
 
 type RgbColor = [red: number, green: number, blue: number];
@@ -36,17 +36,33 @@ function countSimilarPixels(
   return count;
 }
 
-test("에디터 지도에 샘플 폴리곤이 렌더링된다", async ({ page }) => {
-  await page.goto("/editor");
+// 에디터는 순수 consumer이므로 데모(호스트)를 통해 새 창으로 열고 postMessage로 scene을 받는다.
+// 호스트가 보낸 scene이 렌더링될 때까지(레이어 패널의 레이어 이름) 기다린 뒤 에디터 페이지를 반환한다.
+async function openEditorViaDemo(page: Page): Promise<Page> {
+  await page.goto("/demo");
 
-  const map = page.getByLabel("OSM map editor");
+  const [editorPage] = await Promise.all([
+    page.waitForEvent("popup"),
+    page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
+  ]);
+
+  await editorPage.waitForLoadState();
+  await expect(editorPage.getByText("편집 대상 권역")).toBeVisible();
+
+  return editorPage;
+}
+
+test("에디터 지도에 샘플 폴리곤이 렌더링된다", async ({ page }) => {
+  const editorPage = await openEditorViaDemo(page);
+
+  const map = editorPage.getByLabel("OSM map editor");
   const mapCanvas = map.locator("canvas");
 
   await expect(map).toBeVisible();
-  await expect(page.locator(".ol-viewport")).toBeVisible();
+  await expect(editorPage.locator(".ol-viewport")).toBeVisible();
   await expect(mapCanvas).toHaveCount(1);
 
-  await page.waitForFunction(() => {
+  await editorPage.waitForFunction(() => {
     const canvas = document.querySelector<HTMLCanvasElement>(
       '[aria-label="OSM map editor"] canvas',
     );
@@ -54,24 +70,28 @@ test("에디터 지도에 샘플 폴리곤이 렌더링된다", async ({ page })
     return Boolean(canvas && canvas.width > 0 && canvas.height > 0);
   });
 
-  const screenshot = await map.screenshot();
-  const image = PNG.sync.read(screenshot);
-  const matchedColorCounts = polygonStrokeColors.map((color) =>
-    countSimilarPixels(image, color),
-  );
+  await expect
+    .poll(
+      async () => {
+        const screenshot = await map.screenshot();
+        const image = PNG.sync.read(screenshot);
 
-  expect(
-    matchedColorCounts.filter((count) => count > 20).length,
-  ).toBeGreaterThanOrEqual(3);
+        return polygonStrokeColors
+          .map((color) => countSimilarPixels(image, color))
+          .filter((count) => count > 20).length;
+      },
+      { timeout: 5000 },
+    )
+    .toBeGreaterThanOrEqual(3);
 });
 
 test("도형 눈 아이콘으로 표시 상태를 토글하고 지도 인스턴스를 유지한다", async ({
   page,
 }) => {
-  await page.goto("/editor");
+  const editorPage = await openEditorViaDemo(page);
 
-  const mapViewport = page.locator(".ol-viewport");
-  const hideButton = page.getByRole("button", { name: "도형 숨기기" }).first();
+  const mapViewport = editorPage.locator(".ol-viewport");
+  const hideButton = editorPage.getByRole("button", { name: "도형 숨기기" }).first();
 
   await expect(mapViewport).toBeVisible();
   await mapViewport.evaluate((element) => {
@@ -82,7 +102,7 @@ test("도형 눈 아이콘으로 표시 상태를 토글하고 지도 인스턴�
 
   await hideButton.click();
 
-  const showButton = page.getByRole("button", { name: "도형 보이기" }).first();
+  const showButton = editorPage.getByRole("button", { name: "도형 보이기" }).first();
 
   await expect(showButton).toBeVisible();
   await expect(showButton).toHaveAttribute("aria-pressed", "false");

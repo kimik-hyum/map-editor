@@ -1,12 +1,61 @@
 import { describe, expect, it } from "vitest";
-import { sampleEditorScene } from "../fixtures/sampleEditorScene";
 import { EditorMessageType } from "../types/editorTypes";
 import { parseInitMessage } from "./editorSceneSchema";
+
+// 스키마 파서 검증용 최소 valid scene. demo 소유 샘플에 의존하지 않도록 테스트 로컬로 둔다.
+const validScene = {
+  version: 1,
+  id: "test-scene",
+  name: "테스트 씬",
+  layers: [
+    {
+      id: "layer-1",
+      name: "레이어",
+      roles: ["editable"],
+      geometryKinds: ["polygon"],
+      view: { visibility: "visible", opacity: 1, zIndex: 1, labelVisible: true },
+      behavior: {
+        lock: "unlocked",
+        editability: "editable",
+        selectable: true,
+        deletable: true,
+        draggable: true,
+      },
+      features: [
+        {
+          id: "feature-1",
+          name: "도형",
+          geometryKind: "polygon",
+          feature: {
+            type: "Feature",
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [126.9, 37.5],
+                  [127.0, 37.5],
+                  [127.0, 37.6],
+                  [126.9, 37.5],
+                ],
+              ],
+            },
+          },
+          state: {
+            selection: "none",
+            lifecycle: "clean",
+            validation: "valid",
+            issues: [],
+          },
+        },
+      ],
+    },
+  ],
+};
 
 const validInitMessage = {
   type: EditorMessageType.Init,
   sessionId: "session-1",
-  scene: sampleEditorScene,
+  scene: validScene,
 };
 
 describe("parseInitMessage", () => {
