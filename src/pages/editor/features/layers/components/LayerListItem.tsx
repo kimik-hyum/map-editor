@@ -65,6 +65,11 @@ export function LayerListItem({
           </Collapsible.Trigger>
 
           <div className="mt-2 flex flex-wrap gap-1">
+            {layer.editabilityLabel ? (
+              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-extrabold text-amber-700 ring-1 ring-amber-200">
+                {layer.editabilityLabel}
+              </span>
+            ) : null}
             {layer.roleLabels.map((roleLabel) => (
               <span
                 className="rounded bg-white px-1.5 py-0.5 text-[11px] font-extrabold text-slate-500 ring-1 ring-slate-200"

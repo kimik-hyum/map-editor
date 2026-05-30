@@ -89,10 +89,23 @@ const featureSchema = z.object({
   style: editorStyleSchema.optional(),
 });
 
+// LayerRole에서 제거됐지만 과거 v1 payload 호환을 위해 입력은 허용하고 내부에서 버리는 역할입니다.
+// (편집 가능 여부 같은 역량은 LayerRole이 아니라 EditabilityState로 표현되므로 역할 제거가 안전합니다.)
+const REMOVED_LAYER_ROLES = ["readonly"] as const;
+
+const layerRolesSchema = z
+  .array(z.union([z.enum(LayerRole), z.enum(REMOVED_LAYER_ROLES)]))
+  .transform((roles) =>
+    roles.filter(
+      (role): role is LayerRole =>
+        !(REMOVED_LAYER_ROLES as readonly string[]).includes(role),
+    ),
+  );
+
 const layerSchema = z.object({
   id: z.string(),
   name: z.string(),
-  roles: z.array(z.enum(LayerRole)),
+  roles: layerRolesSchema,
   geometryKinds: z.array(z.enum(GeometryKind)),
   view: z.object({
     visibility: z.enum(VisibilityState),

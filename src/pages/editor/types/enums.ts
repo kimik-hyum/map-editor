@@ -92,6 +92,13 @@ export enum EditabilityState {
   Disabled = "disabled",
 }
 
+// 편집 역량(editability)을 화면에 표시할 때 쓰는 공통 한글 라벨입니다.
+export const editabilityLabels = {
+  [EditabilityState.Editable]: "편집",
+  [EditabilityState.Readonly]: "읽기",
+  [EditabilityState.Disabled]: "비활성",
+} satisfies Record<EditabilityState, string>;
+
 // 현재 포인터나 편집 도구 기준의 선택 상태입니다.
 export enum SelectionState {
   // 선택되지 않은 기본 상태입니다.

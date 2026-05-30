@@ -133,6 +133,29 @@ describe("createLayerPanelViewModel", () => {
     });
   });
 
+  it("편집 불가 레이어는 editability 배지 라벨을 노출하고, 편집 가능 레이어는 노출하지 않는다", () => {
+    const readonlyLayer = createLayer({
+      id: "readonly-layer",
+      behavior: {
+        lock: LockState.Unlocked,
+        editability: EditabilityState.Readonly,
+        selectable: true,
+        deletable: true,
+        draggable: true,
+      },
+    });
+    const editableLayer = createLayer({ id: "editable-layer" });
+
+    const viewModel = createLayerPanelViewModel(
+      createScene([readonlyLayer, editableLayer]),
+      null,
+    );
+    const byId = (id: string) => viewModel.layers.find((layer) => layer.id === id);
+
+    expect(byId("readonly-layer")?.editabilityLabel).toBe("읽기");
+    expect(byId("editable-layer")?.editabilityLabel).toBeNull();
+  });
+
   it("도형별 visibility를 표시한다", () => {
     const feature = createFeature({
       view: {

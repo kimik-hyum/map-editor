@@ -3,8 +3,10 @@ import {
   resolvePolygonStyle,
 } from "../../../theme/editorStyleResolver";
 import {
+  EditabilityState,
   SelectionState,
   VisibilityState,
+  editabilityLabels,
   geometryKindLabels,
   type EditorScene,
   type EditorFeature,
@@ -44,6 +46,8 @@ export type LayerListItemViewModel = {
   opacity: number;
   orderLabel: string;
   roleLabels: string[];
+  // 편집 불가(읽기/비활성) 역량을 알리는 배지 라벨입니다. 편집 가능(기본)이면 null.
+  editabilityLabel: string | null;
   featureCount: number;
   features: LayerFeatureListItemViewModel[];
 };
@@ -124,6 +128,10 @@ function createLayerListItemViewModel(
     opacity: resolveLayerEffectiveOpacity(layer.view),
     orderLabel: `#${stackIndex + 1}`,
     roleLabels: layer.roles.map((role) => layerRoleLabels[role]),
+    editabilityLabel:
+      layer.behavior.editability === EditabilityState.Editable
+        ? null
+        : editabilityLabels[layer.behavior.editability],
     featureCount: layer.features.length,
     features: layer.features.map((feature) =>
       createLayerFeatureListItemViewModel(feature, layer),
