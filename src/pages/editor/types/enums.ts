@@ -40,6 +40,9 @@ export const geometryKindLabels = {
   [GeometryKind.MultiPath]: "멀티 패스",
 } satisfies Record<GeometryKind, string>;
 
+// 그리기(추가) 도구로 새로 만들 수 있는 도형입니다. GeometryKind의 부분집합입니다.
+export type DrawShape = GeometryKind.Polygon | GeometryKind.Path | GeometryKind.Point;
+
 // 레이어가 에디터 안에서 맡는 "용도"입니다. 하나의 레이어가 여러 역할을 가질 수 있습니다.
 // 편집 가능 여부(역량)는 역할이 아니라 EditabilityState로 표현합니다(중복 방지).
 export enum LayerRole {

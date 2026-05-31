@@ -3,7 +3,9 @@ import {
   BoundaryKind,
   EditorMode,
   FeatureLifecycle,
+  GeometryKind,
   VisibilityState,
+  type DrawShape,
   type EditorScene,
   type EditorFeatureViewState,
   type EditorLayerViewState,
@@ -17,6 +19,9 @@ const DEFAULT_EDITOR_MODE = EditorMode.Select;
 // 경계 도구의 기본 경계 종류입니다.
 const DEFAULT_BOUNDARY_KIND = BoundaryKind.AdminDong;
 
+// 그리기 도구의 기본 도형입니다.
+const DEFAULT_DRAW_SHAPE: DrawShape = GeometryKind.Polygon;
+
 type EditorStoreState = {
   sessionId: string | null;
   scene: EditorScene | null;
@@ -25,6 +30,7 @@ type EditorStoreState = {
   hoveredFeatureId: string | null;
   activeMode: EditorMode;
   activeBoundaryKind: BoundaryKind;
+  activeDrawShape: DrawShape;
   dirty: boolean;
 };
 
@@ -37,6 +43,7 @@ type EditorStoreActions = {
   setSelectedFeatureIds: (featureIds: string[]) => void;
   setActiveMode: (mode: EditorMode) => void;
   setActiveBoundaryKind: (kind: BoundaryKind) => void;
+  setActiveDrawShape: (shape: DrawShape) => void;
   updateLayerView: (layerId: string, view: Partial<EditorLayerViewState>) => void;
   updateFeatureView: (featureId: string, view: Partial<EditorFeatureViewState>) => void;
   updateFeatureGeometry: (featureId: string, geometry: GeoJsonGeometry) => void;
@@ -135,6 +142,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
   hoveredFeatureId: null,
   activeMode: DEFAULT_EDITOR_MODE,
   activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
+  activeDrawShape: DEFAULT_DRAW_SHAPE,
   dirty: false,
   initializeFromMessage: (message) =>
     set({
@@ -145,6 +153,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
       hoveredFeatureId: null,
       activeMode: DEFAULT_EDITOR_MODE,
       activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
+      activeDrawShape: DEFAULT_DRAW_SHAPE,
       dirty: false,
     }),
   setScene: (scene) =>
@@ -164,6 +173,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
       hoveredFeatureId: null,
       activeMode: DEFAULT_EDITOR_MODE,
       activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
+      activeDrawShape: DEFAULT_DRAW_SHAPE,
       dirty: false,
     }),
   setActiveLayerId: (activeLayerId) => set({ activeLayerId }),
@@ -171,6 +181,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
   setSelectedFeatureIds: (selectedFeatureIds) => set({ selectedFeatureIds }),
   setActiveMode: (activeMode) => set({ activeMode }),
   setActiveBoundaryKind: (activeBoundaryKind) => set({ activeBoundaryKind }),
+  setActiveDrawShape: (activeDrawShape) => set({ activeDrawShape }),
   updateLayerView: (layerId, view) =>
     set((state) => ({
       scene: state.scene

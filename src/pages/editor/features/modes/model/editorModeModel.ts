@@ -25,7 +25,7 @@ export const editorModeOptions: EditorModeOption[] = [
   {
     id: EditorMode.Draw,
     label: "그리기",
-    description: "폴리곤 · 패스 새로 그리기",
+    description: "폴리곤 · 패스 · 마커 추가",
     icon: PenTool,
   },
   {
