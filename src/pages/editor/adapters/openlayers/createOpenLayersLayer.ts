@@ -1,11 +1,11 @@
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
-import { resolveLayerEffectiveOpacity } from "../../theme/editorStyleResolver";
+import { resolveLayerEffectiveOpacity } from "@/pages/editor/theme/editorStyleResolver";
 import {
   VisibilityState,
   type EditorScene,
   type EditorLayer,
-} from "../../types/editorTypes";
+} from "@/pages/editor/types/editorTypes";
 import { createOpenLayersFeature } from "./createOpenLayersFeature";
 
 export const editorLayerIdProperty = "mapEditorLayerId";

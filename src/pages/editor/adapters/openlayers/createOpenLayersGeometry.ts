@@ -1,7 +1,10 @@
 import MultiPolygon from "ol/geom/MultiPolygon";
 import Polygon from "ol/geom/Polygon";
 import { fromLonLat } from "ol/proj";
-import type { EditorCoordinate, GeoJsonGeometry } from "../../types/editorTypes";
+import type {
+  EditorCoordinate,
+  GeoJsonGeometry,
+} from "@/pages/editor/types/editorTypes";
 
 // GeoJSON 경위도 좌표계를 OpenLayers가 렌더링하는 지도 투영 좌표계로 변환합니다.
 function projectRing(ring: EditorCoordinate[]) {

@@ -1,6 +1,6 @@
 import { Button } from "@base-ui/react/button";
 import { Eye, EyeOff } from "lucide-react";
-import { cn } from "../../../../../shared/utils/cn";
+import { cn } from "@/shared/utils/cn";
 
 type LayerVisibilityIconProps = {
   isDimmed: boolean;

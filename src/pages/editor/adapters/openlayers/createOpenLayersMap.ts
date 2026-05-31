@@ -1,5 +1,5 @@
 import OpenLayersMap from "ol/Map";
-import type { EditorScene } from "../../types/editorTypes";
+import type { EditorScene } from "@/pages/editor/types/editorTypes";
 import { createOpenLayersMapView } from "./createOpenLayersMapView";
 import { createOpenStreetMapLayer } from "./createOpenStreetMapLayer";
 

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useEditorStore } from "../../../state/editorStore";
+import { useEditorStore } from "@/pages/editor/state/editorStore";
 import { createLayerPanelViewModel } from "../model/layerPanelModel";
 
 export function useLayerPanelViewModel() {

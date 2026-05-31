@@ -1,6 +1,6 @@
 import { Tabs } from "@base-ui/react/tabs";
 import type { ReactNode } from "react";
-import { cn } from "../../../shared/utils/cn";
+import { cn } from "@/shared/utils/cn";
 
 // Base UI Tabs에 에디터 표준 세그먼트 스타일을 한 번만 입힌 래퍼입니다.
 // 호출처마다 긴 className 함수를 복붙하지 않도록 List/Tab 스타일을 여기로 모았습니다.

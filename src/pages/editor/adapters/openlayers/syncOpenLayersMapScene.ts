@@ -1,6 +1,6 @@
 import type OpenLayersMap from "ol/Map";
 import type BaseLayer from "ol/layer/Base";
-import type { EditorScene } from "../../types/editorTypes";
+import type { EditorScene } from "@/pages/editor/types/editorTypes";
 import { createOpenLayersLayers, editorLayerIdProperty } from "./createOpenLayersLayer";
 
 function isEditorSceneLayer(layer: BaseLayer) {

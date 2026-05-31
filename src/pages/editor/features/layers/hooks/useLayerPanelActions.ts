@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useEditorStore } from "../../../state/editorStore";
+import { useEditorStore } from "@/pages/editor/state/editorStore";
 import {
   getNextFeatureVisibility,
   getNextLayerVisibility,

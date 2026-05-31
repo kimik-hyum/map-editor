@@ -1,13 +1,10 @@
 import { Popover } from "@base-ui/react/popover";
 import { X } from "lucide-react";
 import type { RefObject } from "react";
-import {
-  MovingHighlight,
-  MovingHighlightItem,
-} from "../../../../../shared/ui/MovingHighlight";
-import { cn } from "../../../../../shared/utils/cn";
-import { useEditorStore } from "../../../state/editorStore";
-import type { BoundaryKind } from "../../../types/editorTypes";
+import { MovingHighlight, MovingHighlightItem } from "@/shared/ui/MovingHighlight";
+import { cn } from "@/shared/utils/cn";
+import { useEditorStore } from "@/pages/editor/state/editorStore";
+import type { BoundaryKind } from "@/pages/editor/types/editorTypes";
 import { boundaryKindOptions } from "../model/boundaryKindModel";
 
 type BoundaryKindPopupProps = {

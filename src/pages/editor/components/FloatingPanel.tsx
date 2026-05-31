@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Rnd, type Props as RndProps } from "react-rnd";
-import { cn } from "../../../shared/utils/cn";
+import { cn } from "@/shared/utils/cn";
 import { PanelShell } from "./PanelShell";
 
 type FloatingPanelSize = {

@@ -1,5 +1,5 @@
 import { Building2, Layers, type LucideIcon, Mail } from "lucide-react";
-import { BoundaryKind, boundaryKindLabels } from "../../../types/editorTypes";
+import { BoundaryKind, boundaryKindLabels } from "@/pages/editor/types/editorTypes";
 
 export type BoundaryKindOption = {
   id: BoundaryKind;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BoundaryKind, boundaryKindLabels } from "../../../types/editorTypes";
+import { BoundaryKind, boundaryKindLabels } from "@/pages/editor/types/editorTypes";
 import { boundaryKindOptions } from "./boundaryKindModel";
 
 describe("boundaryKindOptions", () => {

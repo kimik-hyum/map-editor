@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cn } from "../../../shared/utils/cn";
+import { cn } from "@/shared/utils/cn";
 
 type PanelShellProps = {
   children?: ReactNode;

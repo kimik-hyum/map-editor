@@ -1,13 +1,10 @@
 import { Toggle } from "@base-ui/react/toggle";
 import { ToggleGroup } from "@base-ui/react/toggle-group";
 import { useRef, useState } from "react";
-import {
-  MovingHighlight,
-  MovingHighlightItem,
-} from "../../../../../shared/ui/MovingHighlight";
-import { cn } from "../../../../../shared/utils/cn";
-import { useEditorStore } from "../../../state/editorStore";
-import { EditorMode } from "../../../types/editorTypes";
+import { MovingHighlight, MovingHighlightItem } from "@/shared/ui/MovingHighlight";
+import { cn } from "@/shared/utils/cn";
+import { useEditorStore } from "@/pages/editor/state/editorStore";
+import { EditorMode } from "@/pages/editor/types/editorTypes";
 import { boundaryKindOptions } from "../model/boundaryKindModel";
 import { editorModeOptions } from "../model/editorModeModel";
 import { BoundaryKindPopup } from "./BoundaryKindPopup";

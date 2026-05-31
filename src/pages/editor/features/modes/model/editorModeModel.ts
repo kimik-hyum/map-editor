@@ -5,7 +5,7 @@ import {
   MousePointer2,
   PenTool,
 } from "lucide-react";
-import { EditorMode } from "../../../types/editorTypes";
+import { EditorMode } from "@/pages/editor/types/editorTypes";
 
 export type EditorModeOption = {
   id: EditorMode;
