@@ -11,7 +11,7 @@ import {
 } from "../types/editorTypes";
 
 // 편집 모드의 기본값입니다. 모드 패널의 초기 선택과 store 초기화가 같은 값을 공유합니다.
-const DEFAULT_EDITOR_MODE = EditorMode.AdministrativeDong;
+const DEFAULT_EDITOR_MODE = EditorMode.Select;
 
 type EditorStoreState = {
   sessionId: string | null;

@@ -1,4 +1,5 @@
 import { Collapsible } from "@base-ui/react/collapsible";
+import { ChevronDown } from "lucide-react";
 import type {
   LayerFeatureListItemViewModel,
   LayerListItemViewModel,
@@ -49,18 +50,11 @@ export function LayerListItem({
               <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-black text-slate-500">
                 {layer.orderLabel}
               </span>
-              <svg
-                aria-hidden="true"
+              <ChevronDown
+                aria-hidden
                 className="h-4 w-4 text-slate-400 transition-transform group-data-[panel-open]:rotate-180"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path d="m6 9 6 6 6-6" />
-              </svg>
+                strokeWidth={2}
+              />
             </span>
           </Collapsible.Trigger>
 
