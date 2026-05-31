@@ -75,14 +75,16 @@ export function EditorModePanel() {
             }
 
             const Icon = subOption?.icon ?? tool.icon;
-            const label = subOption?.label ?? tool.label;
+            // 하위 옵션이 있으면 "폴리곤 + 그리기" / "행정동 + 경계"처럼 도구 의미를 함께 보여줍니다.
+            const primaryLabel = subOption?.label ?? tool.label;
+            const toolWord = subOption ? tool.label : null;
 
             return (
               <MovingHighlightItem key={tool.id} value={tool.id}>
                 <Toggle
-                  aria-label={subOption ? `${tool.label}: ${label}` : label}
+                  aria-label={toolWord ? `${primaryLabel} ${toolWord}` : primaryLabel}
                   className={cn(
-                    "group flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2.5 text-[11px] font-black transition-colors",
+                    "group flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 text-[11px] font-black transition-colors",
                     "text-slate-500 hover:bg-slate-50/80 data-[pressed]:text-teal-700",
                   )}
                   ref={anchorRef}
@@ -92,7 +94,14 @@ export function EditorModePanel() {
                   value={tool.id}
                 >
                   <Icon aria-hidden className="h-5 w-5" strokeWidth={2} />
-                  <span>{label}</span>
+                  <span className="flex flex-col items-center leading-tight">
+                    <span>{primaryLabel}</span>
+                    {toolWord ? (
+                      <span className="mt-0.5 text-[9px] font-semibold text-slate-400 group-data-[pressed]:text-teal-600">
+                        {toolWord}
+                      </span>
+                    ) : null}
+                  </span>
                 </Toggle>
               </MovingHighlightItem>
             );
