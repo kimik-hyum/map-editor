@@ -1,4 +1,5 @@
 import { Popover } from "@base-ui/react/popover";
+import { X } from "lucide-react";
 import type { RefObject } from "react";
 import {
   MovingHighlight,
@@ -25,9 +26,9 @@ export function BoundaryKindPopup({
   const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
   const setActiveBoundaryKind = useEditorStore((state) => state.setActiveBoundaryKind);
 
+  // 선택해도 팝업은 닫지 않습니다. 닫기는 헤더의 닫기 버튼이나 바깥 클릭으로 합니다.
   const handleSelect = (kind: BoundaryKind) => {
     setActiveBoundaryKind(kind);
-    onOpenChange(false);
   };
 
   return (
@@ -44,9 +45,19 @@ export function BoundaryKindPopup({
             aria-label="경계 종류"
             className="w-52 rounded-xl border border-line bg-white p-1.5 shadow-xl outline-none"
           >
-            <p className="px-2 pb-1.5 pt-1 text-[11px] font-black tracking-wide text-slate-400">
-              경계 종류
-            </p>
+            <div className="flex items-center justify-between gap-2 px-2 pb-1.5 pt-1">
+              <p className="text-[11px] font-black tracking-wide text-slate-400">
+                경계 종류
+              </p>
+              <button
+                aria-label="경계 종류 닫기"
+                className="flex h-6 w-6 flex-none items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                onClick={() => onOpenChange(false)}
+                type="button"
+              >
+                <X aria-hidden className="h-4 w-4" strokeWidth={2} />
+              </button>
+            </div>
             <MovingHighlight
               activeValue={activeBoundaryKind}
               className="grid gap-0.5"
