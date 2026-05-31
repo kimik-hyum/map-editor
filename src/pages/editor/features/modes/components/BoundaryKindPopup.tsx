@@ -1,5 +1,9 @@
 import { Popover } from "@base-ui/react/popover";
 import type { RefObject } from "react";
+import {
+  MovingHighlight,
+  MovingHighlightItem,
+} from "../../../../../shared/ui/MovingHighlight";
 import { cn } from "../../../../../shared/utils/cn";
 import { useEditorStore } from "../../../state/editorStore";
 import type { BoundaryKind } from "../../../types/editorTypes";
@@ -43,46 +47,50 @@ export function BoundaryKindPopup({
             <p className="px-2 pb-1.5 pt-1 text-[11px] font-black tracking-wide text-slate-400">
               경계 종류
             </p>
-            <div className="grid gap-0.5">
+            <MovingHighlight
+              activeValue={activeBoundaryKind}
+              className="grid gap-0.5"
+              indicatorClassName="rounded-lg bg-teal-50 ring-1 ring-teal-300"
+            >
               {boundaryKindOptions.map((option) => {
                 const Icon = option.icon;
                 const selected = option.id === activeBoundaryKind;
 
                 return (
-                  <button
-                    aria-pressed={selected}
-                    className={cn(
-                      "flex items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors",
-                      selected
-                        ? "bg-teal-50 ring-1 ring-teal-300"
-                        : "hover:bg-slate-50",
-                    )}
-                    key={option.id}
-                    onClick={() => handleSelect(option.id)}
-                    type="button"
-                  >
-                    <span
-                      className={cn(
-                        "flex h-8 w-8 flex-none items-center justify-center rounded-lg",
-                        selected
-                          ? "bg-teal-100 text-teal-700"
-                          : "bg-slate-100 text-slate-500",
-                      )}
+                  <MovingHighlightItem key={option.id} value={option.id}>
+                    <button
+                      aria-pressed={selected}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-slate-50/70"
+                      onClick={() => handleSelect(option.id)}
+                      type="button"
                     >
-                      <Icon aria-hidden className="h-[18px] w-[18px]" strokeWidth={2} />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[13px] font-extrabold text-slate-900">
-                        {option.label}
+                      <span
+                        className={cn(
+                          "flex h-8 w-8 flex-none items-center justify-center rounded-lg",
+                          selected
+                            ? "bg-teal-100 text-teal-700"
+                            : "bg-slate-100 text-slate-500",
+                        )}
+                      >
+                        <Icon
+                          aria-hidden
+                          className="h-[18px] w-[18px]"
+                          strokeWidth={2}
+                        />
                       </span>
-                      <span className="block text-[11px] font-semibold text-slate-400">
-                        {option.description}
+                      <span className="min-w-0">
+                        <span className="block text-[13px] font-extrabold text-slate-900">
+                          {option.label}
+                        </span>
+                        <span className="block text-[11px] font-semibold text-slate-400">
+                          {option.description}
+                        </span>
                       </span>
-                    </span>
-                  </button>
+                    </button>
+                  </MovingHighlightItem>
                 );
               })}
-            </div>
+            </MovingHighlight>
           </Popover.Popup>
         </Popover.Positioner>
       </Popover.Portal>
