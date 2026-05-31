@@ -1,5 +1,5 @@
 import { Outlet } from "react-router";
-import { AppNavigation } from "../../shared/navigation/AppNavigation";
+import { AppNavigation } from "@/shared/navigation/AppNavigation";
 
 export function DocsLayout() {
   return (

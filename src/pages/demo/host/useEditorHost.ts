@@ -4,8 +4,8 @@ import {
   createInitMessage,
   getMessageType,
   isAllowedParentOrigin,
-} from "../../editor/messaging";
-import { EditorMessageType } from "../../editor/types/editorTypes";
+} from "@/pages/editor/messaging";
+import { EditorMessageType } from "@/pages/editor/types/editorTypes";
 
 export type EditorHostStatus = "idle" | "opening" | "connected" | "closed" | "error";
 

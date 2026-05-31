@@ -4,7 +4,7 @@ import {
   getNextFeatureVisibility,
   getNextLayerVisibility,
 } from "./layerPanelModel";
-import { editorDefaultTheme } from "../../../theme/editorTheme";
+import { editorDefaultTheme } from "@/pages/editor/theme/editorTheme";
 import {
   EditabilityState,
   FeatureLifecycle,
@@ -17,7 +17,7 @@ import {
   type EditorScene,
   type EditorFeature,
   type EditorLayer,
-} from "../../../types/editorTypes";
+} from "@/pages/editor/types/editorTypes";
 
 function createFeature(overrides: Partial<EditorFeature> = {}): EditorFeature {
   return {

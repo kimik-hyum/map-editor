@@ -1,7 +1,7 @@
 import {
   resolveLayerEffectiveOpacity,
   resolvePolygonStyle,
-} from "../../../theme/editorStyleResolver";
+} from "@/pages/editor/theme/editorStyleResolver";
 import {
   EditabilityState,
   SelectionState,
@@ -13,7 +13,7 @@ import {
   type EditorLayer,
   type GeometryKind,
   layerRoleLabels,
-} from "../../../types/editorTypes";
+} from "@/pages/editor/types/editorTypes";
 
 const selectionLabels: Partial<Record<SelectionState, string>> = {
   [SelectionState.Active]: "활성",

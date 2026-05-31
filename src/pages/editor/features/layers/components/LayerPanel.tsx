@@ -1,5 +1,5 @@
-import { FloatingPanel } from "../../../components/FloatingPanel";
-import { SegmentedTabs } from "../../../components/SegmentedTabs";
+import { FloatingPanel } from "@/pages/editor/components/FloatingPanel";
+import { SegmentedTabs } from "@/pages/editor/components/SegmentedTabs";
 import { useLayerPanelActions } from "../hooks/useLayerPanelActions";
 import { useLayerPanelViewModel } from "../hooks/useLayerPanelViewModel";
 import { LayerFeatureSummary } from "./LayerFeatureSummary";

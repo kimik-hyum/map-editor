@@ -3,7 +3,7 @@ import {
   VisibilityState,
   type EditorFeature,
   type EditorLayer,
-} from "../../types/editorTypes";
+} from "@/pages/editor/types/editorTypes";
 import { createOpenLayersGeometry } from "./createOpenLayersGeometry";
 import { createOpenLayersStyle } from "./createOpenLayersStyle";
 

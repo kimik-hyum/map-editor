@@ -1,6 +1,6 @@
 import View from "ol/View";
 import { fromLonLat } from "ol/proj";
-import type { EditorScene } from "../../types/editorTypes";
+import type { EditorScene } from "@/pages/editor/types/editorTypes";
 
 // 씬 viewport 값을 OpenLayers View 객체로 변환합니다.
 export function createOpenLayersMapView(scene?: EditorScene | null) {

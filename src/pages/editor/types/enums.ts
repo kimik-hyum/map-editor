@@ -125,6 +125,24 @@ export enum EditorMode {
   Radius = "radius",
 }
 
+// 경계 도구에서 고르는 경계 데이터의 종류입니다.
+// 좌측 rail의 경계 도구를 선택하면 뜨는 작은 팝업이 이 값을 바꿉니다.
+export enum BoundaryKind {
+  // 행정 구역 기준 경계입니다.
+  AdminDong = "adminDong",
+  // 법정 구역 기준 경계입니다.
+  LegalDong = "legalDong",
+  // 우편번호 기준 경계입니다.
+  PostalCode = "postalCode",
+}
+
+// 경계 종류 enum을 화면에 표시할 때 사용하는 공통 한글 라벨입니다.
+export const boundaryKindLabels = {
+  [BoundaryKind.AdminDong]: "행정동",
+  [BoundaryKind.LegalDong]: "법정동",
+  [BoundaryKind.PostalCode]: "우편번호",
+} satisfies Record<BoundaryKind, string>;
+
 // 원본 대비 도형이 어떤 변경 상태인지 나타냅니다.
 export enum FeatureLifecycle {
   // 초기 입력값과 동일한 변경 없음 상태입니다.

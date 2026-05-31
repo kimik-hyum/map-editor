@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  BoundaryKind,
   EditorMode,
   FeatureLifecycle,
   VisibilityState,
@@ -13,6 +14,9 @@ import {
 // 편집 모드의 기본값입니다. 모드 패널의 초기 선택과 store 초기화가 같은 값을 공유합니다.
 const DEFAULT_EDITOR_MODE = EditorMode.Select;
 
+// 경계 도구의 기본 경계 종류입니다.
+const DEFAULT_BOUNDARY_KIND = BoundaryKind.AdminDong;
+
 type EditorStoreState = {
   sessionId: string | null;
   scene: EditorScene | null;
@@ -20,6 +24,7 @@ type EditorStoreState = {
   selectedFeatureIds: string[];
   hoveredFeatureId: string | null;
   activeMode: EditorMode;
+  activeBoundaryKind: BoundaryKind;
   dirty: boolean;
 };
 
@@ -31,6 +36,7 @@ type EditorStoreActions = {
   setHoveredFeatureId: (featureId: string | null) => void;
   setSelectedFeatureIds: (featureIds: string[]) => void;
   setActiveMode: (mode: EditorMode) => void;
+  setActiveBoundaryKind: (kind: BoundaryKind) => void;
   updateLayerView: (layerId: string, view: Partial<EditorLayerViewState>) => void;
   updateFeatureView: (featureId: string, view: Partial<EditorFeatureViewState>) => void;
   updateFeatureGeometry: (featureId: string, geometry: GeoJsonGeometry) => void;
@@ -128,6 +134,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
   selectedFeatureIds: [],
   hoveredFeatureId: null,
   activeMode: DEFAULT_EDITOR_MODE,
+  activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
   dirty: false,
   initializeFromMessage: (message) =>
     set({
@@ -137,6 +144,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
       selectedFeatureIds: [],
       hoveredFeatureId: null,
       activeMode: DEFAULT_EDITOR_MODE,
+      activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
       dirty: false,
     }),
   setScene: (scene) =>
@@ -155,12 +163,14 @@ export const useEditorStore = create<EditorStore>((set) => ({
       selectedFeatureIds: [],
       hoveredFeatureId: null,
       activeMode: DEFAULT_EDITOR_MODE,
+      activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
       dirty: false,
     }),
   setActiveLayerId: (activeLayerId) => set({ activeLayerId }),
   setHoveredFeatureId: (hoveredFeatureId) => set({ hoveredFeatureId }),
   setSelectedFeatureIds: (selectedFeatureIds) => set({ selectedFeatureIds }),
   setActiveMode: (activeMode) => set({ activeMode }),
+  setActiveBoundaryKind: (activeBoundaryKind) => set({ activeBoundaryKind }),
   updateLayerView: (layerId, view) =>
     set((state) => ({
       scene: state.scene

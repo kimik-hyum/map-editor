@@ -1,7 +1,7 @@
 import { Fill, Stroke, Style, Text } from "ol/style";
-import { editorDefaultTheme } from "../../theme/editorTheme";
-import { resolvePolygonStyle } from "../../theme/editorStyleResolver";
-import type { EditorFeature, EditorLayer } from "../../types/editorTypes";
+import { editorDefaultTheme } from "@/pages/editor/theme/editorTheme";
+import { resolvePolygonStyle } from "@/pages/editor/theme/editorStyleResolver";
+import type { EditorFeature, EditorLayer } from "@/pages/editor/types/editorTypes";
 
 // 에디터 도메인의 feature/layer style 값을 OpenLayers Style 객체로 변환합니다.
 export function createOpenLayersStyle(feature: EditorFeature, layer: EditorLayer) {
