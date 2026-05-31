@@ -1,0 +1,43 @@
+name: AI Review
+
+# Claude Code Action은 PR에 리뷰 "코멘트"만 답니다(자문용).
+# 상태 체크를 만들거나 잡을 실패시키지 못하므로 "머지 게이트"는 아닙니다.
+# 하드 게이트(머지 차단)는 결정적 검사(checks.yml / unit / e2e)가 담당합니다.
+# ANTHROPIC_API_KEY 시크릿이 없으면 단계가 건너뛰어 빨간 체크가 생기지 않습니다.
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  claude-review:
+    name: claude-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude review (advisory)
+        if: ${{ env.ANTHROPIC_API_KEY != '' }}
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ env.ANTHROPIC_API_KEY }}
+          prompt: |
+            이 PR을 리뷰해 코멘트로 정리해 주세요. 프로젝트 규칙(AGENTS.MD: 커밋 컨벤션,
+            라이브러리 결정, 상태 관리 원칙)을 기준으로 다음을 봅니다.
+            - 버그·보안 이슈, 회귀 위험
+            - 도메인 모델/상태의 중복 또는 over-modeling
+            - 테스트 커버리지 공백
+            발견 사항만 간결히 제시하고, 확신이 낮으면 그렇게 표시해 주세요.
+          claude_args: |
+            --allowedTools "Bash(gh pr comment:*),Bash(gh pr diff:*)"
