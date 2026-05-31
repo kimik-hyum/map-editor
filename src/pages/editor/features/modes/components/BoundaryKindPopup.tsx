@@ -29,7 +29,13 @@ export function BoundaryKindPopup({
   return (
     <Popover.Root open={open} onOpenChange={onOpenChange}>
       <Popover.Portal>
-        <Popover.Positioner anchor={anchor} side="right" align="start" sideOffset={10}>
+        <Popover.Positioner
+          anchor={anchor}
+          align="start"
+          className="z-50"
+          side="right"
+          sideOffset={10}
+        >
           <Popover.Popup
             aria-label="경계 종류"
             className="w-52 rounded-xl border border-line bg-white p-1.5 shadow-xl outline-none"

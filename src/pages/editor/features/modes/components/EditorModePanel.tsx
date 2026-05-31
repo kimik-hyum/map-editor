@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { cn } from "../../../../../shared/utils/cn";
 import { useEditorStore } from "../../../state/editorStore";
 import { EditorMode } from "../../../types/editorTypes";
+import { boundaryKindOptions } from "../model/boundaryKindModel";
 import { editorModeOptions } from "../model/editorModeModel";
 import { BoundaryKindPopup } from "./BoundaryKindPopup";
 
@@ -12,6 +13,12 @@ import { BoundaryKindPopup } from "./BoundaryKindPopup";
 export function EditorModePanel() {
   const activeMode = useEditorStore((state) => state.activeMode);
   const setActiveMode = useEditorStore((state) => state.setActiveMode);
+  const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
+
+  // 경계 도구는 선택된 경계 종류(행정동/법정동/우편번호)의 아이콘과 이름을 그대로 보여줍니다.
+  const activeBoundaryOption = boundaryKindOptions.find(
+    (option) => option.id === activeBoundaryKind,
+  );
 
   const boundaryAnchorRef = useRef<HTMLButtonElement>(null);
   const [boundaryPopupOpen, setBoundaryPopupOpen] = useState(false);
@@ -39,23 +46,29 @@ export function EditorModePanel() {
         }}
       >
         {editorModeOptions.map((tool) => {
-          const Icon = tool.icon;
+          const isBoundary = tool.id === EditorMode.Boundary;
+          const Icon =
+            isBoundary && activeBoundaryOption ? activeBoundaryOption.icon : tool.icon;
+          const label =
+            isBoundary && activeBoundaryOption
+              ? activeBoundaryOption.label
+              : tool.label;
 
           return (
             <Toggle
-              aria-label={tool.label}
+              aria-label={isBoundary ? `경계: ${label}` : label}
               className={cn(
                 "group flex flex-col items-center gap-1 rounded-lg px-1 py-2.5 text-[11px] font-black transition-colors",
                 "text-slate-500 hover:bg-slate-50",
                 "data-[pressed]:bg-teal-50 data-[pressed]:text-teal-700 data-[pressed]:ring-1 data-[pressed]:ring-teal-300",
               )}
               key={tool.id}
-              ref={tool.id === EditorMode.Boundary ? boundaryAnchorRef : undefined}
-              title={tool.description}
+              ref={isBoundary ? boundaryAnchorRef : undefined}
+              title={isBoundary ? `경계 · ${tool.description}` : tool.description}
               value={tool.id}
             >
               <Icon aria-hidden className="h-5 w-5" strokeWidth={2} />
-              <span>{tool.label}</span>
+              <span>{label}</span>
             </Toggle>
           );
         })}
