@@ -12,7 +12,7 @@ import {
   type EditorScene,
   type GeoJsonGeometry,
 } from "../types/editorTypes";
-import { useEditorStore } from "./editorStore";
+import { HISTORY_LIMIT, useEditorStore } from "./editorStore";
 
 describe("editorStore - 경계 종류", () => {
   beforeEach(() => {
@@ -195,4 +195,57 @@ describe("editorStore - 편집 히스토리", () => {
     useEditorStore.getState().updateFeatureGeometry("feature-1", GEOMETRY_B);
     expect(useEditorStore.getState().future).toHaveLength(0);
   });
+
+  it("존재하지 않는 feature 편집은 히스토리에 쌓이지 않는다", () => {
+    useEditorStore.getState().updateFeatureGeometry("ghost", GEOMETRY_B);
+
+    const state = useEditorStore.getState();
+    expect(state.past).toHaveLength(0);
+    expect(state.dirty).toBe(false);
+  });
+
+  it("동일 geometry 편집은 히스토리에 쌓이지 않는다", () => {
+    useEditorStore.getState().updateFeatureGeometry("feature-1", GEOMETRY_A);
+
+    const state = useEditorStore.getState();
+    expect(state.past).toHaveLength(0);
+    expect(state.dirty).toBe(false);
+  });
+
+  it("동일 값 가시성 설정은 dirty를 만들지 않는다", () => {
+    useEditorStore.getState().updateLayerView("layer-1", {
+      visibility: VisibilityState.Visible,
+    });
+
+    expect(useEditorStore.getState().dirty).toBe(false);
+  });
+
+  it("뷰가 없는 도형에 기본 가시성을 설정해도 dirty가 되지 않는다", () => {
+    // 샘플 도형은 view가 없으므로 기본값(visible)과 같은 설정은 변화가 없어야 한다.
+    useEditorStore.getState().updateFeatureView("feature-1", {
+      visibility: VisibilityState.Visible,
+    });
+
+    expect(useEditorStore.getState().dirty).toBe(false);
+  });
+
+  it("HISTORY_LIMIT를 초과하면 가장 오래된 스냅샷을 버린다", () => {
+    for (let size = 1; size <= HISTORY_LIMIT + 5; size += 1) {
+      useEditorStore.getState().updateFeatureGeometry(
+        "feature-1",
+        polygon([
+          [
+            [0, 0],
+            [size, 0],
+            [size, size],
+            [0, 0],
+          ],
+        ]),
+      );
+    }
+
+    expect(useEditorStore.getState().past).toHaveLength(HISTORY_LIMIT);
+  });
+
+  // reconcileSelection(사라진 피처 선택 정리)은 delete/create 액션(#11·#12)이 생기면 테스트를 추가한다.
 });

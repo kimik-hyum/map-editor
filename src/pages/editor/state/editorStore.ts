@@ -23,7 +23,7 @@ const DEFAULT_BOUNDARY_KIND = BoundaryKind.AdminDong;
 const DEFAULT_DRAW_SHAPE: DrawShape = GeometryKind.Polygon;
 
 // 되돌리기 이력의 최대 길이입니다. 초과하면 가장 오래된 스냅샷부터 버립니다.
-const HISTORY_LIMIT = 50;
+export const HISTORY_LIMIT = 50;
 
 type EditorStoreState = {
   sessionId: string | null;
@@ -80,87 +80,140 @@ function reconcileSelection(
   return filtered.length === selectedFeatureIds.length ? selectedFeatureIds : filtered;
 }
 
+// geometry 값 동치 비교(MVP 수준). 동일 값 업데이트를 no-op으로 판정해 히스토리 오염을 막습니다.
+function areGeometriesEqual(a: GeoJsonGeometry, b: GeoJsonGeometry): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+// 뷰 객체(가시성/투명도 등)의 얕은 동치 비교. 값 변화가 없으면 dirty를 만들지 않기 위함입니다.
+function isShallowEqual(a: object | undefined, b: object): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (!a) {
+    return false;
+  }
+
+  const aRecord = a as Record<string, unknown>;
+  const bRecord = b as Record<string, unknown>;
+  const aKeys = Object.keys(aRecord);
+  const bKeys = Object.keys(bRecord);
+  if (aKeys.length !== bKeys.length) {
+    return false;
+  }
+
+  return aKeys.every((key) => aRecord[key] === bRecord[key]);
+}
+
+// 실제 변경이 없으면(레이어 미발견·동일 값) 원본 scene 참조를 그대로 반환합니다.
 function updateLayerViewInScene(
   scene: EditorScene,
   layerId: string,
   view: Partial<EditorLayerViewState>,
 ): EditorScene {
-  return {
-    ...scene,
-    layers: scene.layers.map((layer) =>
-      layer.id === layerId
-        ? {
-            ...layer,
-            view: {
-              ...layer.view,
-              ...view,
-            },
-          }
-        : layer,
-    ),
-  };
+  let changed = false;
+
+  const layers = scene.layers.map((layer) => {
+    if (layer.id !== layerId) {
+      return layer;
+    }
+
+    const nextView = { ...layer.view, ...view };
+    if (isShallowEqual(layer.view, nextView)) {
+      return layer;
+    }
+
+    changed = true;
+    return { ...layer, view: nextView };
+  });
+
+  return changed ? { ...scene, layers } : scene;
 }
 
+// 대상 피처가 없거나 동일 geometry이면 원본 scene 참조를 그대로 반환합니다(no-op).
 function updateFeatureGeometryInScene(
   scene: EditorScene,
   featureId: string,
   geometry: GeoJsonGeometry,
 ): EditorScene {
-  return {
-    ...scene,
-    layers: scene.layers.map((layer) => ({
-      ...layer,
-      features: layer.features.map((feature) => {
-        if (feature.id !== featureId) {
-          return feature;
-        }
+  let changed = false;
 
-        return {
-          ...feature,
-          feature: {
-            ...feature.feature,
-            geometry,
-          },
-          state: {
-            ...feature.state,
-            lifecycle:
-              feature.state.lifecycle === FeatureLifecycle.Created
-                ? FeatureLifecycle.Created
-                : FeatureLifecycle.Updated,
-          },
-        };
-      }),
-    })),
-  };
+  const layers = scene.layers.map((layer) => {
+    let layerChanged = false;
+
+    const features = layer.features.map((feature) => {
+      if (feature.id !== featureId) {
+        return feature;
+      }
+      if (areGeometriesEqual(feature.feature.geometry, geometry)) {
+        return feature;
+      }
+
+      layerChanged = true;
+      changed = true;
+      return {
+        ...feature,
+        feature: {
+          ...feature.feature,
+          geometry,
+        },
+        state: {
+          ...feature.state,
+          lifecycle:
+            feature.state.lifecycle === FeatureLifecycle.Created
+              ? FeatureLifecycle.Created
+              : FeatureLifecycle.Updated,
+        },
+      };
+    });
+
+    return layerChanged ? { ...layer, features } : layer;
+  });
+
+  return changed ? { ...scene, layers } : scene;
 }
 
+// 대상 피처가 없거나 동일 값이면 원본 scene 참조를 그대로 반환합니다(no-op).
 function updateFeatureViewInScene(
   scene: EditorScene,
   featureId: string,
   view: Partial<EditorFeatureViewState>,
 ): EditorScene {
-  return {
-    ...scene,
-    layers: scene.layers.map((layer) => ({
-      ...layer,
-      features: layer.features.map((feature) =>
-        feature.id === featureId
-          ? {
-              ...feature,
-              view: {
-                visibility: feature.view?.visibility ?? VisibilityState.Visible,
-                ...(feature.view ?? {}),
-                ...view,
-              },
-            }
-          : feature,
-      ),
-    })),
-  };
+  let changed = false;
+
+  const layers = scene.layers.map((layer) => {
+    let layerChanged = false;
+
+    const features = layer.features.map((feature) => {
+      if (feature.id !== featureId) {
+        return feature;
+      }
+
+      // 현재 뷰를 기본값까지 포함해 정규화한 뒤 비교합니다.
+      // feature.view가 없어도 기본 visibility와 동일한 설정은 no-op으로 판정합니다.
+      const currentView = {
+        visibility: feature.view?.visibility ?? VisibilityState.Visible,
+        ...(feature.view ?? {}),
+      };
+      const nextView = { ...currentView, ...view };
+      if (isShallowEqual(currentView, nextView)) {
+        return feature;
+      }
+
+      layerChanged = true;
+      changed = true;
+      return { ...feature, view: nextView };
+    });
+
+    return layerChanged ? { ...layer, features } : layer;
+  });
+
+  return changed ? { ...scene, layers } : scene;
 }
 
 export const useEditorStore = create<EditorStore>((set) => {
   // 편집(데이터 변경) 액션만 이 경로로 통과시켜 직전 scene을 past에 push하고 future를 비웁니다.
+  // 변경이 없으면(producer가 원본 scene 참조 반환) 스냅샷을 만들지 않습니다.
   // 가시성/잠금/선택/모드 변경은 이 경로를 거치지 않습니다(silent → 단독 undo 대상 아님).
   const commitSceneEdit = (produce: (scene: EditorScene) => EditorScene) =>
     set((state) => {
@@ -274,7 +327,7 @@ export const useEditorStore = create<EditorStore>((set) => {
     setActiveMode: (activeMode) => set({ activeMode }),
     setActiveBoundaryKind: (activeBoundaryKind) => set({ activeBoundaryKind }),
     setActiveDrawShape: (activeDrawShape) => set({ activeDrawShape }),
-    // 가시성/잠금 등 뷰 변경은 히스토리에 쌓지 않습니다(silent). dirty만 baseline 대비로 갱신합니다.
+    // 가시성/잠금 등 뷰 변경은 히스토리에 쌓지 않습니다(silent). 실제 변경이 있을 때만 dirty를 갱신합니다.
     updateLayerView: (layerId, view) =>
       set((state) => {
         if (!state.scene) {
@@ -282,6 +335,10 @@ export const useEditorStore = create<EditorStore>((set) => {
         }
 
         const next = updateLayerViewInScene(state.scene, layerId, view);
+        if (next === state.scene) {
+          return {};
+        }
+
         return { scene: next, dirty: next !== state.baselineScene };
       }),
     updateFeatureView: (featureId, view) =>
@@ -291,6 +348,10 @@ export const useEditorStore = create<EditorStore>((set) => {
         }
 
         const next = updateFeatureViewInScene(state.scene, featureId, view);
+        if (next === state.scene) {
+          return {};
+        }
+
         return { scene: next, dirty: next !== state.baselineScene };
       }),
     // geometry 변경은 편집이므로 히스토리에 스냅샷을 남깁니다.
