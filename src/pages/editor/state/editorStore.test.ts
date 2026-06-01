@@ -247,5 +247,20 @@ describe("editorStore - 편집 히스토리", () => {
     expect(useEditorStore.getState().past).toHaveLength(HISTORY_LIMIT);
   });
 
+  it("편집 후 스냅샷은 깊게 동결되어 제자리 변경이 막힌다(개발 환경)", () => {
+    useEditorStore.getState().updateFeatureGeometry("feature-1", GEOMETRY_B);
+
+    const scene = useEditorStore.getState().scene;
+    expect(scene).not.toBeNull();
+    const frozenScene = scene as EditorScene;
+
+    expect(Object.isFrozen(frozenScene)).toBe(true);
+    expect(Object.isFrozen(frozenScene.layers)).toBe(true);
+    expect(Object.isFrozen(frozenScene.layers[0])).toBe(true);
+    expect(() => {
+      Object.assign(frozenScene, { __mutated: true });
+    }).toThrow();
+  });
+
   // reconcileSelection(사라진 피처 선택 정리)은 delete/create 액션(#11·#12)이 생기면 테스트를 추가한다.
 });

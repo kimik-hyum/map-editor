@@ -105,6 +105,30 @@ function isShallowEqual(a: object | undefined, b: object): boolean {
   return aKeys.every((key) => aRecord[key] === bRecord[key]);
 }
 
+// scene 스냅샷을 깊게 동결합니다. 이미 동결된 하위 트리는 건너뛰므로 구조 공유 덕에 비용이 작습니다.
+function deepFreeze<T>(value: T): T {
+  if (!value || typeof value !== "object" || Object.isFrozen(value)) {
+    return value;
+  }
+
+  Object.freeze(value);
+  for (const key of Object.keys(value)) {
+    deepFreeze((value as Record<string, unknown>)[key]);
+  }
+
+  return value;
+}
+
+// 개발/테스트 환경에서만 scene을 동결해 제자리 변경(불변성 위반)을 즉시 드러냅니다.
+// 스냅샷이 scene 참조를 공유하므로, 과거 스냅샷 오염을 막는 안전망입니다. 프로덕션에서는 비용이 없습니다.
+function freezeSceneInDev(scene: EditorScene): EditorScene {
+  if (import.meta.env.DEV) {
+    deepFreeze(scene);
+  }
+
+  return scene;
+}
+
 // 실제 변경이 없으면(레이어 미발견·동일 값) 원본 scene 참조를 그대로 반환합니다.
 function updateLayerViewInScene(
   scene: EditorScene,
@@ -221,11 +245,12 @@ export const useEditorStore = create<EditorStore>((set) => {
         return {};
       }
 
-      const next = produce(state.scene);
-      if (next === state.scene) {
+      const produced = produce(state.scene);
+      if (produced === state.scene) {
         return {};
       }
 
+      const next = freezeSceneInDev(produced);
       const past = [...state.past, state.scene];
 
       return {
@@ -253,7 +278,7 @@ export const useEditorStore = create<EditorStore>((set) => {
     initializeFromMessage: (message) =>
       set({
         sessionId: message.sessionId,
-        scene: message.scene,
+        scene: freezeSceneInDev(message.scene),
         past: [],
         future: [],
         baselineScene: message.scene,
@@ -267,7 +292,7 @@ export const useEditorStore = create<EditorStore>((set) => {
       }),
     setScene: (scene) =>
       set({
-        scene,
+        scene: freezeSceneInDev(scene),
         past: [],
         future: [],
         baselineScene: scene,
@@ -339,6 +364,7 @@ export const useEditorStore = create<EditorStore>((set) => {
           return {};
         }
 
+        freezeSceneInDev(next);
         return { scene: next, dirty: next !== state.baselineScene };
       }),
     updateFeatureView: (featureId, view) =>
@@ -352,6 +378,7 @@ export const useEditorStore = create<EditorStore>((set) => {
           return {};
         }
 
+        freezeSceneInDev(next);
         return { scene: next, dirty: next !== state.baselineScene };
       }),
     // geometry 변경은 편집이므로 히스토리에 스냅샷을 남깁니다.
