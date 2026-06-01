@@ -9,6 +9,7 @@ import {
   SelectionState,
   ValidationState,
   VisibilityState,
+  type DeepReadonly,
   type EditorScene,
   type GeoJsonGeometry,
 } from "../types/editorTypes";
@@ -127,7 +128,7 @@ function sampleScene(geometry: GeoJsonGeometry): EditorScene {
   };
 }
 
-function currentGeometry(): GeoJsonGeometry | undefined {
+function currentGeometry(): DeepReadonly<GeoJsonGeometry> | undefined {
   return useEditorStore.getState().scene?.layers[0]?.features[0]?.feature.geometry;
 }
 
@@ -248,4 +249,20 @@ describe("editorStore - 편집 히스토리", () => {
   });
 
   // reconcileSelection(사라진 피처 선택 정리)은 delete/create 액션(#11·#12)이 생기면 테스트를 추가한다.
+});
+
+describe("editorStore - 스냅샷 불변성(타입)", () => {
+  it("scene 스냅샷 타입은 깊은 readonly다(컴파일 타임 잠금)", () => {
+    type SceneSnapshot = NonNullable<
+      ReturnType<typeof useEditorStore.getState>["scene"]
+    >;
+    // scene을 mutable로 되돌리면 AssertReadonly가 문자열 타입이 되어 아래 대입이 실패한다.
+    type AssertReadonly =
+      DeepReadonly<EditorScene> extends SceneSnapshot
+        ? true
+        : "scene 스냅샷이 mutable로 노출됨";
+    const assertReadonly: AssertReadonly = true;
+
+    expect(assertReadonly).toBe(true);
+  });
 });
