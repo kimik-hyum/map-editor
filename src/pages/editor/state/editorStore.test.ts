@@ -1,5 +1,17 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { BoundaryKind, GeometryKind } from "../types/editorTypes";
+import {
+  BoundaryKind,
+  EditabilityState,
+  FeatureLifecycle,
+  GeometryKind,
+  LayerRole,
+  LockState,
+  SelectionState,
+  ValidationState,
+  VisibilityState,
+  type EditorScene,
+  type GeoJsonGeometry,
+} from "../types/editorTypes";
 import { useEditorStore } from "./editorStore";
 
 describe("editorStore - 경계 종류", () => {
@@ -45,5 +57,142 @@ describe("editorStore - 그리기 도형", () => {
     useEditorStore.getState().resetScene();
 
     expect(useEditorStore.getState().activeDrawShape).toBe(GeometryKind.Polygon);
+  });
+});
+
+function polygon(coordinates: [number, number][][]): GeoJsonGeometry {
+  return { type: "Polygon", coordinates };
+}
+
+const GEOMETRY_A = polygon([
+  [
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [0, 0],
+  ],
+]);
+const GEOMETRY_B = polygon([
+  [
+    [0, 0],
+    [2, 0],
+    [2, 2],
+    [0, 0],
+  ],
+]);
+
+function sampleScene(geometry: GeoJsonGeometry): EditorScene {
+  return {
+    version: 1,
+    layers: [
+      {
+        id: "layer-1",
+        name: "레이어",
+        roles: [LayerRole.Editable],
+        geometryKinds: [GeometryKind.Polygon],
+        view: {
+          visibility: VisibilityState.Visible,
+          opacity: 1,
+          zIndex: 10,
+          labelVisible: true,
+        },
+        behavior: {
+          lock: LockState.Unlocked,
+          editability: EditabilityState.Editable,
+          selectable: true,
+          deletable: true,
+          draggable: true,
+        },
+        features: [
+          {
+            id: "feature-1",
+            name: "도형",
+            geometryKind: GeometryKind.Polygon,
+            feature: {
+              type: "Feature",
+              id: "feature-1",
+              geometry,
+              properties: {},
+            },
+            state: {
+              selection: SelectionState.None,
+              lifecycle: FeatureLifecycle.Clean,
+              validation: ValidationState.Valid,
+              issues: [],
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function currentGeometry(): GeoJsonGeometry | undefined {
+  return useEditorStore.getState().scene?.layers[0]?.features[0]?.feature.geometry;
+}
+
+describe("editorStore - 편집 히스토리", () => {
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_A));
+  });
+
+  it("씬을 로드하면 히스토리가 비어 있고 dirty가 아니다", () => {
+    const state = useEditorStore.getState();
+
+    expect(state.past).toHaveLength(0);
+    expect(state.future).toHaveLength(0);
+    expect(state.dirty).toBe(false);
+  });
+
+  it("geometry 편집은 past에 스냅샷을 쌓고 dirty가 된다", () => {
+    useEditorStore.getState().updateFeatureGeometry("feature-1", GEOMETRY_B);
+
+    const state = useEditorStore.getState();
+    expect(state.past).toHaveLength(1);
+    expect(state.future).toHaveLength(0);
+    expect(state.dirty).toBe(true);
+    expect(currentGeometry()).toEqual(GEOMETRY_B);
+  });
+
+  it("undo는 이전 geometry로 되돌리고 baseline까지 가면 dirty가 해제된다", () => {
+    useEditorStore.getState().updateFeatureGeometry("feature-1", GEOMETRY_B);
+    useEditorStore.getState().undo();
+
+    const state = useEditorStore.getState();
+    expect(currentGeometry()).toEqual(GEOMETRY_A);
+    expect(state.past).toHaveLength(0);
+    expect(state.future).toHaveLength(1);
+    expect(state.dirty).toBe(false);
+  });
+
+  it("redo는 되돌린 편집을 다시 적용한다", () => {
+    useEditorStore.getState().updateFeatureGeometry("feature-1", GEOMETRY_B);
+    useEditorStore.getState().undo();
+    useEditorStore.getState().redo();
+
+    const state = useEditorStore.getState();
+    expect(currentGeometry()).toEqual(GEOMETRY_B);
+    expect(state.past).toHaveLength(1);
+    expect(state.future).toHaveLength(0);
+  });
+
+  it("가시성 변경은 히스토리에 쌓이지 않는다(silent)", () => {
+    useEditorStore.getState().updateLayerView("layer-1", {
+      visibility: VisibilityState.Hidden,
+    });
+
+    const state = useEditorStore.getState();
+    expect(state.past).toHaveLength(0);
+    expect(state.future).toHaveLength(0);
+  });
+
+  it("undo 후 새 편집은 future(다시하기)를 비운다", () => {
+    useEditorStore.getState().updateFeatureGeometry("feature-1", GEOMETRY_B);
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().future).toHaveLength(1);
+
+    useEditorStore.getState().updateFeatureGeometry("feature-1", GEOMETRY_B);
+    expect(useEditorStore.getState().future).toHaveLength(0);
   });
 });
