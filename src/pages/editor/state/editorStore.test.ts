@@ -255,12 +255,22 @@ describe("editorStore - 스냅샷 불변성(타입)", () => {
   it("scene 스냅샷과 히스토리 스택 타입은 readonly다(컴파일 타임 잠금)", () => {
     type Store = ReturnType<typeof useEditorStore.getState>;
     type SceneSnapshot = NonNullable<Store["scene"]>;
-    // mutable로 되돌리면 단언 타입이 문자열이 되어 아래 대입이 타입 검사에서 실패한다.
-    type AssertSceneReadonly =
-      DeepReadonly<EditorScene> extends SceneSnapshot
+
+    // 두 타입이 정확히 같은지(readonly 수식자까지) 구분하는 표준 트릭.
+    type Equals<X, Y> =
+      (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
         ? true
-        : "scene 스냅샷이 mutable로 노출됨";
-    // 요소뿐 아니라 past/future 배열 컨테이너도 readonly여야 스택을 외부에서 훼손할 수 없다.
+        : false;
+    // 특정 키가 readonly인지 검출한다. readonly 객체 속성은 mutable에도 assignable이라
+    // `extends`만으로는 못 잠그므로 키 단위로 검출한다.
+    type IsReadonlyKey<T, K extends keyof T> = Equals<Pick<T, K>, Readonly<Pick<T, K>>>;
+
+    // scene의 스칼라 속성이 readonly여야 한다. mutable로 되돌리면 false가 되어 아래 대입이 실패한다.
+    type AssertSceneReadonly =
+      IsReadonlyKey<SceneSnapshot, "version"> extends true
+        ? true
+        : "scene 속성이 mutable로 노출됨";
+    // past/future 배열 컨테이너도 readonly여야 스택을 외부에서 훼손할 수 없다(ReadonlyArray는 강제됨).
     type AssertPastReadonly = readonly DeepReadonly<EditorScene>[] extends Store["past"]
       ? true
       : "past가 mutable 배열로 노출됨";
