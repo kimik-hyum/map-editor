@@ -5,6 +5,7 @@ import {
   FeatureLifecycle,
   GeometryKind,
   VisibilityState,
+  type DeepReadonly,
   type DrawShape,
   type EditorScene,
   type EditorFeatureViewState,
@@ -25,13 +26,17 @@ const DEFAULT_DRAW_SHAPE: DrawShape = GeometryKind.Polygon;
 // 되돌리기 이력의 최대 길이입니다. 초과하면 가장 오래된 스냅샷부터 버립니다.
 export const HISTORY_LIMIT = 50;
 
+// 히스토리에 보관하는 scene 스냅샷은 깊은 읽기 전용으로 노출합니다.
+// 소비처의 제자리 변경을 컴파일 단계에서 막습니다(런타임 비용 없음).
+type ReadonlyScene = DeepReadonly<EditorScene>;
+
 type EditorStoreState = {
   sessionId: string | null;
-  scene: EditorScene | null;
+  scene: ReadonlyScene | null;
   // 편집 히스토리: past=되돌리기 스택, future=다시하기 스택, baselineScene=INIT 기준점(dirty 판정용).
-  past: EditorScene[];
-  future: EditorScene[];
-  baselineScene: EditorScene | null;
+  past: readonly ReadonlyScene[];
+  future: readonly ReadonlyScene[];
+  baselineScene: ReadonlyScene | null;
   activeLayerId: string | null;
   selectedFeatureIds: string[];
   hoveredFeatureId: string | null;
@@ -60,14 +65,14 @@ type EditorStoreActions = {
 
 export type EditorStore = EditorStoreState & EditorStoreActions;
 
-function getInitialActiveLayerId(scene: EditorScene | null) {
+function getInitialActiveLayerId(scene: ReadonlyScene | null) {
   return scene?.layers[0]?.id ?? null;
 }
 
 // undo/redo로 복원된 scene에 더 이상 존재하지 않는 피처를 가리키는 선택을 정리합니다.
 function reconcileSelection(
   selectedFeatureIds: string[],
-  scene: EditorScene,
+  scene: ReadonlyScene,
 ): string[] {
   const existing = new Set<string>();
   for (const layer of scene.layers) {
@@ -221,7 +226,7 @@ export const useEditorStore = create<EditorStore>((set) => {
         return {};
       }
 
-      const next = produce(state.scene);
+      const next = produce(state.scene as EditorScene);
       if (next === state.scene) {
         return {};
       }
@@ -250,6 +255,9 @@ export const useEditorStore = create<EditorStore>((set) => {
     activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
     activeDrawShape: DEFAULT_DRAW_SHAPE,
     dirty: false,
+    // 주의: INIT/setScene은 입력 scene의 소유권을 store가 가져갑니다(참조를 그대로 보관).
+    // 외부 코드가 같은 참조를 들고 제자리 변경하면 안 됩니다. 저장/제출 안정성이 중요해지면
+    // 경계 복사(structuredClone)를 검토합니다(#27).
     initializeFromMessage: (message) =>
       set({
         sessionId: message.sessionId,
@@ -334,7 +342,7 @@ export const useEditorStore = create<EditorStore>((set) => {
           return {};
         }
 
-        const next = updateLayerViewInScene(state.scene, layerId, view);
+        const next = updateLayerViewInScene(state.scene as EditorScene, layerId, view);
         if (next === state.scene) {
           return {};
         }
@@ -347,7 +355,11 @@ export const useEditorStore = create<EditorStore>((set) => {
           return {};
         }
 
-        const next = updateFeatureViewInScene(state.scene, featureId, view);
+        const next = updateFeatureViewInScene(
+          state.scene as EditorScene,
+          featureId,
+          view,
+        );
         if (next === state.scene) {
           return {};
         }

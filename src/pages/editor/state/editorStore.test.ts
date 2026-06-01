@@ -9,6 +9,7 @@ import {
   SelectionState,
   ValidationState,
   VisibilityState,
+  type DeepReadonly,
   type EditorScene,
   type GeoJsonGeometry,
 } from "../types/editorTypes";
@@ -127,7 +128,7 @@ function sampleScene(geometry: GeoJsonGeometry): EditorScene {
   };
 }
 
-function currentGeometry(): GeoJsonGeometry | undefined {
+function currentGeometry(): DeepReadonly<GeoJsonGeometry> | undefined {
   return useEditorStore.getState().scene?.layers[0]?.features[0]?.feature.geometry;
 }
 
@@ -248,4 +249,40 @@ describe("editorStore - 편집 히스토리", () => {
   });
 
   // reconcileSelection(사라진 피처 선택 정리)은 delete/create 액션(#11·#12)이 생기면 테스트를 추가한다.
+});
+
+describe("editorStore - 스냅샷 불변성(타입)", () => {
+  it("scene 스냅샷과 히스토리 스택 타입은 readonly다(컴파일 타임 잠금)", () => {
+    type Store = ReturnType<typeof useEditorStore.getState>;
+    type SceneSnapshot = NonNullable<Store["scene"]>;
+
+    // 두 타입이 정확히 같은지(readonly 수식자까지) 구분하는 표준 트릭.
+    type Equals<X, Y> =
+      (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+        ? true
+        : false;
+    // 특정 키가 readonly인지 검출한다. readonly 객체 속성은 mutable에도 assignable이라
+    // `extends`만으로는 못 잠그므로 키 단위로 검출한다.
+    type IsReadonlyKey<T, K extends keyof T> = Equals<Pick<T, K>, Readonly<Pick<T, K>>>;
+
+    // scene의 스칼라 속성이 readonly여야 한다. mutable로 되돌리면 false가 되어 아래 대입이 실패한다.
+    type AssertSceneReadonly =
+      IsReadonlyKey<SceneSnapshot, "version"> extends true
+        ? true
+        : "scene 속성이 mutable로 노출됨";
+    // past/future 배열 컨테이너도 readonly여야 스택을 외부에서 훼손할 수 없다(ReadonlyArray는 강제됨).
+    type AssertPastReadonly = readonly DeepReadonly<EditorScene>[] extends Store["past"]
+      ? true
+      : "past가 mutable 배열로 노출됨";
+    type AssertFutureReadonly =
+      readonly DeepReadonly<EditorScene>[] extends Store["future"]
+        ? true
+        : "future가 mutable 배열로 노출됨";
+
+    const assertScene: AssertSceneReadonly = true;
+    const assertPast: AssertPastReadonly = true;
+    const assertFuture: AssertFutureReadonly = true;
+
+    expect([assertScene, assertPast, assertFuture]).toEqual([true, true, true]);
+  });
 });

@@ -6,6 +6,7 @@ import { LayerPanel } from "./features/layers";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
 import { useEditorHistoryShortcuts } from "./state/historyShortcuts";
+import type { EditorScene } from "./types/editorTypes";
 
 // 에디터 페이지의 지도 DOM을 준비하고 Zustand의 EditorScene을 OpenLayers 지도에 렌더링합니다.
 // 에디터는 순수 consumer입니다. scene은 부모(호스트) 창이 postMessage로 전달해야만 채워집니다.
@@ -37,7 +38,8 @@ export function EditorPage() {
       return;
     }
 
-    syncOpenLayersMapScene(mapRef.current, scene);
+    // 스토어 스냅샷은 깊은 readonly. 어댑터는 scene을 읽기만 하므로 경계에서 mutable로 캐스팅한다.
+    syncOpenLayersMapScene(mapRef.current, scene as EditorScene | null);
   }, [scene]);
 
   return (

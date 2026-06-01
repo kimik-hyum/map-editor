@@ -8,9 +8,11 @@ import {
   VisibilityState,
   editabilityLabels,
   geometryKindLabels,
+  type DeepReadonly,
   type EditorScene,
   type EditorFeature,
   type EditorLayer,
+  type EditorLayerViewState,
   type GeometryKind,
   layerRoleLabels,
 } from "@/pages/editor/types/editorTypes";
@@ -73,11 +75,11 @@ export function getNextLayerVisibility(visibility: VisibilityState) {
     : VisibilityState.Hidden;
 }
 
-function getFeatureVisibility(feature: EditorFeature) {
+function getFeatureVisibility(feature: DeepReadonly<EditorFeature>) {
   return feature.view?.visibility ?? VisibilityState.Visible;
 }
 
-function getFeatureName(feature: EditorFeature) {
+function getFeatureName(feature: DeepReadonly<EditorFeature>) {
   const propertyLabel = feature.feature.properties?.label;
 
   if (feature.name) {
@@ -92,8 +94,8 @@ function getFeatureName(feature: EditorFeature) {
 }
 
 function createLayerFeatureListItemViewModel(
-  feature: EditorFeature,
-  layer: EditorLayer,
+  feature: DeepReadonly<EditorFeature>,
+  layer: DeepReadonly<EditorLayer>,
 ): LayerFeatureListItemViewModel {
   const visibility = getFeatureVisibility(feature);
   // 부모 레이어가 숨김이면 그 아래 도형은 모두 유효 숨김으로 본다(도형 자체 상태는 보존).
@@ -109,12 +111,14 @@ function createLayerFeatureListItemViewModel(
     geometryKind: feature.geometryKind,
     geometryKindLabel: geometryKindLabels[feature.geometryKind],
     selectionLabel: selectionLabels[feature.state.selection] ?? null,
-    accentColor: resolvePolygonStyle(feature, layer).strokeColor,
+    // 스타일 리졸버는 읽기 전용 입력을 받지 않으므로 경계에서 mutable로 캐스팅한다(변경하지 않음).
+    accentColor: resolvePolygonStyle(feature as EditorFeature, layer as EditorLayer)
+      .strokeColor,
   };
 }
 
 function createLayerListItemViewModel(
-  layer: EditorLayer,
+  layer: DeepReadonly<EditorLayer>,
   activeLayerId: string | null,
   stackIndex: number,
 ): LayerListItemViewModel {
@@ -125,7 +129,7 @@ function createLayerListItemViewModel(
     isActive: layer.id === activeLayerId,
     isDimmed: layer.view.visibility === VisibilityState.Dimmed,
     isVisible: layer.view.visibility !== VisibilityState.Hidden,
-    opacity: resolveLayerEffectiveOpacity(layer.view),
+    opacity: resolveLayerEffectiveOpacity(layer.view as EditorLayerViewState),
     orderLabel: `#${stackIndex + 1}`,
     roleLabels: layer.roles.map((role) => layerRoleLabels[role]),
     editabilityLabel:
@@ -139,7 +143,7 @@ function createLayerListItemViewModel(
   };
 }
 
-function getLayersByVisualStack(scene: EditorScene) {
+function getLayersByVisualStack(scene: DeepReadonly<EditorScene>) {
   return scene.layers
     .map((layer, sourceIndex) => ({ layer, sourceIndex }))
     .sort((left, right) => {
@@ -150,7 +154,7 @@ function getLayersByVisualStack(scene: EditorScene) {
 }
 
 export function createLayerPanelViewModel(
-  scene: EditorScene | null,
+  scene: DeepReadonly<EditorScene> | null,
   activeLayerId: string | null,
 ): LayerPanelViewModel {
   if (!scene) {
