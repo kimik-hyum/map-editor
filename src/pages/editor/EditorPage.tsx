@@ -5,6 +5,7 @@ import { createOpenLayersMap, syncOpenLayersMapScene } from "./adapters/openlaye
 import { LayerPanel } from "./features/layers";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
+import { useEditorHistoryShortcuts } from "./state/historyShortcuts";
 
 // 에디터 페이지의 지도 DOM을 준비하고 Zustand의 EditorScene을 OpenLayers 지도에 렌더링합니다.
 // 에디터는 순수 consumer입니다. scene은 부모(호스트) 창이 postMessage로 전달해야만 채워집니다.
@@ -13,6 +14,8 @@ export function EditorPage() {
   const mapRef = useRef<OpenLayersMap | null>(null);
   const scene = useEditorStore((state) => state.scene);
   useEditorMessaging();
+  // Cmd/Ctrl+Z 되돌리기 · +Shift 다시하기. (그리기 중 마지막 점 취소 라우팅은 후속 #12·#46)
+  useEditorHistoryShortcuts();
 
   useEffect(() => {
     if (!mapElementRef.current || mapRef.current) {
