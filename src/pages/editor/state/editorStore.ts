@@ -34,8 +34,8 @@ type EditorStoreState = {
   sessionId: string | null;
   scene: ReadonlyScene | null;
   // 편집 히스토리: past=되돌리기 스택, future=다시하기 스택, baselineScene=INIT 기준점(dirty 판정용).
-  past: ReadonlyScene[];
-  future: ReadonlyScene[];
+  past: readonly ReadonlyScene[];
+  future: readonly ReadonlyScene[];
   baselineScene: ReadonlyScene | null;
   activeLayerId: string | null;
   selectedFeatureIds: string[];
@@ -255,6 +255,9 @@ export const useEditorStore = create<EditorStore>((set) => {
     activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
     activeDrawShape: DEFAULT_DRAW_SHAPE,
     dirty: false,
+    // 주의: INIT/setScene은 입력 scene의 소유권을 store가 가져갑니다(참조를 그대로 보관).
+    // 외부 코드가 같은 참조를 들고 제자리 변경하면 안 됩니다. 저장/제출 안정성이 중요해지면
+    // 경계 복사(structuredClone)를 검토합니다(#27).
     initializeFromMessage: (message) =>
       set({
         sessionId: message.sessionId,

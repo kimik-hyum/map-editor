@@ -252,17 +252,27 @@ describe("editorStore - 편집 히스토리", () => {
 });
 
 describe("editorStore - 스냅샷 불변성(타입)", () => {
-  it("scene 스냅샷 타입은 깊은 readonly다(컴파일 타임 잠금)", () => {
-    type SceneSnapshot = NonNullable<
-      ReturnType<typeof useEditorStore.getState>["scene"]
-    >;
-    // scene을 mutable로 되돌리면 AssertReadonly가 문자열 타입이 되어 아래 대입이 실패한다.
-    type AssertReadonly =
+  it("scene 스냅샷과 히스토리 스택 타입은 readonly다(컴파일 타임 잠금)", () => {
+    type Store = ReturnType<typeof useEditorStore.getState>;
+    type SceneSnapshot = NonNullable<Store["scene"]>;
+    // mutable로 되돌리면 단언 타입이 문자열이 되어 아래 대입이 타입 검사에서 실패한다.
+    type AssertSceneReadonly =
       DeepReadonly<EditorScene> extends SceneSnapshot
         ? true
         : "scene 스냅샷이 mutable로 노출됨";
-    const assertReadonly: AssertReadonly = true;
+    // 요소뿐 아니라 past/future 배열 컨테이너도 readonly여야 스택을 외부에서 훼손할 수 없다.
+    type AssertPastReadonly = readonly DeepReadonly<EditorScene>[] extends Store["past"]
+      ? true
+      : "past가 mutable 배열로 노출됨";
+    type AssertFutureReadonly =
+      readonly DeepReadonly<EditorScene>[] extends Store["future"]
+        ? true
+        : "future가 mutable 배열로 노출됨";
 
-    expect(assertReadonly).toBe(true);
+    const assertScene: AssertSceneReadonly = true;
+    const assertPast: AssertPastReadonly = true;
+    const assertFuture: AssertFutureReadonly = true;
+
+    expect([assertScene, assertPast, assertFuture]).toEqual([true, true, true]);
   });
 });
