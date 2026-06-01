@@ -220,6 +220,15 @@ describe("editorStore - 편집 히스토리", () => {
     expect(useEditorStore.getState().dirty).toBe(false);
   });
 
+  it("뷰가 없는 도형에 기본 가시성을 설정해도 dirty가 되지 않는다", () => {
+    // 샘플 도형은 view가 없으므로 기본값(visible)과 같은 설정은 변화가 없어야 한다.
+    useEditorStore.getState().updateFeatureView("feature-1", {
+      visibility: VisibilityState.Visible,
+    });
+
+    expect(useEditorStore.getState().dirty).toBe(false);
+  });
+
   it("HISTORY_LIMIT를 초과하면 가장 오래된 스냅샷을 버린다", () => {
     for (let size = 1; size <= HISTORY_LIMIT + 5; size += 1) {
       useEditorStore.getState().updateFeatureGeometry(

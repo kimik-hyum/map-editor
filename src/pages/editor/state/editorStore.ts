@@ -189,12 +189,14 @@ function updateFeatureViewInScene(
         return feature;
       }
 
-      const nextView = {
+      // 현재 뷰를 기본값까지 포함해 정규화한 뒤 비교합니다.
+      // feature.view가 없어도 기본 visibility와 동일한 설정은 no-op으로 판정합니다.
+      const currentView = {
         visibility: feature.view?.visibility ?? VisibilityState.Visible,
         ...(feature.view ?? {}),
-        ...view,
       };
-      if (feature.view && isShallowEqual(feature.view, nextView)) {
+      const nextView = { ...currentView, ...view };
+      if (isShallowEqual(currentView, nextView)) {
         return feature;
       }
 
