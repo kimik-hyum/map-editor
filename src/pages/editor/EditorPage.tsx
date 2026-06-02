@@ -6,6 +6,7 @@ import {
   createOpenLayersMap,
   createVertexOverlayLayer,
   type EditorRenderState,
+  invalidateFeatureStyles,
   syncOpenLayersMapScene,
   syncVertexOverlay,
 } from "./adapters/openlayers";
@@ -81,33 +82,63 @@ export function EditorPage() {
     }
   }, [scene]);
 
-  // 선택 변경 → 스타일 함수가 읽는 selectedIds 갱신 + 재렌더 + 정점 오버레이 갱신(scene 재빌드 없음).
+  // 선택 변경 → 스타일 함수가 읽는 selectedIds 갱신 + 멤버십이 바뀐 피처의 레이어만 무효화 + 정점 오버레이 갱신(scene 재빌드 없음).
   useEffect(() => {
     const map = mapRef.current;
     if (!map) {
       return;
     }
 
-    renderStateRef.current.selectedIds = new Set(selectedFeatureIds);
-    map.render();
+    const previous = renderStateRef.current.selectedIds;
+    const next = new Set(selectedFeatureIds);
+
+    // 대칭차: 새로 선택되었거나 선택 해제된 id만 모은다.
+    const changedIds: string[] = [];
+    for (const id of previous) {
+      if (!next.has(id)) {
+        changedIds.push(id);
+      }
+    }
+    for (const id of next) {
+      if (!previous.has(id)) {
+        changedIds.push(id);
+      }
+    }
+
+    // 선택 집합이 실제로 안 바뀌었으면 무효화·정점 재생성 모두 건너뛴다.
+    if (changedIds.length === 0) {
+      return;
+    }
+
+    // renderStateRef 객체는 교체하지 않고 필드만 갱신한다(스타일 함수 클로저가 같은 참조를 읽어야 함).
+    renderStateRef.current.selectedIds = next;
+    invalidateFeatureStyles(map, changedIds);
     if (vertexLayerRef.current) {
       syncVertexOverlay(
         vertexLayerRef.current,
         useEditorStore.getState().scene as EditorScene | null,
-        renderStateRef.current.selectedIds,
+        next,
       );
     }
   }, [selectedFeatureIds]);
 
-  // 호버 변경 → 강조 알파만 갱신(재렌더만).
+  // 호버 변경 → 강조 대상 피처의 레이어만 무효화(이전/현재 호버 둘 다).
   useEffect(() => {
     const map = mapRef.current;
     if (!map) {
       return;
     }
 
+    const previous = renderStateRef.current.hoveredId;
+    if (previous === hoveredFeatureId) {
+      return;
+    }
+
     renderStateRef.current.hoveredId = hoveredFeatureId;
-    map.render();
+    const changedIds = [previous, hoveredFeatureId].filter(
+      (id): id is string => id !== null,
+    );
+    invalidateFeatureStyles(map, changedIds);
   }, [hoveredFeatureId]);
 
   return (

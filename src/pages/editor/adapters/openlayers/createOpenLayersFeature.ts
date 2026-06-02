@@ -14,7 +14,8 @@ export type EditorRenderState = {
 };
 
 // 에디터 도형 하나를 OpenLayers Feature로 변환하고 렌더링 style을 연결합니다.
-// 정적 style 대신 style 함수를 써서, 선택/호버가 바뀌면 map.render()만으로 반영되도록 합니다.
+// 정적 style 대신 style 함수를 써서, 선택/호버가 바뀌면 해당 레이어를 layer.changed()로
+// 무효화(invalidateFeatureStyles)해 스타일이 다시 평가되도록 합니다.
 export function createOpenLayersFeature(
   feature: EditorFeature,
   layer: EditorLayer,
