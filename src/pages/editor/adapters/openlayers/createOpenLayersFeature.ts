@@ -7,8 +7,19 @@ import {
 import { createOpenLayersGeometry } from "./createOpenLayersGeometry";
 import { createOpenLayersStyle } from "./createOpenLayersStyle";
 
+// 선택/호버 같은 렌더 상태입니다. store(scene 밖)에서 오므로 어댑터가 보유하고 스타일 함수가 참조합니다.
+export type EditorRenderState = {
+  selectedIds: ReadonlySet<string>;
+  hoveredId: string | null;
+};
+
 // 에디터 도형 하나를 OpenLayers Feature로 변환하고 렌더링 style을 연결합니다.
-export function createOpenLayersFeature(feature: EditorFeature, layer: EditorLayer) {
+// 정적 style 대신 style 함수를 써서, 선택/호버가 바뀌면 map.render()만으로 반영되도록 합니다.
+export function createOpenLayersFeature(
+  feature: EditorFeature,
+  layer: EditorLayer,
+  renderState?: EditorRenderState,
+) {
   if (feature.view?.visibility === VisibilityState.Hidden) {
     return null;
   }
@@ -25,7 +36,12 @@ export function createOpenLayersFeature(feature: EditorFeature, layer: EditorLay
   });
 
   openLayersFeature.setId(feature.id);
-  openLayersFeature.setStyle(createOpenLayersStyle(feature, layer));
+  openLayersFeature.setStyle(() =>
+    createOpenLayersStyle(feature, layer, {
+      selected: renderState?.selectedIds.has(feature.id) ?? false,
+      hovered: renderState?.hoveredId === feature.id,
+    }),
+  );
 
   return openLayersFeature;
 }

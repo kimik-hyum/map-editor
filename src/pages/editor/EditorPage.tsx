@@ -1,7 +1,14 @@
 import { useEffect, useRef } from "react";
 import type OpenLayersMap from "ol/Map";
 import "ol/ol.css";
-import { createOpenLayersMap, syncOpenLayersMapScene } from "./adapters/openlayers";
+import {
+  attachEditorSelection,
+  createOpenLayersMap,
+  createVertexOverlayLayer,
+  type EditorRenderState,
+  syncOpenLayersMapScene,
+  syncVertexOverlay,
+} from "./adapters/openlayers";
 import { LayerPanel } from "./features/layers";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
@@ -13,7 +20,19 @@ import type { EditorScene } from "./types/editorTypes";
 export function EditorPage() {
   const mapElementRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<OpenLayersMap | null>(null);
+  const vertexLayerRef = useRef<ReturnType<typeof createVertexOverlayLayer> | null>(
+    null,
+  );
+  // 선택/호버는 scene 밖 store 상태입니다. 어댑터 스타일 함수가 참조하도록 같은 객체를 제자리로 갱신합니다.
+  const renderStateRef = useRef<EditorRenderState>({
+    selectedIds: new Set<string>(),
+    hoveredId: null,
+  });
+
   const scene = useEditorStore((state) => state.scene);
+  const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
+  const hoveredFeatureId = useEditorStore((state) => state.hoveredFeatureId);
+
   useEditorMessaging();
   // Cmd/Ctrl+Z 되돌리기 · +Shift 다시하기. (그리기 중 마지막 점 취소 라우팅은 후속 #12·#46)
   useEditorHistoryShortcuts();
@@ -23,24 +42,73 @@ export function EditorPage() {
       return;
     }
 
-    mapRef.current = createOpenLayersMap({
-      target: mapElementRef.current,
+    const map = createOpenLayersMap({ target: mapElementRef.current });
+    mapRef.current = map;
+
+    const vertexLayer = createVertexOverlayLayer();
+    map.addLayer(vertexLayer);
+    vertexLayerRef.current = vertexLayer;
+
+    const detachSelection = attachEditorSelection(map, {
+      getScene: () => useEditorStore.getState().scene as EditorScene | null,
+      onSelect: (featureIds) =>
+        useEditorStore.getState().setSelectedFeatureIds(featureIds),
+      onHover: (featureId) => useEditorStore.getState().setHoveredFeatureId(featureId),
     });
 
     return () => {
-      mapRef.current?.setTarget(undefined);
+      detachSelection();
+      map.setTarget(undefined);
       mapRef.current = null;
+      vertexLayerRef.current = null;
     };
   }, []);
 
+  // scene 변경 → 콘텐츠 레이어 + 정점 오버레이 재구성.
   useEffect(() => {
-    if (!mapRef.current) {
+    const map = mapRef.current;
+    if (!map) {
       return;
     }
 
-    // 스토어 스냅샷은 깊은 readonly. 어댑터는 scene을 읽기만 하므로 경계에서 mutable로 캐스팅한다.
-    syncOpenLayersMapScene(mapRef.current, scene as EditorScene | null);
+    syncOpenLayersMapScene(map, scene as EditorScene | null, renderStateRef.current);
+    if (vertexLayerRef.current) {
+      syncVertexOverlay(
+        vertexLayerRef.current,
+        scene as EditorScene | null,
+        renderStateRef.current.selectedIds,
+      );
+    }
   }, [scene]);
+
+  // 선택 변경 → 스타일 함수가 읽는 selectedIds 갱신 + 재렌더 + 정점 오버레이 갱신(scene 재빌드 없음).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) {
+      return;
+    }
+
+    renderStateRef.current.selectedIds = new Set(selectedFeatureIds);
+    map.render();
+    if (vertexLayerRef.current) {
+      syncVertexOverlay(
+        vertexLayerRef.current,
+        useEditorStore.getState().scene as EditorScene | null,
+        renderStateRef.current.selectedIds,
+      );
+    }
+  }, [selectedFeatureIds]);
+
+  // 호버 변경 → 강조 알파만 갱신(재렌더만).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) {
+      return;
+    }
+
+    renderStateRef.current.hoveredId = hoveredFeatureId;
+    map.render();
+  }, [hoveredFeatureId]);
 
   return (
     <main className="relative min-h-0 min-w-0">

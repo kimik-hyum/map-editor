@@ -1,5 +1,7 @@
+export * from "./attachEditorSelection";
 export * from "./createOpenLayersFeature";
 export * from "./createOpenLayersGeometry";
+export * from "./createVertexOverlay";
 export * from "./createOpenLayersLayer";
 export * from "./createOpenLayersMap";
 export * from "./createOpenLayersMapView";
