@@ -261,6 +261,20 @@ function collectSelectedProjectedVertices(
   return all;
 }
 
+const lonLatProject: ProjectFn = (lon, lat) =>
+  fromLonLat([lon, lat]) as [number, number];
+
+// 선택된 도형의 전체 정점을 EPSG:3857로 투영해 반환합니다(대표점 계산·호버 상세에서 공용).
+export function projectSelectedVertices(
+  scene: EditorScene | null,
+  selectedIds: ReadonlySet<string>,
+): ProjectedVertex[] {
+  if (!scene || selectedIds.size === 0) {
+    return [];
+  }
+  return collectSelectedProjectedVertices(scene, selectedIds, lonLatProject);
+}
+
 // 선택된 도형의 꼭짓점 핸들을 그립니다. 선택/씬/뷰가 바뀔 때마다 호출합니다.
 // viewInfo가 있으면 월드 고정 데시메이션(대표점) + 뷰포트 컬링을 적용하고, 없으면(초기 등) 전체를 그립니다.
 // (성능 메모: 현재는 호출마다 투영·데시메이션을 다시 계산합니다. 대량 정점에서 느려지면
@@ -282,8 +296,7 @@ export function syncVertexOverlay(
     return;
   }
 
-  const project: ProjectFn = (lon, lat) => fromLonLat([lon, lat]) as [number, number];
-  const all = collectSelectedProjectedVertices(scene, selectedIds, project);
+  const all = projectSelectedVertices(scene, selectedIds);
 
   let visible: ProjectedVertex[];
   if (viewInfo) {
@@ -315,11 +328,20 @@ export function syncVertexOverlay(
   );
 }
 
-// 선택된 도형의 꼭짓점 핸들을 그릴 전용 오버레이 레이어를 만듭니다(맵에 한 번만 추가).
+// 선택된 도형의 꼭짓점 핸들(대표점)을 그릴 전용 오버레이 레이어를 만듭니다(맵에 한 번만 추가).
 export function createVertexOverlayLayer() {
   return new VectorLayer({
     source: new VectorSource(),
     style: createVertexHandleStyle(),
     zIndex: VERTEX_OVERLAY_Z_INDEX,
+  });
+}
+
+// 호버 시 커서 주변의 상세(전체) 정점을 그릴 오버레이. 대표점 위에 겹쳐 그립니다.
+export function createVertexDetailOverlayLayer() {
+  return new VectorLayer({
+    source: new VectorSource(),
+    style: createVertexHandleStyle(),
+    zIndex: VERTEX_OVERLAY_Z_INDEX + 1,
   });
 }

@@ -4,10 +4,14 @@ import { unByKey } from "ol/Observable";
 import "ol/ol.css";
 import {
   attachEditorSelection,
+  attachVertexDetail,
   createOpenLayersMap,
+  createVertexDetailOverlayLayer,
   createVertexOverlayLayer,
   type EditorRenderState,
   invalidateFeatureStyles,
+  type ProjectedVertex,
+  projectSelectedVertices,
   syncOpenLayersMapScene,
   syncVertexOverlay,
   type VertexOverlayViewInfo,
@@ -17,6 +21,9 @@ import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
 import { useEditorHistoryShortcuts } from "./state/historyShortcuts";
 import type { EditorScene } from "./types/editorTypes";
+
+// 호버 시 커서로부터 이 픽셀 반경 안의 정점을 상세로 드러냅니다(편집 grab 허용보다 크게).
+const VERTEX_DETAIL_RADIUS_PX = 28;
 
 // 현재 ol View에서 정점 컬링/LOD에 필요한 뷰 상태를 읽습니다. 아직 레이아웃 전이면 undefined.
 function readVertexViewInfo(map: OpenLayersMap): VertexOverlayViewInfo | undefined {
@@ -38,11 +45,16 @@ export function EditorPage() {
   const vertexLayerRef = useRef<ReturnType<typeof createVertexOverlayLayer> | null>(
     null,
   );
+  const detailLayerRef = useRef<ReturnType<
+    typeof createVertexDetailOverlayLayer
+  > | null>(null);
   // 선택/호버는 scene 밖 store 상태입니다. 어댑터 스타일 함수가 참조하도록 같은 객체를 제자리로 갱신합니다.
   const renderStateRef = useRef<EditorRenderState>({
     selectedIds: new Set<string>(),
     hoveredId: null,
   });
+  // 현재 선택된 도형의 전체 투영 정점. 호버 상세에서 커서 반경 질의에 사용합니다.
+  const selectedVerticesRef = useRef<ProjectedVertex[]>([]);
 
   const scene = useEditorStore((state) => state.scene);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
@@ -64,11 +76,22 @@ export function EditorPage() {
     map.addLayer(vertexLayer);
     vertexLayerRef.current = vertexLayer;
 
+    const detailLayer = createVertexDetailOverlayLayer();
+    map.addLayer(detailLayer);
+    detailLayerRef.current = detailLayer;
+
     const detachSelection = attachEditorSelection(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
       onSelect: (featureIds) =>
         useEditorStore.getState().setSelectedFeatureIds(featureIds),
       onHover: (featureId) => useEditorStore.getState().setHoveredFeatureId(featureId),
+    });
+
+    // 호버 시 커서 주변 반경의 전체 정점을 상세로 드러냅니다(detail-on-demand).
+    const detachDetail = attachVertexDetail(map, {
+      layer: detailLayer,
+      getVertices: () => selectedVerticesRef.current,
+      radiusPx: VERTEX_DETAIL_RADIUS_PX,
     });
 
     // 팬/줌이 끝나면 정점 오버레이를 현재 화면 기준으로 다시 계산(뷰포트 컬링 + 줌 LOD).
@@ -86,10 +109,12 @@ export function EditorPage() {
 
     return () => {
       detachSelection();
+      detachDetail();
       unByKey(moveEndKey);
       map.setTarget(undefined);
       mapRef.current = null;
       vertexLayerRef.current = null;
+      detailLayerRef.current = null;
     };
   }, []);
 
@@ -101,6 +126,11 @@ export function EditorPage() {
     }
 
     syncOpenLayersMapScene(map, scene as EditorScene | null, renderStateRef.current);
+    // geometry가 바뀌었을 수 있으니 호버 상세용 정점 캐시도 갱신.
+    selectedVerticesRef.current = projectSelectedVertices(
+      scene as EditorScene | null,
+      renderStateRef.current.selectedIds,
+    );
     if (vertexLayerRef.current) {
       syncVertexOverlay(
         vertexLayerRef.current,
@@ -141,6 +171,11 @@ export function EditorPage() {
 
     // renderStateRef 객체는 교체하지 않고 필드만 갱신한다(스타일 함수 클로저가 같은 참조를 읽어야 함).
     renderStateRef.current.selectedIds = next;
+    // 호버 상세용 전체 정점 캐시 갱신(선택 바뀔 때만).
+    selectedVerticesRef.current = projectSelectedVertices(
+      useEditorStore.getState().scene as EditorScene | null,
+      next,
+    );
     invalidateFeatureStyles(map, changedIds);
     if (vertexLayerRef.current) {
       syncVertexOverlay(
