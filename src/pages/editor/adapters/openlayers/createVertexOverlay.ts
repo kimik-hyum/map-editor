@@ -6,6 +6,7 @@ import { fromLonLat } from "ol/proj";
 import VectorSource from "ol/source/Vector";
 import { Circle as CircleStyle, Fill, Stroke, Style } from "ol/style";
 import { editorDefaultTheme } from "@/pages/editor/theme/editorTheme";
+import { VisibilityState } from "@/pages/editor/types/editorTypes";
 import type {
   EditorCoordinate,
   EditorScene,
@@ -156,29 +157,15 @@ function bucketKey(value: ProjectedVertex, cellSize: number): string {
   return `${Math.floor(value.x / cellSize)}:${Math.floor(value.y / cellSize)}`;
 }
 
-// 월드 고정 격자로 한 차례 솎습니다: 필수점은 항상 유지, 그 외엔 셀당 turnScore 최대 1개.
+// 월드 고정 격자로 한 차례 솎습니다: 필수점은 항상 유지하고, 그 위에 셀당 turnScore 최대 1개를 더합니다.
 function decimateOnce(
   vertices: readonly ProjectedVertex[],
   cellSize: number,
 ): ProjectedVertex[] {
-  const mandatoryBuckets = new Set<string>();
-  const kept: ProjectedVertex[] = [];
-  for (const vertex of vertices) {
-    if (vertex.mandatory) {
-      kept.push(vertex);
-      mandatoryBuckets.add(bucketKey(vertex, cellSize));
-    }
-  }
-
+  // 셀 대표는 필수/비필수 구분 없이 turnScore 최대(동률은 index 낮은 순)로 고른다.
   const bestPerBucket = new Map<string, ProjectedVertex>();
   for (const vertex of vertices) {
-    if (vertex.mandatory) {
-      continue;
-    }
     const key = bucketKey(vertex, cellSize);
-    if (mandatoryBuckets.has(key)) {
-      continue; // 필수점이 있는 셀은 중복 표시를 피해 건너뜀
-    }
     const current = bestPerBucket.get(key);
     if (
       !current ||
@@ -189,10 +176,18 @@ function decimateOnce(
     }
   }
 
-  for (const vertex of bestPerBucket.values()) {
-    kept.push(vertex);
+  // 필수점은 항상 포함하고 셀 대표를 합친다. 같은 객체는 Set이 중복 제거한다.
+  // (필수점과 더 날카로운 비필수점이 같은 셀이면 둘 다 남아 코너 손실을 막는다.)
+  const kept = new Set<ProjectedVertex>();
+  for (const vertex of vertices) {
+    if (vertex.mandatory) {
+      kept.add(vertex);
+    }
   }
-  return kept;
+  for (const vertex of bestPerBucket.values()) {
+    kept.add(vertex);
+  }
+  return [...kept];
 }
 
 // 대표 정점을 고릅니다. 상한(maxCount)을 넘으면 셀을 2배씩 키워 다시 솎습니다(필수점 미만으로는 못 줄임).
@@ -200,9 +195,14 @@ export function decimateProjectedVertices(
   vertices: readonly ProjectedVertex[],
   options: { cellSize: number; maxCount: number },
 ): ProjectedVertex[] {
-  if (options.cellSize <= 0) {
+  if (!Number.isFinite(options.cellSize) || options.cellSize <= 0) {
     return [...vertices];
   }
+
+  const mandatoryCount = vertices.reduce(
+    (count, vertex) => (vertex.mandatory ? count + 1 : count),
+    0,
+  );
 
   let cellSize = options.cellSize;
   let result = decimateOnce(vertices, cellSize);
@@ -211,6 +211,9 @@ export function decimateProjectedVertices(
     attempt < 24 && result.length > options.maxCount;
     attempt += 1
   ) {
+    if (result.length <= mandatoryCount) {
+      break; // 필수점만 남아 더는 못 줄임
+    }
     cellSize *= 2;
     result = decimateOnce(vertices, cellSize);
   }
@@ -239,11 +242,20 @@ function collectSelectedProjectedVertices(
 ): ProjectedVertex[] {
   const all: ProjectedVertex[] = [];
   for (const editorLayer of scene.layers) {
+    if (editorLayer.view.visibility === VisibilityState.Hidden) {
+      continue; // 숨긴 레이어는 본 레이어처럼 정점도 표시하지 않음
+    }
     for (const feature of editorLayer.features) {
       if (!selectedIds.has(feature.id)) {
         continue;
       }
-      all.push(...buildProjectedVertices(feature.feature.geometry, project));
+      if (feature.view?.visibility === VisibilityState.Hidden) {
+        continue;
+      }
+      // 스프레드(all.push(...arr))는 대량 정점에서 콜스택 한계로 터질 수 있어 루프로 추가한다.
+      for (const vertex of buildProjectedVertices(feature.feature.geometry, project)) {
+        all.push(vertex);
+      }
     }
   }
   return all;

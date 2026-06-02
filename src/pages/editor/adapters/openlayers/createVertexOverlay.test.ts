@@ -70,17 +70,17 @@ describe("decimateProjectedVertices", () => {
     expect(result[0].index).toBe(2);
   });
 
-  it("필수점은 항상 유지하고, 같은 셀의 비필수점은 버린다", () => {
+  it("필수점은 항상 유지하고, 같은 셀의 더 날카로운 비필수점도 함께 남긴다", () => {
     const vertices = [
       vertex({ index: 0, x: 1, y: 1, mandatory: true }),
       vertex({ index: 1, x: 2, y: 2, turnScore: 0.9 }),
     ];
     const result = decimateProjectedVertices(vertices, { cellSize: 10, maxCount: 100 });
-    expect(result).toHaveLength(1);
-    expect(result[0].index).toBe(0);
+    // 코너 손실을 막기 위해 필수점(0)과 셀 대표(1)가 모두 남는다.
+    expect(result.map((v) => v.index).sort((a, b) => a - b)).toEqual([0, 1]);
   });
 
-  it("줌아웃(아주 큰 셀)이어도 빈 배열이 아니라 대표점(필수점)이 남는다", () => {
+  it("줌아웃(아주 큰 셀)이어도 비지 않고 필수점이 포함된다", () => {
     const vertices = [
       vertex({ index: 0, x: 0, y: 0, mandatory: true }),
       vertex({ index: 1, x: 10, y: 10, turnScore: 0.5 }),
@@ -90,9 +90,8 @@ describe("decimateProjectedVertices", () => {
       cellSize: 1_000_000,
       maxCount: 100,
     });
-    // 한 셀에 다 들어가고 그 셀엔 필수점이 있으므로 필수점만 남는다(빈 배열 아님).
-    expect(result).toHaveLength(1);
-    expect(result[0].index).toBe(0);
+    // 한 셀에 다 들어가도 필수점(0) + 셀 대표(최고 turnScore=2)가 남는다(빈 배열 아님).
+    expect(result.map((v) => v.index).sort((a, b) => a - b)).toEqual([0, 2]);
   });
 
   it("상한을 넘으면 셀을 키워 더 솎는다", () => {
@@ -107,5 +106,28 @@ describe("decimateProjectedVertices", () => {
 
     const capped = decimateProjectedVertices(vertices, { cellSize: 10, maxCount: 1 });
     expect(capped).toHaveLength(1);
+  });
+
+  it("필수점이 상한보다 많으면 필수점은 그대로 둔다(못 줄임)", () => {
+    const vertices = [
+      vertex({ index: 0, x: 0, y: 0, mandatory: true }),
+      vertex({ index: 1, x: 100, y: 0, mandatory: true }),
+      vertex({ index: 2, x: 0, y: 100, mandatory: true }),
+    ];
+    const result = decimateProjectedVertices(vertices, { cellSize: 10, maxCount: 1 });
+    expect(result).toHaveLength(3);
+  });
+
+  it("cellSize가 유한하지 않거나 0 이하면 전체를 반환한다", () => {
+    const vertices = [
+      vertex({ index: 0, x: 0, y: 0, turnScore: 0.5 }),
+      vertex({ index: 1, x: 1, y: 1, turnScore: 0.5 }),
+    ];
+    expect(
+      decimateProjectedVertices(vertices, { cellSize: 0, maxCount: 1 }),
+    ).toHaveLength(2);
+    expect(
+      decimateProjectedVertices(vertices, { cellSize: Number.NaN, maxCount: 1 }),
+    ).toHaveLength(2);
   });
 });
