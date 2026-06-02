@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type OpenLayersMap from "ol/Map";
+import { unByKey } from "ol/Observable";
 import "ol/ol.css";
 import {
   attachEditorSelection,
@@ -9,12 +10,25 @@ import {
   invalidateFeatureStyles,
   syncOpenLayersMapScene,
   syncVertexOverlay,
+  type VertexOverlayViewInfo,
 } from "./adapters/openlayers";
 import { LayerPanel } from "./features/layers";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
 import { useEditorHistoryShortcuts } from "./state/historyShortcuts";
 import type { EditorScene } from "./types/editorTypes";
+
+// 현재 ol View에서 정점 컬링/LOD에 필요한 뷰 상태를 읽습니다. 아직 레이아웃 전이면 undefined.
+function readVertexViewInfo(map: OpenLayersMap): VertexOverlayViewInfo | undefined {
+  const view = map.getView();
+  const size = map.getSize();
+  const zoom = view.getZoom();
+  const resolution = view.getResolution();
+  if (zoom === undefined || resolution === undefined || !size) {
+    return undefined;
+  }
+  return { zoom, resolution, extent: view.calculateExtent(size) };
+}
 
 // 에디터 페이지의 지도 DOM을 준비하고 Zustand의 EditorScene을 OpenLayers 지도에 렌더링합니다.
 // 에디터는 순수 consumer입니다. scene은 부모(호스트) 창이 postMessage로 전달해야만 채워집니다.
@@ -57,8 +71,22 @@ export function EditorPage() {
       onHover: (featureId) => useEditorStore.getState().setHoveredFeatureId(featureId),
     });
 
+    // 팬/줌이 끝나면 정점 오버레이를 현재 화면 기준으로 다시 계산(뷰포트 컬링 + 줌 LOD).
+    const moveEndKey = map.on("moveend", () => {
+      if (!vertexLayerRef.current) {
+        return;
+      }
+      syncVertexOverlay(
+        vertexLayerRef.current,
+        useEditorStore.getState().scene as EditorScene | null,
+        renderStateRef.current.selectedIds,
+        readVertexViewInfo(map),
+      );
+    });
+
     return () => {
       detachSelection();
+      unByKey(moveEndKey);
       map.setTarget(undefined);
       mapRef.current = null;
       vertexLayerRef.current = null;
@@ -78,6 +106,7 @@ export function EditorPage() {
         vertexLayerRef.current,
         scene as EditorScene | null,
         renderStateRef.current.selectedIds,
+        readVertexViewInfo(map),
       );
     }
   }, [scene]);
@@ -118,6 +147,7 @@ export function EditorPage() {
         vertexLayerRef.current,
         useEditorStore.getState().scene as EditorScene | null,
         next,
+        readVertexViewInfo(map),
       );
     }
   }, [selectedFeatureIds]);
