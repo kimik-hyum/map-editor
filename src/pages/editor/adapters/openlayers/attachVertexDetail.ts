@@ -37,13 +37,13 @@ export function attachVertexDetail(
     const pixel = pendingPixel;
     const resolution = map.getView().getResolution();
     if (vertices.length === 0 || !pixel || resolution === undefined) {
-      source.clear();
+      source.clear(true);
       return;
     }
 
     const center = map.getCoordinateFromPixel(pixel);
     if (!center) {
-      source.clear();
+      source.clear(true);
       return;
     }
 
@@ -58,7 +58,7 @@ export function attachVertexDetail(
       }
     }
 
-    source.clear();
+    source.clear(true);
     if (handles.length > 0) {
       source.addFeatures(handles);
     }
@@ -95,6 +95,6 @@ export function attachVertexDetail(
     if (frameId !== 0) {
       cancelAnimationFrame(frameId);
     }
-    options.layer.getSource()?.clear();
+    options.layer.getSource()?.clear(true);
   };
 }

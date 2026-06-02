@@ -290,7 +290,7 @@ export function syncVertexOverlay(
     return;
   }
 
-  source.clear();
+  source.clear(true);
 
   if (!scene || selectedIds.size === 0) {
     return;

@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { GeoJsonGeometry } from "@/pages/editor/types/editorTypes";
+import {
+  type EditorScene,
+  type GeoJsonGeometry,
+  VisibilityState,
+} from "@/pages/editor/types/editorTypes";
 import {
   buildProjectedVertices,
   decimateProjectedVertices,
   type ProjectedVertex,
+  projectSelectedVertices,
 } from "./createVertexOverlay";
 
 // 테스트에서는 투영 없이 경위도를 그대로 x/y로 쓴다(순수 수학만 검증).
@@ -129,5 +134,63 @@ describe("decimateProjectedVertices", () => {
     expect(
       decimateProjectedVertices(vertices, { cellSize: Number.NaN, maxCount: 1 }),
     ).toHaveLength(2);
+  });
+});
+
+function triangle(id: string, featureHidden = false) {
+  return {
+    id,
+    feature: {
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [0, 0],
+            [0, 1],
+            [1, 1],
+            [0, 0],
+          ],
+        ],
+      },
+    },
+    ...(featureHidden ? { view: { visibility: VisibilityState.Hidden } } : {}),
+  };
+}
+
+describe("projectSelectedVertices", () => {
+  // 보이는 편집 레이어(선택 피처 + 미선택 피처), 숨긴 레이어, 보이는 레이어의 숨긴 피처.
+  const scene = {
+    layers: [
+      {
+        id: "visible",
+        view: { visibility: VisibilityState.Visible },
+        features: [triangle("selected-visible"), triangle("not-selected")],
+      },
+      {
+        id: "hidden-layer",
+        view: { visibility: VisibilityState.Hidden },
+        features: [triangle("selected-in-hidden-layer")],
+      },
+      {
+        id: "visible-2",
+        view: { visibility: VisibilityState.Visible },
+        features: [triangle("selected-hidden-feature", true)],
+      },
+    ],
+  } as unknown as EditorScene;
+
+  it("선택 + 보이는 레이어 + 보이는 피처만 정점을 만든다", () => {
+    const selected = new Set([
+      "selected-visible",
+      "selected-in-hidden-layer",
+      "selected-hidden-feature",
+    ]);
+    const result = projectSelectedVertices(scene, selected);
+    // 삼각형(닫힘 좌표 제외) 3정점만: 나머지는 미선택/숨긴 레이어/숨긴 피처로 제외.
+    expect(result).toHaveLength(3);
+  });
+
+  it("선택이 없으면 빈 배열", () => {
+    expect(projectSelectedVertices(scene, new Set())).toEqual([]);
   });
 });
