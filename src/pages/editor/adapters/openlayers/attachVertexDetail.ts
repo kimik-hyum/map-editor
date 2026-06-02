@@ -72,6 +72,9 @@ export function attachVertexDetail(
 
   const moveKey = map.on("pointermove", (event) => {
     if (event.dragging) {
+      // 팬/줌 중에는 stale 상세점을 지운다(포인터를 다시 움직이면 복원).
+      pendingPixel = null;
+      scheduleRender();
       return;
     }
     pendingPixel = event.pixel;

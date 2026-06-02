@@ -131,6 +131,8 @@ export function EditorPage() {
       scene as EditorScene | null,
       renderStateRef.current.selectedIds,
     );
+    // 이전 상세점이 다음 포인터 이동까지 남지 않도록 즉시 비운다.
+    detailLayerRef.current?.getSource()?.clear();
     if (vertexLayerRef.current) {
       syncVertexOverlay(
         vertexLayerRef.current,
@@ -176,6 +178,8 @@ export function EditorPage() {
       useEditorStore.getState().scene as EditorScene | null,
       next,
     );
+    // 이전 선택의 상세점이 다음 포인터 이동까지 남지 않도록 즉시 비운다.
+    detailLayerRef.current?.getSource()?.clear();
     invalidateFeatureStyles(map, changedIds);
     if (vertexLayerRef.current) {
       syncVertexOverlay(

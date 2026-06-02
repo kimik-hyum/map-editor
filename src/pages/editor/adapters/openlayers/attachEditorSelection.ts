@@ -36,20 +36,25 @@ function pickSelectableFeatureId(
 ): string | null {
   let picked: string | null = null;
 
-  map.forEachFeatureAtPixel(pixel, (feature, layer) => {
-    const layerId = layer?.get(editorLayerIdProperty);
-    if (typeof layerId !== "string" || !isLayerEditable(scene, layerId)) {
+  map.forEachFeatureAtPixel(
+    pixel,
+    (feature, layer) => {
+      const layerId = layer?.get(editorLayerIdProperty);
+      if (typeof layerId !== "string" || !isLayerEditable(scene, layerId)) {
+        return false;
+      }
+
+      const id = feature.getId();
+      if (typeof id === "string") {
+        picked = id;
+        return true; // 최상위 선택 가능 피처에서 멈춤
+      }
+
       return false;
-    }
-
-    const id = feature.getId();
-    if (typeof id === "string") {
-      picked = id;
-      return true; // 최상위 선택 가능 피처에서 멈춤
-    }
-
-    return false;
-  });
+    },
+    // 콘텐츠 레이어만 hit-test(정점/상세 오버레이·베이스맵 제외).
+    { layerFilter: (layer) => typeof layer.get(editorLayerIdProperty) === "string" },
+  );
 
   return picked;
 }
