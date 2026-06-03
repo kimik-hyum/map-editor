@@ -99,6 +99,7 @@ export function EditorPage() {
 
     // 선택 도형의 정점 편집(드래그 이동 / 우클릭 삭제). modifyend에만 store에 커밋.
     const modify = attachVertexModify(map, {
+      getScene: () => useEditorStore.getState().scene as EditorScene | null,
       onModifyStart: () => {
         // 편집 중에는 대표점/상세 핸들을 치워 Modify 자체 핸들에 맡긴다.
         vertexLayerRef.current?.getSource()?.clear(true);

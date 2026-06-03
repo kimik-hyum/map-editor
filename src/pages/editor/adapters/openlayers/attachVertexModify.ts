@@ -10,13 +10,21 @@ import type OpenLayersMap from "ol/Map";
 import { unByKey } from "ol/Observable";
 import { Circle as CircleStyle, Fill, Stroke, Style } from "ol/style";
 import { editorDefaultTheme } from "@/pages/editor/theme/editorTheme";
+import {
+  EditabilityState,
+  LockState,
+  VisibilityState,
+} from "@/pages/editor/types/editorTypes";
 import type {
   EditorCoordinate,
+  EditorScene,
   GeoJsonGeometry,
 } from "@/pages/editor/types/editorTypes";
 import { editorLayerIdProperty } from "./createOpenLayersLayer";
 
 type VertexModifyOptions = {
+  // 항상 최신 scene을 읽어 편집 대상 레이어 상태를 확인합니다.
+  getScene: () => EditorScene | null;
   // 드래그/삭제 시작 시(오버레이 정리 등).
   onModifyStart: () => void;
   // 좌표가 실제로 바뀐 피처만 호출(EPSG:4326 GeoJSON).
@@ -72,6 +80,20 @@ export function olGeometryToEditorGeometry(geometry: Geometry): GeoJsonGeometry 
     dataProjection: "EPSG:4326",
   }) as GeoJsonGeometry;
   return normalizeClosedRings(object);
+}
+
+// 정점 편집 대상 적격성: 보이고 + 편집 가능 + 잠금 해제인 레이어만.
+// (선택 후 레이어를 숨기거나 잠그면 편집 대상에서 빠져야 한다.)
+export function isLayerVertexEditable(scene: EditorScene, layerId: string): boolean {
+  const layer = scene.layers.find((candidate) => candidate.id === layerId);
+  if (!layer) {
+    return false;
+  }
+  return (
+    layer.view.visibility !== VisibilityState.Hidden &&
+    layer.behavior.editability === EditabilityState.Editable &&
+    layer.behavior.lock === LockState.Unlocked
+  );
 }
 
 function sameCoordinates(a: Geometry, b: Geometry): boolean {
@@ -143,14 +165,17 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
   // 선택된 도형의 OL 피처를 Modify 컬렉션에 다시 바인딩(scene 재빌드 후에도 호출).
   const sync = (selectedIds: ReadonlySet<string>) => {
     features.clear();
-    if (selectedIds.size === 0) {
+    const scene = options.getScene();
+    if (!scene || selectedIds.size === 0) {
       return;
     }
     for (const layer of map.getLayers().getArray()) {
       if (!(layer instanceof VectorLayer)) {
         continue;
       }
-      if (typeof layer.get(editorLayerIdProperty) !== "string") {
+      const layerId = layer.get(editorLayerIdProperty);
+      // 보임 + 편집 가능 + 잠금 해제 레이어만 편집 대상으로 묶는다(선택 후 숨김/잠금되면 제외).
+      if (typeof layerId !== "string" || !isLayerVertexEditable(scene, layerId)) {
         continue;
       }
       const source = layer.getSource();
