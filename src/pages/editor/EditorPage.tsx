@@ -5,6 +5,7 @@ import "ol/ol.css";
 import {
   attachEditorSelection,
   attachVertexDetail,
+  attachVertexModify,
   createOpenLayersMap,
   createVertexDetailOverlayLayer,
   createVertexOverlayLayer,
@@ -55,6 +56,8 @@ export function EditorPage() {
   });
   // 현재 선택된 도형의 전체 투영 정점. 호버 상세에서 커서 반경 질의에 사용합니다.
   const selectedVerticesRef = useRef<ProjectedVertex[]>([]);
+  // 정점 편집(Modify) 핸들. 선택 변경/씬 재빌드 때 선택 도형으로 재바인딩합니다.
+  const modifyRef = useRef<ReturnType<typeof attachVertexModify> | null>(null);
 
   const scene = useEditorStore((state) => state.scene);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
@@ -94,6 +97,30 @@ export function EditorPage() {
       radiusPx: VERTEX_DETAIL_RADIUS_PX,
     });
 
+    // 선택 도형의 정점 편집(드래그 이동 / 우클릭 삭제). modifyend에만 store에 커밋.
+    const modify = attachVertexModify(map, {
+      onModifyStart: () => {
+        // 편집 중에는 대표점/상세 핸들을 치워 Modify 자체 핸들에 맡긴다.
+        vertexLayerRef.current?.getSource()?.clear(true);
+        detailLayerRef.current?.getSource()?.clear(true);
+      },
+      onCommit: (featureId, geometry) =>
+        useEditorStore.getState().updateFeatureGeometry(featureId, geometry),
+      onModifyEnd: () => {
+        // 커밋이 no-op이어도(좌표 무변화) 대표점을 복구한다(커밋 시엔 scene effect가 한 번 더 갱신).
+        if (!vertexLayerRef.current) {
+          return;
+        }
+        syncVertexOverlay(
+          vertexLayerRef.current,
+          useEditorStore.getState().scene as EditorScene | null,
+          renderStateRef.current.selectedIds,
+          readVertexViewInfo(map),
+        );
+      },
+    });
+    modifyRef.current = modify;
+
     // 팬/줌이 끝나면 정점 오버레이를 현재 화면 기준으로 다시 계산(뷰포트 컬링 + 줌 LOD).
     const moveEndKey = map.on("moveend", () => {
       if (!vertexLayerRef.current) {
@@ -110,11 +137,13 @@ export function EditorPage() {
     return () => {
       detachSelection();
       detachDetail();
+      modify.detach();
       unByKey(moveEndKey);
       map.setTarget(undefined);
       mapRef.current = null;
       vertexLayerRef.current = null;
       detailLayerRef.current = null;
+      modifyRef.current = null;
     };
   }, []);
 
@@ -141,6 +170,8 @@ export function EditorPage() {
         readVertexViewInfo(map),
       );
     }
+    // 콘텐츠 피처가 새로 만들어졌으므로 편집 대상(Modify 컬렉션)을 다시 바인딩.
+    modifyRef.current?.sync(renderStateRef.current.selectedIds);
   }, [scene]);
 
   // 선택 변경 → 스타일 함수가 읽는 selectedIds 갱신 + 멤버십이 바뀐 피처의 레이어만 무효화 + 정점 오버레이 갱신(scene 재빌드 없음).
@@ -189,6 +220,8 @@ export function EditorPage() {
         readVertexViewInfo(map),
       );
     }
+    // 선택이 바뀌었으니 편집 대상(Modify 컬렉션)도 다시 바인딩.
+    modifyRef.current?.sync(next);
   }, [selectedFeatureIds]);
 
   // 호버 변경 → 강조 대상 피처의 레이어만 무효화(이전/현재 호버 둘 다).

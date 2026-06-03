@@ -1,5 +1,6 @@
 export * from "./attachEditorSelection";
 export * from "./attachVertexDetail";
+export * from "./attachVertexModify";
 export * from "./createOpenLayersFeature";
 export * from "./createOpenLayersGeometry";
 export * from "./createVertexOverlay";
