@@ -90,12 +90,9 @@ export function useOpenLayersEditorMap() {
 
     const modify = attachVertexModify(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
-      onModifyStart: (isDrag) => {
-        // 실제 드래그(이동) 때만 핸들을 치운다. 클릭 추가/우클릭 삭제는 그대로 두고
-        // modifyend 재생성에 맡겨, 추가 시 핸들이 사라졌다 다시 생기는 깜빡임을 막는다.
-        if (!isDrag) {
-          return;
-        }
+      onActiveDrag: () => {
+        // 실제 정점 드래그가 시작될 때만 핸들을 치운다(기존 정점 드래그 + 삽입 후 이어 드래그 모두).
+        // 클릭 추가/우클릭 삭제처럼 드래그 없는 제스처에선 호출되지 않아 깜빡임이 없다.
         vertexLayerRef.current?.getSource()?.clear(true);
         detailLayerRef.current?.getSource()?.clear(true);
       },

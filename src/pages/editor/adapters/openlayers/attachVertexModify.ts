@@ -25,8 +25,9 @@ import { editorLayerIdProperty } from "./createOpenLayersLayer";
 type VertexModifyOptions = {
   // 항상 최신 scene을 읽어 편집 대상 레이어 상태를 확인합니다.
   getScene: () => EditorScene | null;
-  // 편집 제스처 시작 시 호출. isDrag=true면 실제 정점 드래그(이동), false면 클릭 추가/우클릭 삭제다.
-  onModifyStart: (isDrag: boolean) => void;
+  // 실제 정점 드래그(이동)가 시작되면 제스처당 1회 호출. 삽입 후 이어지는 드래그도 포함.
+  // (클릭 추가·우클릭 삭제처럼 드래그가 없는 제스처에선 호출되지 않음 → 핸들 깜빡임 없음)
+  onActiveDrag: () => void;
   // 좌표가 실제로 바뀐 피처만 호출(EPSG:4326 GeoJSON).
   onCommit: (featureId: string, geometry: GeoJsonGeometry) => void;
   // 편집 제스처 종료 시(오버레이 복구 등). 커밋 여부와 무관하게 호출.
@@ -142,10 +143,21 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
   const handleContextMenu = (event: Event) => event.preventDefault();
   viewport.addEventListener("contextmenu", handleContextMenu);
 
-  // 드래그 시작 시 원본 geometry를 복제해 두고(=실제 변경 여부 판단), 시작 콜백 호출.
+  // 드래그 시작 시 원본 geometry를 복제해 두고(=실제 변경 여부 판단). originals 비어있지 않음 = 편집 제스처 진행 중.
   const originals = new Map<string, Geometry>();
+  // 이번 제스처에서 "실제 드래그 시작"을 이미 알렸는지(제스처당 1회만 핸들 숨김).
+  let activeDragSignaled = false;
+
+  const signalActiveDrag = () => {
+    if (!activeDragSignaled) {
+      activeDragSignaled = true;
+      options.onActiveDrag();
+    }
+  };
+
   const startKey = modify.on("modifystart", (event: ModifyEvent) => {
     originals.clear();
+    activeDragSignaled = false;
     event.features.forEach((feature) => {
       const id = feature.getId();
       const geometry = feature.getGeometry();
@@ -153,10 +165,18 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
         originals.set(id, geometry.clone());
       }
     });
-    // 추가(pointerdown)·삭제(pointerup)는 갭 없이 즉시 끝나므로 핸들을 치울 필요가 없다.
-    // 실제 이동(드래그)일 때만 isDrag=true.
-    const isDrag = event.mapBrowserEvent?.type === "pointerdrag";
-    options.onModifyStart(isDrag);
+    // 기존 정점 드래그는 modifystart 원인이 pointerdrag → 즉시 드래그로 본다.
+    // (삽입은 pointerdown, 삭제는 pointerup이라 여기선 안 잡히고, 삽입 후 이어지는 드래그는 아래 pointerdrag에서 잡음)
+    if (event.mapBrowserEvent?.type === "pointerdrag") {
+      signalActiveDrag();
+    }
+  });
+
+  // 삽입(pointerdown) 후 이어서 정점을 끌 때처럼, 편집 제스처 중 실제 드래그가 시작되면 한 번 핸들을 숨긴다.
+  const dragKey = map.on("pointerdrag", () => {
+    if (originals.size > 0) {
+      signalActiveDrag();
+    }
   });
 
   const endKey = modify.on("modifyend", (event: ModifyEvent) => {
@@ -178,6 +198,7 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
       options.onCommit(id, olGeometryToEditorGeometry(geometry));
     });
     originals.clear();
+    activeDragSignaled = false;
     // 외곽선 클릭으로 정점을 추가한 경우, 같은 클릭에서 뒤따르는 selection 클릭이 선택을 흔들지 않게 알린다.
     if (inserted) {
       options.onInsert?.();
@@ -216,6 +237,7 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
 
   const detach = () => {
     unByKey(startKey);
+    unByKey(dragKey);
     unByKey(endKey);
     viewport.removeEventListener("contextmenu", handleContextMenu);
     map.removeInteraction(modify);
