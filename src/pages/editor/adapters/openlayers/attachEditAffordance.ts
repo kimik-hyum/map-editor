@@ -3,12 +3,12 @@ import SimpleGeometry from "ol/geom/SimpleGeometry";
 import VectorLayer from "ol/layer/Vector";
 import type OpenLayersMap from "ol/Map";
 import { unByKey } from "ol/Observable";
-import type { EditorScene } from "@/pages/editor/types/editorTypes";
+import { EditAffordanceKind, type EditorScene } from "@/pages/editor/types/editorTypes";
 import { isLayerVertexEditable } from "./attachVertexModify";
 import { editorLayerIdProperty } from "./createOpenLayersLayer";
 
-// 커서 위치에서 가능한 정점 편집 동작. insert=외곽선(정점 없음), delete=정점 위, null=해당 없음.
-export type EditAffordance = "insert" | "delete" | null;
+// 현재 커서 위치의 편집 동작(없으면 null). 동작 종류는 EditAffordanceKind enum으로 관리합니다.
+export type EditAffordance = EditAffordanceKind | null;
 
 // 커서가 정점/외곽선에 닿았다고 볼 픽셀 허용오차(ol Modify의 pixelTolerance와 맞춤).
 const DEFAULT_HIT_PX = 10;
@@ -27,10 +27,10 @@ export function decideAffordance(
   hitPx: number,
 ): EditAffordance {
   if (nearestVertexPx <= hitPx) {
-    return "delete";
+    return EditAffordanceKind.Delete;
   }
   if (nearestEdgePx <= hitPx) {
-    return "insert";
+    return EditAffordanceKind.Insert;
   }
   return null;
 }

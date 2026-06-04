@@ -5,12 +5,13 @@ import { useOpenLayersEditorMap } from "./features/map";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
 import { useEditorHistoryShortcuts } from "./state/historyShortcuts";
+import { EditAffordanceKind } from "./types/editorTypes";
 
 // 커서 위치의 편집 동작별 힌트 문구.
-const EDIT_HINTS = {
-  insert: "클릭하여 정점 추가",
-  delete: "우클릭하여 정점 삭제",
-} as const;
+const EDIT_HINTS: Record<EditAffordanceKind, string> = {
+  [EditAffordanceKind.Insert]: "클릭하여 정점 추가",
+  [EditAffordanceKind.Delete]: "우클릭하여 정점 삭제",
+};
 
 // 에디터 페이지는 화면 배치만 담당합니다. 지도 수명주기와 편집 인터랙션은 hook/controller가 관리합니다.
 export function EditorPage() {
