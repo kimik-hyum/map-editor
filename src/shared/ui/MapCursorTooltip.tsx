@@ -30,7 +30,9 @@ export function MapCursorTooltip({ text, containerRef }: MapCursorTooltipProps) 
     };
 
     const handlePointerMove = (event: PointerEvent) => {
-      const rect = container.getBoundingClientRect();
+      // 위치 기준은 툴팁의 positioned 조상(offsetParent). section/main 사이에 offset이 생겨도 어긋나지 않도록.
+      const base = (element.offsetParent as HTMLElement | null) ?? container;
+      const rect = base.getBoundingClientRect();
       pointerX = event.clientX - rect.left;
       pointerY = event.clientY - rect.top;
       if (frameId === 0) {

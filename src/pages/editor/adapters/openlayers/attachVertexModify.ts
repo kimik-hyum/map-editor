@@ -105,10 +105,12 @@ function sameCoordinates(a: Geometry, b: Geometry): boolean {
   return false;
 }
 
-// after가 before보다 정점이 늘었는지(=정점 추가 제스처인지) 판단합니다.
+// after가 before보다 정점이 늘었는지(=정점 추가 제스처인지) 판단합니다. stride(2D/3D)를 반영합니다.
 export function hasMoreVertices(before: Geometry, after: Geometry): boolean {
   if (before instanceof SimpleGeometry && after instanceof SimpleGeometry) {
-    return after.getFlatCoordinates().length > before.getFlatCoordinates().length;
+    const beforeCount = before.getFlatCoordinates().length / before.getStride();
+    const afterCount = after.getFlatCoordinates().length / after.getStride();
+    return afterCount > beforeCount;
   }
   return false;
 }

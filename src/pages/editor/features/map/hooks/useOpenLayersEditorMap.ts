@@ -41,8 +41,8 @@ export function useOpenLayersEditorMap() {
   const selectedVerticesRef = useRef<ProjectedVertex[]>([]);
   // 정점 편집(Modify) 핸들. 선택 변경/씬 재빌드 때 선택 도형으로 재바인딩합니다.
   const modifyRef = useRef<ReturnType<typeof attachVertexModify> | null>(null);
-  // 외곽선 클릭으로 정점을 추가한 직후, 같은 클릭에서 뒤따르는 selection 단일클릭 1회를 무시하기 위한 플래그.
-  const suppressNextSelectClickRef = useRef(false);
+  // 외곽선 클릭으로 정점을 추가한 직후 짧은 시간 동안 따라오는 selection 단일클릭을 무시한다(만료 시각, ms).
+  const suppressSelectUntilRef = useRef(0);
 
   const scene = useEditorStore((state) => state.scene);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
@@ -67,9 +67,9 @@ export function useOpenLayersEditorMap() {
     const detachSelection = attachEditorSelection(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
       onSelect: (featureIds) => {
-        // 정점 추가 직후 따라오는 단일클릭은 선택을 흔들지 않도록 1회 무시한다.
-        if (suppressNextSelectClickRef.current) {
-          suppressNextSelectClickRef.current = false;
+        // 정점 추가 직후 짧은 시간 내 따라오는 단일클릭은 선택을 흔들지 않도록 무시한다(만료 후 자동 해제).
+        if (performance.now() < suppressSelectUntilRef.current) {
+          suppressSelectUntilRef.current = 0;
           return;
         }
         useEditorStore.getState().setSelectedFeatureIds(featureIds);
@@ -92,7 +92,7 @@ export function useOpenLayersEditorMap() {
       onCommit: (featureId, geometry) =>
         useEditorStore.getState().updateFeatureGeometry(featureId, geometry),
       onInsert: () => {
-        suppressNextSelectClickRef.current = true;
+        suppressSelectUntilRef.current = performance.now() + 300;
       },
       onModifyEnd: () => {
         if (!vertexLayerRef.current) {
