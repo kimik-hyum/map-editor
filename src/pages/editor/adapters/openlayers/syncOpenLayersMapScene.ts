@@ -1,12 +1,8 @@
 import type OpenLayersMap from "ol/Map";
-import type BaseLayer from "ol/layer/Base";
 import type { EditorScene } from "@/pages/editor/types/editorTypes";
 import type { EditorRenderState } from "./createOpenLayersFeature";
-import { createOpenLayersLayers, editorLayerIdProperty } from "./createOpenLayersLayer";
-
-function isEditorSceneLayer(layer: BaseLayer) {
-  return typeof layer.get(editorLayerIdProperty) === "string";
-}
+import { createOpenLayersLayers } from "./createOpenLayersLayer";
+import { getEditorLayerId } from "./editorContentLayers";
 
 export function syncOpenLayersMapScene(
   map: OpenLayersMap,
@@ -14,7 +10,9 @@ export function syncOpenLayersMapScene(
   renderState?: EditorRenderState,
 ) {
   const layers = map.getLayers();
-  const existingEditorLayers = layers.getArray().filter(isEditorSceneLayer);
+  const existingEditorLayers = layers
+    .getArray()
+    .filter((layer) => getEditorLayerId(layer) !== undefined);
 
   for (const layer of existingEditorLayers) {
     layers.remove(layer);

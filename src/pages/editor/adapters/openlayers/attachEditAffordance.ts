@@ -1,11 +1,13 @@
 import type Geometry from "ol/geom/Geometry";
-import SimpleGeometry from "ol/geom/SimpleGeometry";
-import VectorLayer from "ol/layer/Vector";
 import type OpenLayersMap from "ol/Map";
 import { unByKey } from "ol/Observable";
-import { EditAffordanceKind, type EditorScene } from "@/pages/editor/types/editorTypes";
-import { isLayerVertexEditable } from "./attachVertexModify";
-import { editorLayerIdProperty } from "./createOpenLayersLayer";
+import {
+  canEditLayerVertices,
+  EditAffordanceKind,
+  type EditorScene,
+} from "@/pages/editor/types/editorTypes";
+import { forEachEditorContentLayer } from "./editorContentLayers";
+import { nearestEdgeDistance, nearestVertexDistance } from "./geometryDistance";
 
 // 현재 커서 위치의 편집 동작(없으면 null). 동작 종류는 EditAffordanceKind enum으로 관리합니다.
 export type EditAffordance = EditAffordanceKind | null;
@@ -35,10 +37,6 @@ export function decideAffordance(
   return null;
 }
 
-function distance(ax: number, ay: number, bx: number, by: number): number {
-  return Math.hypot(ax - bx, ay - by);
-}
-
 // 선택된(편집 가능) 도형들의 OL geometry를 모읍니다.
 function collectSelectedGeometries(
   map: OpenLayersMap,
@@ -46,17 +44,13 @@ function collectSelectedGeometries(
   selectedIds: readonly string[],
 ): Geometry[] {
   const geometries: Geometry[] = [];
-  for (const layer of map.getLayers().getArray()) {
-    if (!(layer instanceof VectorLayer)) {
-      continue;
-    }
-    const layerId = layer.get(editorLayerIdProperty);
-    if (typeof layerId !== "string" || !isLayerVertexEditable(scene, layerId)) {
-      continue;
+  forEachEditorContentLayer(map, (layer, layerId) => {
+    if (!canEditLayerVertices(scene, layerId)) {
+      return;
     }
     const source = layer.getSource();
     if (!source) {
-      continue;
+      return;
     }
     for (const id of selectedIds) {
       const geometry = source.getFeatureById(id)?.getGeometry();
@@ -64,40 +58,8 @@ function collectSelectedGeometries(
         geometries.push(geometry);
       }
     }
-  }
+  });
   return geometries;
-}
-
-// 커서 좌표에서 가장 가까운 정점까지의 거리(map unit).
-function nearestVertexDistance(geometries: Geometry[], cursor: number[]): number {
-  let min = Number.POSITIVE_INFINITY;
-  for (const geometry of geometries) {
-    if (!(geometry instanceof SimpleGeometry)) {
-      continue;
-    }
-    const flat = geometry.getFlatCoordinates();
-    const stride = geometry.getStride();
-    for (let i = 0; i + 1 < flat.length; i += stride) {
-      const d = distance(flat[i], flat[i + 1], cursor[0], cursor[1]);
-      if (d < min) {
-        min = d;
-      }
-    }
-  }
-  return min;
-}
-
-// 커서 좌표에서 가장 가까운 외곽선(경계)까지의 거리(map unit). Polygon.getClosestPoint는 경계 기준.
-function nearestEdgeDistance(geometries: Geometry[], cursor: number[]): number {
-  let min = Number.POSITIVE_INFINITY;
-  for (const geometry of geometries) {
-    const closest = geometry.getClosestPoint(cursor);
-    const d = distance(closest[0], closest[1], cursor[0], cursor[1]);
-    if (d < min) {
-      min = d;
-    }
-  }
-  return min;
 }
 
 // 커서가 선택 도형의 "정점 위/외곽선/그 외" 중 무엇에 있는지 판정해 onChange로 알립니다(값이 바뀔 때만).

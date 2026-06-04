@@ -5,22 +5,18 @@ import type Geometry from "ol/geom/Geometry";
 import SimpleGeometry from "ol/geom/SimpleGeometry";
 import { primaryAction } from "ol/events/condition";
 import Modify, { type ModifyEvent } from "ol/interaction/Modify";
-import VectorLayer from "ol/layer/Vector";
 import type OpenLayersMap from "ol/Map";
 import { unByKey } from "ol/Observable";
 import { Circle as CircleStyle, Fill, Stroke, Style } from "ol/style";
 import { editorDefaultTheme } from "@/pages/editor/theme/editorTheme";
-import {
-  EditabilityState,
-  LockState,
-  VisibilityState,
-} from "@/pages/editor/types/editorTypes";
+import { canEditLayerVertices } from "@/pages/editor/types/editorTypes";
 import type {
   EditorCoordinate,
   EditorScene,
   GeoJsonGeometry,
 } from "@/pages/editor/types/editorTypes";
-import { editorLayerIdProperty } from "./createOpenLayersLayer";
+import { forEachEditorContentLayer } from "./editorContentLayers";
+import { nearestVertexDistance } from "./geometryDistance";
 
 type VertexModifyOptions = {
   // 항상 최신 scene을 읽어 편집 대상 레이어 상태를 확인합니다.
@@ -85,20 +81,6 @@ export function olGeometryToEditorGeometry(geometry: Geometry): GeoJsonGeometry 
   return normalizeClosedRings(object);
 }
 
-// 정점 편집 대상 적격성: 보이고 + 편집 가능 + 잠금 해제인 레이어만.
-// (선택 후 레이어를 숨기거나 잠그면 편집 대상에서 빠져야 한다.)
-export function isLayerVertexEditable(scene: EditorScene, layerId: string): boolean {
-  const layer = scene.layers.find((candidate) => candidate.id === layerId);
-  if (!layer) {
-    return false;
-  }
-  return (
-    layer.view.visibility !== VisibilityState.Hidden &&
-    layer.behavior.editability === EditabilityState.Editable &&
-    layer.behavior.lock === LockState.Unlocked
-  );
-}
-
 function sameCoordinates(a: Geometry, b: Geometry): boolean {
   if (a instanceof SimpleGeometry && b instanceof SimpleGeometry) {
     return JSON.stringify(a.getCoordinates()) === JSON.stringify(b.getCoordinates());
@@ -118,29 +100,6 @@ export function hasMoreVertices(before: Geometry, after: Geometry): boolean {
 
 // 우클릭 정점 삭제 판정 픽셀 허용오차(OL Modify pixelTolerance와 동일).
 const DELETE_HIT_PX = 10;
-
-// 컬렉션 내 도형들의 정점 중 좌표에서 가장 가까운 정점까지의 거리(map unit).
-function minVertexDistanceToFeatures(
-  features: Collection<Feature>,
-  coordinate: number[],
-): number {
-  let min = Number.POSITIVE_INFINITY;
-  features.forEach((feature) => {
-    const geometry = feature.getGeometry();
-    if (!(geometry instanceof SimpleGeometry)) {
-      return;
-    }
-    const flat = geometry.getFlatCoordinates();
-    const stride = geometry.getStride();
-    for (let i = 0; i + 1 < flat.length; i += stride) {
-      const d = Math.hypot(flat[i] - coordinate[0], flat[i + 1] - coordinate[1]);
-      if (d < min) {
-        min = d;
-      }
-    }
-  });
-  return min;
-}
 
 // 선택된 도형의 정점을 드래그(이동)/우클릭(삭제)으로 편집합니다.
 // - 선택 구조는 그대로 두고, Modify는 안정적인 Collection에만 바인딩합니다.
@@ -175,10 +134,11 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
     }
     const coordinate = map.getEventCoordinate(event);
     // 세그먼트·빈 곳 우클릭은 무시: 커서가 정점 허용오차 안일 때만 삭제.
-    if (
-      minVertexDistanceToFeatures(features, coordinate) >
-      DELETE_HIT_PX * resolution
-    ) {
+    const geometries = features
+      .getArray()
+      .map((feature) => feature.getGeometry())
+      .filter((geometry): geometry is Geometry => geometry != null);
+    if (nearestVertexDistance(geometries, coordinate) > DELETE_HIT_PX * resolution) {
       return;
     }
     modify.removePoint(coordinate);
@@ -255,18 +215,14 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
     if (!scene || selectedIds.size === 0) {
       return;
     }
-    for (const layer of map.getLayers().getArray()) {
-      if (!(layer instanceof VectorLayer)) {
-        continue;
-      }
-      const layerId = layer.get(editorLayerIdProperty);
-      // 보임 + 편집 가능 + 잠금 해제 레이어만 편집 대상으로 묶는다(선택 후 숨김/잠금되면 제외).
-      if (typeof layerId !== "string" || !isLayerVertexEditable(scene, layerId)) {
-        continue;
+    // 보임 + 편집 가능 + 잠금 해제 레이어만 편집 대상으로 묶는다(선택 후 숨김/잠금되면 제외).
+    forEachEditorContentLayer(map, (layer, layerId) => {
+      if (!canEditLayerVertices(scene, layerId)) {
+        return;
       }
       const source = layer.getSource();
       if (!source) {
-        continue;
+        return;
       }
       for (const id of selectedIds) {
         const feature = source.getFeatureById(id);
@@ -274,7 +230,7 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
           features.push(feature);
         }
       }
-    }
+    });
   };
 
   const detach = () => {
