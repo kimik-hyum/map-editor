@@ -1,13 +1,15 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type OpenLayersMap from "ol/Map";
 import { unByKey } from "ol/Observable";
 import {
+  attachEditAffordance,
   attachEditorSelection,
   attachVertexDetail,
   attachVertexModify,
   createOpenLayersMap,
   createVertexDetailOverlayLayer,
   createVertexOverlayLayer,
+  type EditAffordance,
   type EditorRenderState,
   invalidateFeatureStyles,
   type ProjectedVertex,
@@ -47,6 +49,9 @@ export function useOpenLayersEditorMap() {
   const scene = useEditorStore((state) => state.scene);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
   const hoveredFeatureId = useEditorStore((state) => state.hoveredFeatureId);
+
+  // 커서 위치 기준 편집 동작(정점 위=삭제, 외곽선=추가, 그 외=없음). 툴팁 분기에 사용.
+  const [editAffordance, setEditAffordance] = useState<EditAffordance>(null);
 
   useEffect(() => {
     if (!mapElementRef.current || mapRef.current) {
@@ -108,6 +113,13 @@ export function useOpenLayersEditorMap() {
     });
     modifyRef.current = modify;
 
+    // 커서가 선택 도형의 정점 위/외곽선/그 외 중 어디인지 판정해 툴팁 분기에 사용.
+    const detachAffordance = attachEditAffordance(map, {
+      getScene: () => useEditorStore.getState().scene as EditorScene | null,
+      getSelectedIds: () => useEditorStore.getState().selectedFeatureIds,
+      onChange: setEditAffordance,
+    });
+
     const moveEndKey = map.on("moveend", () => {
       if (!vertexLayerRef.current) {
         return;
@@ -124,6 +136,7 @@ export function useOpenLayersEditorMap() {
       detachSelection();
       detachDetail();
       modify.detach();
+      detachAffordance();
       unByKey(moveEndKey);
       map.setTarget(undefined);
       mapRef.current = null;
@@ -185,6 +198,10 @@ export function useOpenLayersEditorMap() {
       );
     }
     modifyRef.current?.sync(next);
+    // 선택이 비면 편집 힌트도 즉시 내린다(다음 포인터 이동을 기다리지 않도록).
+    if (next.size === 0) {
+      setEditAffordance(null);
+    }
   }, [selectedFeatureIds]);
 
   useEffect(() => {
@@ -205,9 +222,5 @@ export function useOpenLayersEditorMap() {
     invalidateFeatureStyles(map, changedIds);
   }, [hoveredFeatureId]);
 
-  // 선택된 도형 위에 커서가 있으면 편집 힌트(정점 추가/삭제) 툴팁을 띄울지 결정합니다.
-  const editingHintActive =
-    hoveredFeatureId !== null && selectedFeatureIds.includes(hoveredFeatureId);
-
-  return { mapElementRef, editingHintActive };
+  return { mapElementRef, editAffordance };
 }

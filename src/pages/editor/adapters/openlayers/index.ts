@@ -1,3 +1,4 @@
+export * from "./attachEditAffordance";
 export * from "./attachEditorSelection";
 export * from "./attachVertexDetail";
 export * from "./attachVertexModify";
