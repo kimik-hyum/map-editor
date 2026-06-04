@@ -25,8 +25,8 @@ import { editorLayerIdProperty } from "./createOpenLayersLayer";
 type VertexModifyOptions = {
   // 항상 최신 scene을 읽어 편집 대상 레이어 상태를 확인합니다.
   getScene: () => EditorScene | null;
-  // 드래그/삭제 시작 시(오버레이 정리 등).
-  onModifyStart: () => void;
+  // 편집 제스처 시작 시 호출. isDrag=true면 실제 정점 드래그(이동), false면 클릭 추가/우클릭 삭제다.
+  onModifyStart: (isDrag: boolean) => void;
   // 좌표가 실제로 바뀐 피처만 호출(EPSG:4326 GeoJSON).
   onCommit: (featureId: string, geometry: GeoJsonGeometry) => void;
   // 편집 제스처 종료 시(오버레이 복구 등). 커밋 여부와 무관하게 호출.
@@ -153,7 +153,10 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
         originals.set(id, geometry.clone());
       }
     });
-    options.onModifyStart();
+    // 추가(pointerdown)·삭제(pointerup)는 갭 없이 즉시 끝나므로 핸들을 치울 필요가 없다.
+    // 실제 이동(드래그)일 때만 isDrag=true.
+    const isDrag = event.mapBrowserEvent?.type === "pointerdrag";
+    options.onModifyStart(isDrag);
   });
 
   const endKey = modify.on("modifyend", (event: ModifyEvent) => {

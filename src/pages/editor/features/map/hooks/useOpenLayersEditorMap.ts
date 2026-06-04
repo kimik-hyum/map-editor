@@ -90,7 +90,12 @@ export function useOpenLayersEditorMap() {
 
     const modify = attachVertexModify(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
-      onModifyStart: () => {
+      onModifyStart: (isDrag) => {
+        // 실제 드래그(이동) 때만 핸들을 치운다. 클릭 추가/우클릭 삭제는 그대로 두고
+        // modifyend 재생성에 맡겨, 추가 시 핸들이 사라졌다 다시 생기는 깜빡임을 막는다.
+        if (!isDrag) {
+          return;
+        }
         vertexLayerRef.current?.getSource()?.clear(true);
         detailLayerRef.current?.getSource()?.clear(true);
       },
