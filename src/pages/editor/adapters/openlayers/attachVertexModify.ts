@@ -116,6 +116,32 @@ export function hasMoreVertices(before: Geometry, after: Geometry): boolean {
   return false;
 }
 
+// 우클릭 정점 삭제 판정 픽셀 허용오차(OL Modify pixelTolerance와 동일).
+const DELETE_HIT_PX = 10;
+
+// 컬렉션 내 도형들의 정점 중 좌표에서 가장 가까운 정점까지의 거리(map unit).
+function minVertexDistanceToFeatures(
+  features: Collection<Feature>,
+  coordinate: number[],
+): number {
+  let min = Number.POSITIVE_INFINITY;
+  features.forEach((feature) => {
+    const geometry = feature.getGeometry();
+    if (!(geometry instanceof SimpleGeometry)) {
+      return;
+    }
+    const flat = geometry.getFlatCoordinates();
+    const stride = geometry.getStride();
+    for (let i = 0; i + 1 < flat.length; i += stride) {
+      const d = Math.hypot(flat[i] - coordinate[0], flat[i + 1] - coordinate[1]);
+      if (d < min) {
+        min = d;
+      }
+    }
+  });
+  return min;
+}
+
 // 선택된 도형의 정점을 드래그(이동)/우클릭(삭제)으로 편집합니다.
 // - 선택 구조는 그대로 두고, Modify는 안정적인 Collection에만 바인딩합니다.
 // - 드래그 중에는 OL 콘텐츠 피처가 실시간으로 움직이고, 끝(modifyend)에만 store에 커밋합니다.
@@ -124,23 +150,39 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
   const features = new Collection<Feature>();
   const modify = new Modify({
     features,
-    // 좌클릭으로 외곽선(세그먼트)을 클릭하면 정점 추가. 우클릭은 insertVertexCondition=false라 추가로 새지 않는다.
+    // 좌클릭(primaryAction)만 편집 제스처로 받는다 → 우클릭은 Modify의 드래그/이동에 전혀 관여하지 않는다.
+    // (좌클릭 외곽선=정점 추가, 좌클릭 정점 드래그=이동)
+    condition: primaryAction,
     insertVertexCondition: (event) => primaryAction(event),
-    // 좌클릭 드래그(이동) + 우클릭 다운도 허용해야, 우클릭 삭제 때 dragSegments가 채워진다.
-    // (handleDownEvent가 맨 앞에서 condition을 보고 통과해야 삭제 대상 세그먼트가 생긴다.)
-    condition: (event) =>
-      primaryAction(event) || (event.originalEvent as PointerEvent).button === 2,
-    // 우클릭으로 정점 삭제. pointerup에서 처리해야 다운에서 채워진 dragSegments를 쓸 수 있다.
-    deleteCondition: (event) =>
-      event.type === "pointerup" && (event.originalEvent as PointerEvent).button === 2,
+    // 내장 삭제(좌클릭/alt 등)는 끈다. 삭제는 아래 우클릭 전용 경로로만 처리한다(드래그 불가).
+    deleteCondition: () => false,
     style: createHandleStyle(),
   });
   // 마지막에 추가된 interaction이 먼저 처리되므로, 정점 근처에서는 팬보다 편집이 우선된다.
   map.addInteraction(modify);
 
-  // 우클릭 삭제를 위해 브라우저 컨텍스트 메뉴를 막는다.
+  // 우클릭 = 정점 삭제 전용(드래그 없음). 우클릭은 condition에서 제외돼 Modify 드래그/이동을 시작하지 않으므로,
+  // 커서 근처에 정점이 있을 때만 Modify.removePoint로 그 정점을 직접 제거한다(removePoint가 dragSegments를 스스로 세팅).
   const viewport = map.getViewport();
-  const handleContextMenu = (event: Event) => event.preventDefault();
+  const handleContextMenu = (event: MouseEvent) => {
+    event.preventDefault();
+    if (features.getLength() === 0) {
+      return;
+    }
+    const resolution = map.getView().getResolution();
+    if (resolution === undefined) {
+      return;
+    }
+    const coordinate = map.getEventCoordinate(event);
+    // 세그먼트·빈 곳 우클릭은 무시: 커서가 정점 허용오차 안일 때만 삭제.
+    if (
+      minVertexDistanceToFeatures(features, coordinate) >
+      DELETE_HIT_PX * resolution
+    ) {
+      return;
+    }
+    modify.removePoint(coordinate);
+  };
   viewport.addEventListener("contextmenu", handleContextMenu);
 
   // 드래그 시작 시 원본 geometry를 복제해 두고(=실제 변경 여부 판단). originals 비어있지 않음 = 편집 제스처 진행 중.
