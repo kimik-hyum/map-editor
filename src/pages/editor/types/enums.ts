@@ -193,3 +193,11 @@ export enum ValidationIssueCode {
   // postMessage 페이로드가 스키마 구조 검증을 통과하지 못했습니다.
   InvalidPayload = "invalidPayload",
 }
+
+// 커서 위치에서 가능한 정점 편집 동작입니다. 새로운 편집 상태가 생기면 여기에 추가합니다.
+export enum EditAffordanceKind {
+  // 외곽선(세그먼트) 위 — 클릭하면 정점이 추가됩니다.
+  Insert = "insert",
+  // 정점 위 — 우클릭하면 정점이 삭제됩니다.
+  Delete = "delete",
+}

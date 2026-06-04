@@ -1,13 +1,15 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type OpenLayersMap from "ol/Map";
 import { unByKey } from "ol/Observable";
 import {
+  attachEditAffordance,
   attachEditorSelection,
   attachVertexDetail,
   attachVertexModify,
   createOpenLayersMap,
   createVertexDetailOverlayLayer,
   createVertexOverlayLayer,
+  type EditAffordance,
   type EditorRenderState,
   invalidateFeatureStyles,
   type ProjectedVertex,
@@ -41,10 +43,15 @@ export function useOpenLayersEditorMap() {
   const selectedVerticesRef = useRef<ProjectedVertex[]>([]);
   // 정점 편집(Modify) 핸들. 선택 변경/씬 재빌드 때 선택 도형으로 재바인딩합니다.
   const modifyRef = useRef<ReturnType<typeof attachVertexModify> | null>(null);
+  // 외곽선 클릭으로 정점을 추가한 직후 짧은 시간 동안 따라오는 selection 단일클릭을 무시한다(만료 시각, ms).
+  const suppressSelectUntilRef = useRef(0);
 
   const scene = useEditorStore((state) => state.scene);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
   const hoveredFeatureId = useEditorStore((state) => state.hoveredFeatureId);
+
+  // 커서 위치 기준 편집 동작(정점 위=삭제, 외곽선=추가, 그 외=없음). 툴팁 분기에 사용.
+  const [editAffordance, setEditAffordance] = useState<EditAffordance>(null);
 
   useEffect(() => {
     if (!mapElementRef.current || mapRef.current) {
@@ -64,8 +71,14 @@ export function useOpenLayersEditorMap() {
 
     const detachSelection = attachEditorSelection(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
-      onSelect: (featureIds) =>
-        useEditorStore.getState().setSelectedFeatureIds(featureIds),
+      onSelect: (featureIds) => {
+        // 정점 추가 직후 짧은 시간 내 따라오는 단일클릭은 선택을 흔들지 않도록 무시한다(만료 후 자동 해제).
+        if (performance.now() < suppressSelectUntilRef.current) {
+          suppressSelectUntilRef.current = 0;
+          return;
+        }
+        useEditorStore.getState().setSelectedFeatureIds(featureIds);
+      },
       onHover: (featureId) => useEditorStore.getState().setHoveredFeatureId(featureId),
     });
 
@@ -77,12 +90,17 @@ export function useOpenLayersEditorMap() {
 
     const modify = attachVertexModify(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
-      onModifyStart: () => {
+      onActiveDrag: () => {
+        // 실제 정점 드래그가 시작될 때만 핸들을 치운다(기존 정점 드래그 + 삽입 후 이어 드래그 모두).
+        // 클릭 추가/우클릭 삭제처럼 드래그 없는 제스처에선 호출되지 않아 깜빡임이 없다.
         vertexLayerRef.current?.getSource()?.clear(true);
         detailLayerRef.current?.getSource()?.clear(true);
       },
       onCommit: (featureId, geometry) =>
         useEditorStore.getState().updateFeatureGeometry(featureId, geometry),
+      onInsert: () => {
+        suppressSelectUntilRef.current = performance.now() + 300;
+      },
       onModifyEnd: () => {
         if (!vertexLayerRef.current) {
           return;
@@ -96,6 +114,13 @@ export function useOpenLayersEditorMap() {
       },
     });
     modifyRef.current = modify;
+
+    // 커서가 선택 도형의 정점 위/외곽선/그 외 중 어디인지 판정해 툴팁 분기에 사용.
+    const detachAffordance = attachEditAffordance(map, {
+      getScene: () => useEditorStore.getState().scene as EditorScene | null,
+      getSelectedIds: () => useEditorStore.getState().selectedFeatureIds,
+      onChange: setEditAffordance,
+    });
 
     const moveEndKey = map.on("moveend", () => {
       if (!vertexLayerRef.current) {
@@ -113,6 +138,7 @@ export function useOpenLayersEditorMap() {
       detachSelection();
       detachDetail();
       modify.detach();
+      detachAffordance();
       unByKey(moveEndKey);
       map.setTarget(undefined);
       mapRef.current = null;
@@ -174,6 +200,10 @@ export function useOpenLayersEditorMap() {
       );
     }
     modifyRef.current?.sync(next);
+    // 선택이 비면 편집 힌트도 즉시 내린다(다음 포인터 이동을 기다리지 않도록).
+    if (next.size === 0) {
+      setEditAffordance(null);
+    }
   }, [selectedFeatureIds]);
 
   useEffect(() => {
@@ -194,5 +224,5 @@ export function useOpenLayersEditorMap() {
     invalidateFeatureStyles(map, changedIds);
   }, [hoveredFeatureId]);
 
-  return { mapElementRef };
+  return { mapElementRef, editAffordance };
 }

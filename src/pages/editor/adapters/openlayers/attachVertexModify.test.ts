@@ -1,76 +1,12 @@
 import Polygon from "ol/geom/Polygon";
 import { fromLonLat } from "ol/proj";
 import { describe, expect, it } from "vitest";
+import type { GeoJsonGeometry } from "@/pages/editor/types/editorTypes";
 import {
-  EditabilityState,
-  type EditorScene,
-  type GeoJsonGeometry,
-  LockState,
-  VisibilityState,
-} from "@/pages/editor/types/editorTypes";
-import {
-  isLayerVertexEditable,
+  hasMoreVertices,
   normalizeClosedRings,
   olGeometryToEditorGeometry,
 } from "./attachVertexModify";
-
-function sceneWithLayer(behavior: {
-  visibility: VisibilityState;
-  editability: EditabilityState;
-  lock: LockState;
-}): EditorScene {
-  return {
-    layers: [
-      {
-        id: "layer-1",
-        view: { visibility: behavior.visibility },
-        behavior: { editability: behavior.editability, lock: behavior.lock },
-        features: [],
-      },
-    ],
-  } as unknown as EditorScene;
-}
-
-describe("isLayerVertexEditable", () => {
-  it("보임 + 편집 가능 + 잠금 해제면 true", () => {
-    const scene = sceneWithLayer({
-      visibility: VisibilityState.Visible,
-      editability: EditabilityState.Editable,
-      lock: LockState.Unlocked,
-    });
-    expect(isLayerVertexEditable(scene, "layer-1")).toBe(true);
-  });
-
-  it("숨김/잠금/읽기전용이면 false", () => {
-    const hidden = sceneWithLayer({
-      visibility: VisibilityState.Hidden,
-      editability: EditabilityState.Editable,
-      lock: LockState.Unlocked,
-    });
-    const locked = sceneWithLayer({
-      visibility: VisibilityState.Visible,
-      editability: EditabilityState.Editable,
-      lock: LockState.Locked,
-    });
-    const readonly = sceneWithLayer({
-      visibility: VisibilityState.Visible,
-      editability: EditabilityState.Readonly,
-      lock: LockState.Unlocked,
-    });
-    expect(isLayerVertexEditable(hidden, "layer-1")).toBe(false);
-    expect(isLayerVertexEditable(locked, "layer-1")).toBe(false);
-    expect(isLayerVertexEditable(readonly, "layer-1")).toBe(false);
-  });
-
-  it("없는 레이어면 false", () => {
-    const scene = sceneWithLayer({
-      visibility: VisibilityState.Visible,
-      editability: EditabilityState.Editable,
-      lock: LockState.Unlocked,
-    });
-    expect(isLayerVertexEditable(scene, "missing")).toBe(false);
-  });
-});
 
 describe("normalizeClosedRings", () => {
   it("열린 폴리곤 링의 마지막 좌표를 첫 좌표로 닫는다", () => {
@@ -122,6 +58,38 @@ describe("normalizeClosedRings", () => {
       ],
     } as GeoJsonGeometry;
     expect(normalizeClosedRings(line)).toBe(line);
+  });
+});
+
+describe("hasMoreVertices", () => {
+  const square = () =>
+    new Polygon([
+      [
+        [0, 0],
+        [0, 1],
+        [1, 1],
+        [1, 0],
+        [0, 0],
+      ],
+    ]);
+
+  it("정점이 늘면 true(정점 추가 제스처)", () => {
+    const before = square();
+    const after = new Polygon([
+      [
+        [0, 0],
+        [0, 1],
+        [0.5, 1],
+        [1, 1],
+        [1, 0],
+        [0, 0],
+      ],
+    ]);
+    expect(hasMoreVertices(before, after)).toBe(true);
+  });
+
+  it("정점 수가 같으면 false(이동 등)", () => {
+    expect(hasMoreVertices(square(), square())).toBe(false);
   });
 });
 

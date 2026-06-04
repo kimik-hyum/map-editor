@@ -1,6 +1,5 @@
 import type OpenLayersMap from "ol/Map";
-import VectorLayer from "ol/layer/Vector";
-import { editorLayerIdProperty } from "./createOpenLayersLayer";
+import { forEachEditorContentLayer } from "./editorContentLayers";
 
 // 주어진 피처 id들의 스타일을 다시 평가하도록, 그 피처가 속한 콘텐츠 레이어만 무효화합니다.
 // map.render()는 캔버스 벡터 레이어가 캐시한 배치를 재사용하므로 스타일 함수를 다시 부르지 않습니다.
@@ -14,22 +13,15 @@ export function invalidateFeatureStyles(
     return;
   }
 
-  for (const layer of map.getLayers().getArray()) {
-    if (!(layer instanceof VectorLayer)) {
-      continue;
-    }
-    if (typeof layer.get(editorLayerIdProperty) !== "string") {
-      continue;
-    }
-
+  forEachEditorContentLayer(map, (layer) => {
     const source = layer.getSource();
     if (!source) {
-      continue;
+      return;
     }
 
     const affected = featureIds.some((id) => source.getFeatureById(id) !== null);
     if (affected) {
       layer.changed();
     }
-  }
+  });
 }
