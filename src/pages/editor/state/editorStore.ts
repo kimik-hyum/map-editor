@@ -330,7 +330,11 @@ export const useEditorStore = create<EditorStore>((set) => {
         };
       }),
     setActiveLayerId: (activeLayerId) => set({ activeLayerId }),
-    setHoveredFeatureId: (hoveredFeatureId) => set({ hoveredFeatureId }),
+    // 호버는 pointermove 핫패스라, 같은 id면 상태 갱신·구독 알림을 건너뛴다.
+    setHoveredFeatureId: (hoveredFeatureId) =>
+      set((state) =>
+        state.hoveredFeatureId === hoveredFeatureId ? state : { hoveredFeatureId },
+      ),
     setSelectedFeatureIds: (selectedFeatureIds) => set({ selectedFeatureIds }),
     setActiveMode: (activeMode) => set({ activeMode }),
     setActiveBoundaryKind: (activeBoundaryKind) => set({ activeBoundaryKind }),

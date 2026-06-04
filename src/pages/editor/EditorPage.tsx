@@ -1,46 +1,18 @@
-import { useEffect, useRef } from "react";
-import type OpenLayersMap from "ol/Map";
 import "ol/ol.css";
-import { createOpenLayersMap, syncOpenLayersMapScene } from "./adapters/openlayers";
 import { LayerPanel } from "./features/layers";
+import { useOpenLayersEditorMap } from "./features/map";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
 import { useEditorHistoryShortcuts } from "./state/historyShortcuts";
-import type { EditorScene } from "./types/editorTypes";
 
-// 에디터 페이지의 지도 DOM을 준비하고 Zustand의 EditorScene을 OpenLayers 지도에 렌더링합니다.
-// 에디터는 순수 consumer입니다. scene은 부모(호스트) 창이 postMessage로 전달해야만 채워집니다.
+// 에디터 페이지는 화면 배치만 담당합니다. 지도 수명주기와 편집 인터랙션은 hook/controller가 관리합니다.
 export function EditorPage() {
-  const mapElementRef = useRef<HTMLElement | null>(null);
-  const mapRef = useRef<OpenLayersMap | null>(null);
-  const scene = useEditorStore((state) => state.scene);
+  const { mapElementRef } = useOpenLayersEditorMap();
+  const isSceneReady = useEditorStore((state) => state.scene !== null);
+
   useEditorMessaging();
   // Cmd/Ctrl+Z 되돌리기 · +Shift 다시하기. (그리기 중 마지막 점 취소 라우팅은 후속 #12·#46)
   useEditorHistoryShortcuts();
-
-  useEffect(() => {
-    if (!mapElementRef.current || mapRef.current) {
-      return;
-    }
-
-    mapRef.current = createOpenLayersMap({
-      target: mapElementRef.current,
-    });
-
-    return () => {
-      mapRef.current?.setTarget(undefined);
-      mapRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!mapRef.current) {
-      return;
-    }
-
-    // 스토어 스냅샷은 깊은 readonly. 어댑터는 scene을 읽기만 하므로 경계에서 mutable로 캐스팅한다.
-    syncOpenLayersMapScene(mapRef.current, scene as EditorScene | null);
-  }, [scene]);
 
   return (
     <main className="relative min-h-0 min-w-0">
@@ -49,7 +21,7 @@ export function EditorPage() {
         className="h-screen w-full"
         aria-label="OSM map editor"
       />
-      {scene ? (
+      {isSceneReady ? (
         <LayerPanel />
       ) : (
         <div

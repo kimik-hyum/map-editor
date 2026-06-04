@@ -52,6 +52,13 @@ export const editorDefaultTheme = {
       strokeWidth: 3,
     },
   },
+  // 선택된 도형의 꼭짓점에 표시하는 핸들(동그라미) 스타일입니다.
+  vertexHandle: {
+    radius: 5,
+    fillColor: "#ffffff",
+    strokeColor: "#4f46e5",
+    strokeWidth: 2,
+  },
   label: {
     backgroundColor: "rgba(255, 255, 255, 0.82)",
     borderColor: "rgba(15, 23, 42, 0.2)",
