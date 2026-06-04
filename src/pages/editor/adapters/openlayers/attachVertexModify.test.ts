@@ -9,6 +9,7 @@ import {
   VisibilityState,
 } from "@/pages/editor/types/editorTypes";
 import {
+  hasMoreVertices,
   isLayerVertexEditable,
   normalizeClosedRings,
   olGeometryToEditorGeometry,
@@ -122,6 +123,38 @@ describe("normalizeClosedRings", () => {
       ],
     } as GeoJsonGeometry;
     expect(normalizeClosedRings(line)).toBe(line);
+  });
+});
+
+describe("hasMoreVertices", () => {
+  const square = () =>
+    new Polygon([
+      [
+        [0, 0],
+        [0, 1],
+        [1, 1],
+        [1, 0],
+        [0, 0],
+      ],
+    ]);
+
+  it("정점이 늘면 true(정점 추가 제스처)", () => {
+    const before = square();
+    const after = new Polygon([
+      [
+        [0, 0],
+        [0, 1],
+        [0.5, 1],
+        [1, 1],
+        [1, 0],
+        [0, 0],
+      ],
+    ]);
+    expect(hasMoreVertices(before, after)).toBe(true);
+  });
+
+  it("정점 수가 같으면 false(이동 등)", () => {
+    expect(hasMoreVertices(square(), square())).toBe(false);
   });
 });
 

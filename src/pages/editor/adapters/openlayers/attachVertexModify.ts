@@ -31,6 +31,8 @@ type VertexModifyOptions = {
   onCommit: (featureId: string, geometry: GeoJsonGeometry) => void;
   // 편집 제스처 종료 시(오버레이 복구 등). 커밋 여부와 무관하게 호출.
   onModifyEnd: () => void;
+  // 정점이 "추가"된 제스처일 때 호출(외곽선 클릭 직후 selection 클릭을 무시시키기 위함).
+  onInsert?: () => void;
 };
 
 function createHandleStyle(): Style {
@@ -103,6 +105,14 @@ function sameCoordinates(a: Geometry, b: Geometry): boolean {
   return false;
 }
 
+// after가 before보다 정점이 늘었는지(=정점 추가 제스처인지) 판단합니다.
+export function hasMoreVertices(before: Geometry, after: Geometry): boolean {
+  if (before instanceof SimpleGeometry && after instanceof SimpleGeometry) {
+    return after.getFlatCoordinates().length > before.getFlatCoordinates().length;
+  }
+  return false;
+}
+
 // 선택된 도형의 정점을 드래그(이동)/우클릭(삭제)으로 편집합니다.
 // - 선택 구조는 그대로 두고, Modify는 안정적인 Collection에만 바인딩합니다.
 // - 드래그 중에는 OL 콘텐츠 피처가 실시간으로 움직이고, 끝(modifyend)에만 store에 커밋합니다.
@@ -111,8 +121,8 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
   const features = new Collection<Feature>();
   const modify = new Modify({
     features,
-    // MVP는 이동+삭제만. 세그먼트 클릭으로 정점 추가는 막는다.
-    insertVertexCondition: () => false,
+    // 좌클릭으로 외곽선(세그먼트)을 클릭하면 정점 추가. 우클릭은 insertVertexCondition=false라 추가로 새지 않는다.
+    insertVertexCondition: (event) => primaryAction(event),
     // 좌클릭 드래그(이동) + 우클릭 다운도 허용해야, 우클릭 삭제 때 dragSegments가 채워진다.
     // (handleDownEvent가 맨 앞에서 condition을 보고 통과해야 삭제 대상 세그먼트가 생긴다.)
     condition: (event) =>
@@ -145,6 +155,7 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
   });
 
   const endKey = modify.on("modifyend", (event: ModifyEvent) => {
+    let inserted = false;
     event.features.forEach((feature) => {
       const id = feature.getId();
       const geometry = feature.getGeometry();
@@ -156,9 +167,16 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
       if (before && sameCoordinates(before, geometry)) {
         return;
       }
+      if (before && hasMoreVertices(before, geometry)) {
+        inserted = true;
+      }
       options.onCommit(id, olGeometryToEditorGeometry(geometry));
     });
     originals.clear();
+    // 외곽선 클릭으로 정점을 추가한 경우, 같은 클릭에서 뒤따르는 selection 클릭이 선택을 흔들지 않게 알린다.
+    if (inserted) {
+      options.onInsert?.();
+    }
     options.onModifyEnd();
   });
 

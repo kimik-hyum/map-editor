@@ -41,6 +41,8 @@ export function useOpenLayersEditorMap() {
   const selectedVerticesRef = useRef<ProjectedVertex[]>([]);
   // 정점 편집(Modify) 핸들. 선택 변경/씬 재빌드 때 선택 도형으로 재바인딩합니다.
   const modifyRef = useRef<ReturnType<typeof attachVertexModify> | null>(null);
+  // 외곽선 클릭으로 정점을 추가한 직후, 같은 클릭에서 뒤따르는 selection 단일클릭 1회를 무시하기 위한 플래그.
+  const suppressNextSelectClickRef = useRef(false);
 
   const scene = useEditorStore((state) => state.scene);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
@@ -64,8 +66,14 @@ export function useOpenLayersEditorMap() {
 
     const detachSelection = attachEditorSelection(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
-      onSelect: (featureIds) =>
-        useEditorStore.getState().setSelectedFeatureIds(featureIds),
+      onSelect: (featureIds) => {
+        // 정점 추가 직후 따라오는 단일클릭은 선택을 흔들지 않도록 1회 무시한다.
+        if (suppressNextSelectClickRef.current) {
+          suppressNextSelectClickRef.current = false;
+          return;
+        }
+        useEditorStore.getState().setSelectedFeatureIds(featureIds);
+      },
       onHover: (featureId) => useEditorStore.getState().setHoveredFeatureId(featureId),
     });
 
@@ -83,6 +91,9 @@ export function useOpenLayersEditorMap() {
       },
       onCommit: (featureId, geometry) =>
         useEditorStore.getState().updateFeatureGeometry(featureId, geometry),
+      onInsert: () => {
+        suppressNextSelectClickRef.current = true;
+      },
       onModifyEnd: () => {
         if (!vertexLayerRef.current) {
           return;
@@ -194,5 +205,9 @@ export function useOpenLayersEditorMap() {
     invalidateFeatureStyles(map, changedIds);
   }, [hoveredFeatureId]);
 
-  return { mapElementRef };
+  // 선택된 도형 위에 커서가 있으면 편집 힌트(정점 추가/삭제) 툴팁을 띄울지 결정합니다.
+  const editingHintActive =
+    hoveredFeatureId !== null && selectedFeatureIds.includes(hoveredFeatureId);
+
+  return { mapElementRef, editingHintActive };
 }
