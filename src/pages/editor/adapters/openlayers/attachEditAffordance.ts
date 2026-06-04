@@ -150,7 +150,10 @@ export function attachEditAffordance(
 
   const moveKey = map.on("pointermove", (event) => {
     if (event.dragging) {
-      return; // 드래그(편집/팬) 중에는 힌트를 갱신하지 않는다.
+      // 드래그(편집/팬) 중에는 힌트를 내린다.
+      pendingPixel = null;
+      schedule();
+      return;
     }
     pendingPixel = event.pixel;
     schedule();
