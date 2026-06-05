@@ -47,14 +47,20 @@ export function attachEditorSelection(
   map: OpenLayersMap,
   options: EditorSelectionOptions,
 ) {
+  // 비활성 모드(Select 외)에서는 선택/호버를 멈춘다. 기존 선택 상태 자체는 유지된다.
+  let active = true;
+
   const clickKey = map.on("singleclick", (event) => {
+    if (!active) {
+      return;
+    }
     const scene = options.getScene();
     const id = scene ? pickSelectableFeatureId(map, event.pixel, scene) : null;
     options.onSelect(id ? [id] : []);
   });
 
   const moveKey = map.on("pointermove", (event) => {
-    if (event.dragging) {
+    if (!active || event.dragging) {
       return;
     }
 
@@ -63,8 +69,14 @@ export function attachEditorSelection(
     options.onHover(id);
   });
 
-  return () => {
+  const setActive = (next: boolean) => {
+    active = next;
+  };
+
+  const detach = () => {
     unByKey(clickKey);
     unByKey(moveKey);
   };
+
+  return { setActive, detach };
 }

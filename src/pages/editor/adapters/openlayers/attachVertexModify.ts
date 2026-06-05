@@ -120,10 +120,17 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
   // 마지막에 추가된 interaction이 먼저 처리되므로, 정점 근처에서는 팬보다 편집이 우선된다.
   map.addInteraction(modify);
 
+  // Select 외 모드에서는 정점 편집(드래그/삽입/삭제·우클릭)을 전부 멈춘다.
+  let active = true;
+
   // 우클릭 = 정점 삭제 전용(드래그 없음). 우클릭은 condition에서 제외돼 Modify 드래그/이동을 시작하지 않으므로,
   // 커서 근처에 정점이 있을 때만 Modify.removePoint로 그 정점을 직접 제거한다(removePoint가 dragSegments를 스스로 세팅).
   const viewport = map.getViewport();
   const handleContextMenu = (event: MouseEvent) => {
+    // 비활성 모드에서는 우클릭을 가로채지 않는다(브라우저 기본 동작 허용).
+    if (!active) {
+      return;
+    }
     event.preventDefault();
     if (features.getLength() === 0) {
       return;
@@ -176,7 +183,7 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
 
   // 삽입(pointerdown) 후 이어서 정점을 끌 때처럼, 편집 제스처 중 실제 드래그가 시작되면 한 번 핸들을 숨긴다.
   const dragKey = map.on("pointerdrag", () => {
-    if (originals.size > 0) {
+    if (active && originals.size > 0) {
       signalActiveDrag();
     }
   });
@@ -233,6 +240,23 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
     });
   };
 
+  // 모드 전환 등으로 비활성화될 때: 진행 중 편집 제스처는 원본으로 되돌리고 커밋하지 않는다.
+  const setActive = (next: boolean) => {
+    if (!next && originals.size > 0) {
+      features.forEach((feature) => {
+        const id = feature.getId();
+        const original = typeof id === "string" ? originals.get(id) : undefined;
+        if (original) {
+          feature.setGeometry(original.clone());
+        }
+      });
+    }
+    originals.clear();
+    activeDragSignaled = false;
+    active = next;
+    modify.setActive(next);
+  };
+
   const detach = () => {
     unByKey(startKey);
     unByKey(dragKey);
@@ -242,5 +266,5 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
     features.clear();
   };
 
-  return { sync, detach };
+  return { sync, setActive, detach };
 }

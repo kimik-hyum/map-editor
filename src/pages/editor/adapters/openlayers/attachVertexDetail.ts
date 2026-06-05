@@ -18,18 +18,21 @@ type VertexDetailOptions = {
 // 커서 주변 반경의 "전체 정점"을 상세로 드러냅니다(detail-on-demand).
 // 대표점은 평소 듬성하게 두고, 호버한 구간만 원본 정점이 촘촘히 채워지는 UX입니다.
 // pointermove는 requestAnimationFrame으로 합쳐(throttle) 핫패스 비용을 줄입니다.
-export function attachVertexDetail(
-  map: OpenLayersMap,
-  options: VertexDetailOptions,
-): () => void {
+export function attachVertexDetail(map: OpenLayersMap, options: VertexDetailOptions) {
   let frameId = 0;
   let pendingPixel: number[] | null = null;
+  // 비활성 모드(Select 외)에서는 상세 정점 렌더를 멈추고 오버레이를 비운다.
+  let active = true;
 
   const renderDetail = () => {
     frameId = 0;
 
     const source = options.layer.getSource();
     if (!source) {
+      return;
+    }
+    if (!active) {
+      source.clear(true);
       return;
     }
 
@@ -71,6 +74,9 @@ export function attachVertexDetail(
   };
 
   const moveKey = map.on("pointermove", (event) => {
+    if (!active) {
+      return;
+    }
     if (event.dragging) {
       // 팬/줌 중에는 stale 상세점을 지운다(포인터를 다시 움직이면 복원).
       pendingPixel = null;
@@ -89,7 +95,19 @@ export function attachVertexDetail(
   };
   viewport.addEventListener("pointerleave", handlePointerLeave);
 
-  return () => {
+  const setActive = (next: boolean) => {
+    active = next;
+    if (!next) {
+      pendingPixel = null;
+      if (frameId !== 0) {
+        cancelAnimationFrame(frameId);
+        frameId = 0;
+      }
+      options.layer.getSource()?.clear(true);
+    }
+  };
+
+  const detach = () => {
     unByKey(moveKey);
     viewport.removeEventListener("pointerleave", handlePointerLeave);
     if (frameId !== 0) {
@@ -97,4 +115,6 @@ export function attachVertexDetail(
     }
     options.layer.getSource()?.clear(true);
   };
+
+  return { setActive, detach };
 }
