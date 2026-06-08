@@ -23,6 +23,8 @@ Codex와 Claude는 이 문서를 기준으로 `EditorPage` 비대화, OpenLayers
 - 계산만 하는 로직은 `features/[feature-name]/model`에 둔다.
 - OpenLayers `Map`, `Layer`, `Feature`, `Interaction`, `Geometry`를 직접 만지는 로직은 `adapters/openlayers`에 둔다.
 - 여러 기능에서 공유되는 도메인 타입/enum은 `types`에 둔다.
+- 여러 기능·어댑터가 공유하는 순수 도메인 판정(`scene`만 보는 정책: 레이어 선택/편집 가능 여부 등)도 `types`에 둔다. 어댑터는 `features/*`를 import하지 않으므로, 더 하위인 `types`에 둬 의존 방향을 지킨다.
+- OpenLayers 의존 공용 유틸(콘텐츠 레이어 순회, geometry 거리 계산 등)은 `adapters/openlayers`의 별도 모듈로 모아 어댑터끼리 재사용한다.
 - 여러 기능에서 공유되는 시각 토큰은 `theme`에 둔다.
 
 ## Hard Rules
@@ -34,6 +36,19 @@ Codex와 Claude는 이 문서를 기준으로 `EditorPage` 비대화, OpenLayers
 - store의 `scene`은 `EditorScene -> EditorLayer[] -> EditorFeature[]` 구조를 유지한다.
 - geometry 변경만 history에 쌓는다. 선택, 호버, 패널 표시, 레이어 visibility 같은 view/UI 변경은 별도 정책이 없는 한 silent로 둔다.
 - scene 스냅샷은 읽기 전용 소비를 기본으로 보고, mutation은 store action 내부 경계에서만 수행한다.
+- 다른 상태에서 파생되는 값(예: 모드별 interaction 활성 플래그)은 store에 저장하지 않고 순수 함수로 계산한다(파생 상태 중복 금지).
+- 어댑터는 OpenLayers Interaction 클래스를 외부로 직접 노출하지 않고 공통 핸들(`{ setActive, detach }`)로 감싼다.
+
+## Adapter Conventions
+
+`adapters/openlayers`의 이벤트/인터랙션 어댑터는 다음 규약을 따른다.
+
+- **핸들 인터페이스 통일**: 모든 `attach*` 어댑터는 `{ setActive(active), detach() }` 핸들을 반환한다(컬렉션 재바인딩이 필요하면 `sync`도 함께). OpenLayers Interaction 클래스(`Modify`, 향후 `Draw` 등)는 어댑터 내부에 감추고 외부로 직접 노출하지 않는다.
+- **구현 형태**: 이벤트를 관찰만 하는(소비·우선순위 제어가 아닌) 어댑터는 클로저 팩토리(`attachX(map, options) -> handle`)로 만든다. `extends ol/interaction/*`(클래스)는 이벤트를 실제로 소비/제어할 때만 쓰고, 그 경우에도 위 핸들로 감싼다.
+- **살아있는 상태는 게터로 읽는다**: 부착은 1회지만 핸들러는 이후 여러 번 실행되므로, 변하는 상태는 게터 주입(`getScene`/`getSelectedIds`/`getVertices` = `useEditorStore.getState()`)으로 이벤트 시점에 최신을 읽는다. 고정 설정만 값으로 넘긴다. 어댑터는 store/React를 import하지 않고 주입으로 분리한다.
+- **고빈도 이벤트는 어댑터 안에서 흡수한다**: `pointermove` 같은 핫패스는 `requestAnimationFrame`으로 스로틀하고, 값이 바뀔 때만 결과를 React state로 올린다(이벤트마다 `setState` 금지). 일시적 메커니즘 상태(rAF 핸들·픽셀 버퍼·dedupe·활성 비트)는 어댑터 로컬에 둔다.
+- **pull/push 경계**: 값은 게터로 "이벤트 시점에 당겨" 읽고, 비활성 전환 같은 부수효과(오버레이 clear·힌트 내림)는 `setActive`/이펙트로 "그 순간 밀어서" 처리한다.
+- **모드별 활성화**: "어느 모드에서 무엇을 켜는가"는 순수 모델(`mode -> 활성 플래그`)로 한곳에서 정하고, hook의 `[activeMode]` 이펙트가 그 결과를 어댑터 `setActive`로 적용한다. 어댑터의 `active` 비트는 그 결정을 수행하는 로컬 스위치일 뿐, 정책의 출처가 아니다.
 
 ## Current Editor Flow
 
