@@ -1,208 +1,154 @@
-import {
-  EditabilityState,
-  FeatureLifecycle,
-  GeometryKind,
-  LayerRole,
-  LockState,
-  SelectionState,
-  ValidationState,
-  VisibilityState,
-  type EditorCoordinate,
-  type EditorScene,
-  type EditorFeature,
-  type EditorLayer,
-} from "@/pages/editor/types/editorTypes";
-import type { EditorPolygonThemeToken } from "@/pages/editor/theme/editorTheme";
+import type { EditorSceneInput } from "@/pages/editor/types/editorTypes";
 
-type SamplePolygonFixture = {
-  id: string;
-  name: string;
-  center: EditorCoordinate;
-  themeToken: EditorPolygonThemeToken;
-  selection?: SelectionState;
-  validation?: ValidationState;
-};
-
-function createPolygonCoordinates([longitude, latitude]: EditorCoordinate) {
-  const width = 0.007;
-  const height = 0.005;
-
-  return [
-    [
-      [longitude - width, latitude + height],
-      [longitude + width * 0.85, latitude + height * 0.75],
-      [longitude + width, latitude - height * 0.2],
-      [longitude + width * 0.1, latitude - height],
-      [longitude - width, latitude - height * 0.45],
-      [longitude - width, latitude + height],
-    ] satisfies EditorCoordinate[],
-  ];
-}
-
-function createPolygonFeature(sample: SamplePolygonFixture): EditorFeature {
-  return {
-    id: sample.id,
-    name: sample.name,
-    geometryKind: GeometryKind.Polygon,
-    feature: {
-      type: "Feature",
-      id: sample.id,
-      geometry: {
-        type: "Polygon",
-        coordinates: createPolygonCoordinates(sample.center),
-      },
-      properties: {
-        label: sample.name,
-      },
-    },
-    state: {
-      selection: sample.selection ?? SelectionState.None,
-      lifecycle: FeatureLifecycle.Clean,
-      validation: sample.validation ?? ValidationState.Valid,
-      issues: [],
-    },
-    style: {
-      themeToken: sample.themeToken,
-    },
-  };
-}
-
-function createLayer(
-  layer: Pick<EditorLayer, "id" | "name" | "roles" | "features"> & {
-    zIndex: number;
-    opacity?: number;
-  },
-): EditorLayer {
-  const isEditable = layer.roles.includes(LayerRole.Editable);
-  const isBackground = layer.roles.includes(LayerRole.Background);
-
-  return {
-    id: layer.id,
-    name: layer.name,
-    roles: layer.roles,
-    geometryKinds: [GeometryKind.Polygon],
-    view: {
-      visibility: VisibilityState.Visible,
-      opacity: layer.opacity ?? 1,
-      zIndex: layer.zIndex,
-      labelVisible: true,
-    },
-    behavior: {
-      lock: isEditable ? LockState.Unlocked : LockState.Locked,
-      editability: isEditable ? EditabilityState.Editable : EditabilityState.Readonly,
-      selectable: !isBackground,
-      deletable: isEditable,
-      draggable: isEditable,
-    },
-    features: layer.features,
-  };
-}
-
-export const sampleEditorScene: EditorScene = {
-  version: 1,
+// 호스트가 보내는 "최소 입력"(v2) 샘플 — 헬퍼 없이 손으로 작성합니다.
+// 호스트가 실제로 채우는 값이 얼마나 적은지 보여주는 것이 목적입니다.
+//   - 필수: layers[].features[].geometry
+//   - 선택: id / name / role / zIndex / visible / opacity / themeToken / properties
+//   - 에디터가 채움: id 자동생성, geometryKind 파생, state/view/behavior 기본값,
+//     폴리곤 ring 자동 닫기(아래 좌표는 일부러 닫지 않았습니다)
+// themeToken은 선택이지만, 데모/렌더링 확인을 위해 일부 피처에만 지정합니다.
+export const sampleSceneInput: EditorSceneInput = {
+  version: 2,
   id: "sample-seoul-editor-scene",
   name: "서울 샘플 편집 씬",
-  viewport: {
-    center: [126.98, 37.57],
-    zoom: 12,
-  },
+  viewport: { center: [126.98, 37.57], zoom: 12 },
   layers: [
-    createLayer({
-      id: "editable-area-layer",
+    {
       name: "편집 대상 권역",
-      roles: [LayerRole.Editable],
-      zIndex: 30,
+      role: "editable",
       features: [
-        createPolygonFeature({
-          id: "editable-sample",
-          name: "editable",
-          center: [126.93, 37.585],
+        {
+          name: "권역 A",
           themeToken: "editable",
-        }),
-        createPolygonFeature({
-          id: "active-sample",
-          name: "active",
-          center: [126.955, 37.585],
-          selection: SelectionState.Active,
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [126.924, 37.589],
+                [126.936, 37.589],
+                [126.936, 37.581],
+                [126.924, 37.581],
+              ],
+            ],
+          },
+        },
+        {
+          name: "권역 B",
           themeToken: "active",
-        }),
-        createPolygonFeature({
-          id: "selected-sample",
-          name: "selected",
-          center: [126.98, 37.585],
-          selection: SelectionState.Selected,
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [126.949, 37.589],
+                [126.961, 37.589],
+                [126.961, 37.581],
+                [126.949, 37.581],
+              ],
+            ],
+          },
+        },
+        {
+          name: "권역 C",
           themeToken: "selected",
-        }),
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [126.974, 37.589],
+                [126.986, 37.589],
+                [126.986, 37.581],
+                [126.974, 37.581],
+              ],
+            ],
+          },
+        },
       ],
-    }),
-    createLayer({
-      id: "reference-area-layer",
+    },
+    {
       name: "참고 권역",
-      roles: [LayerRole.Reference],
-      zIndex: 20,
+      role: "reference",
       features: [
-        createPolygonFeature({
-          id: "readonly-sample",
-          name: "readonly",
-          center: [127.005, 37.585],
-          themeToken: "readonly",
-        }),
-        createPolygonFeature({
-          id: "reference-sample",
-          name: "reference",
-          center: [127.03, 37.585],
+        {
+          name: "참고 1",
           themeToken: "reference",
-        }),
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [126.999, 37.589],
+                [127.011, 37.589],
+                [127.011, 37.581],
+                [126.999, 37.581],
+              ],
+            ],
+          },
+        },
+        // 가장 단순한 형태: geometry만. id·name·themeToken 전부 생략 → 에디터가 채움.
+        {
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [127.024, 37.589],
+                [127.036, 37.589],
+                [127.036, 37.581],
+                [127.024, 37.581],
+              ],
+            ],
+          },
+        },
       ],
-    }),
-    createLayer({
-      id: "background-area-layer",
-      name: "배경 권역",
-      roles: [LayerRole.Background],
-      zIndex: 10,
-      opacity: 0.9,
+    },
+    {
+      name: "검증 표시 권역",
+      role: "reference",
       features: [
-        createPolygonFeature({
-          id: "background-sample",
-          name: "background",
-          center: [126.93, 37.555],
-          themeToken: "background",
-        }),
-      ],
-    }),
-    createLayer({
-      id: "validation-area-layer",
-      name: "검증 상태 권역",
-      roles: [LayerRole.Mask, LayerRole.SnapTarget],
-      zIndex: 40,
-      features: [
-        createPolygonFeature({
-          id: "mask-sample",
-          name: "mask",
-          center: [126.955, 37.555],
+        {
+          name: "마스크 예시",
           themeToken: "mask",
-        }),
-        createPolygonFeature({
-          id: "snap-sample",
-          name: "snap",
-          center: [126.98, 37.555],
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [126.949, 37.559],
+                [126.961, 37.559],
+                [126.961, 37.551],
+                [126.949, 37.551],
+              ],
+            ],
+          },
+        },
+        {
+          name: "스냅 예시",
           themeToken: "snapTarget",
-        }),
-        createPolygonFeature({
-          id: "warning-sample",
-          name: "warning",
-          center: [127.005, 37.555],
-          themeToken: "warning",
-          validation: ValidationState.Warning,
-        }),
-        createPolygonFeature({
-          id: "invalid-sample",
-          name: "invalid",
-          center: [127.03, 37.555],
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [126.974, 37.559],
+                [126.986, 37.559],
+                [126.986, 37.551],
+                [126.974, 37.551],
+              ],
+            ],
+          },
+        },
+        {
+          name: "오류 예시",
           themeToken: "invalid",
-          validation: ValidationState.Invalid,
-        }),
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [127.024, 37.559],
+                [127.036, 37.559],
+                [127.036, 37.551],
+                [127.024, 37.551],
+              ],
+            ],
+          },
+        },
       ],
-    }),
+    },
   ],
 };

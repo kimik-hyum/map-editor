@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { sampleEditorScene } from "../fixtures/sampleEditorScene";
+import { sampleSceneInput } from "../fixtures/sampleEditorScene";
 import {
   createInitMessage,
   getMessageType,
@@ -42,7 +42,7 @@ export function useEditorHost() {
         const sessionId = sessionIdRef.current ?? crypto.randomUUID();
         sessionIdRef.current = sessionId;
         childRef.current?.postMessage(
-          createInitMessage(sessionId, sampleEditorScene),
+          createInitMessage(sessionId, sampleSceneInput),
           event.origin,
         );
         setStatus("connected");
