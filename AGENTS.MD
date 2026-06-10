@@ -30,6 +30,13 @@
 - Geometry utilities: `@turf/area`, `@turf/length`, `@turf/bbox`, `@turf/helpers`.
 - Git hooks: `husky`.
 
+## Component Rules
+
+- 컴포넌트 파일(`.tsx`) 하나에는 컴포넌트 하나만 두고, 파일명은 컴포넌트명과 같게 한다.
+- 목록의 행처럼 보조 컴포넌트가 필요하면 같은 파일의 내부 함수로 두지 말고 별도 파일로 분리한다.
+- 훅 규칙 때문에 반복 항목을 컴포넌트로 추출해야 할 때도 같은 원칙을 따른다(추출한 행 컴포넌트는 자기 파일을 가진다).
+- 예외: 한 묶음으로 제공하는 compound 컴포넌트(`SegmentedTabs`, `MovingHighlight`)는 한 파일에서 함께 정의·export할 수 있다.
+
 ## Git Rules
 
 - 커밋 메시지는 Conventional Commit 타입을 사용한다. 예: `feat: 편집기 추가`, `chore: 설정 변경`.

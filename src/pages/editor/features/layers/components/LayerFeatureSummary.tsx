@@ -2,16 +2,18 @@ import type {
   LayerFeatureListItemViewModel,
   LayerPanelViewModel,
 } from "../model/layerPanelModel";
-import { LayerVisibilityIcon } from "./LayerVisibilityIcon";
+import { LayerFeatureSummaryRow } from "./LayerFeatureSummaryRow";
 
 type LayerFeatureSummaryProps = {
   viewModel: LayerPanelViewModel;
   onToggleFeatureVisibility: (feature: LayerFeatureListItemViewModel) => void;
+  onSelectFeature: (feature: LayerFeatureListItemViewModel) => void;
 };
 
 export function LayerFeatureSummary({
   viewModel,
   onToggleFeatureVisibility,
+  onSelectFeature,
 }: LayerFeatureSummaryProps) {
   if (!viewModel.isReady) {
     return (
@@ -39,31 +41,12 @@ export function LayerFeatureSummary({
   return (
     <div className="grid gap-2">
       {features.map((feature) => (
-        <article
-          className="flex min-w-0 items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm"
+        <LayerFeatureSummaryRow
+          feature={feature}
           key={feature.id}
-        >
-          <LayerVisibilityIcon
-            disabled={feature.isToggleDisabled}
-            isDimmed={false}
-            isVisible={feature.isVisible}
-            onToggle={() => onToggleFeatureVisibility(feature)}
-            subject="도형"
-          />
-          <span
-            className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: feature.accentColor }}
-          />
-          <div className="min-w-0 flex-1">
-            <h3 className="m-0 truncate text-sm font-black text-slate-950">
-              {feature.name}
-            </h3>
-            <p className="m-0 mt-0.5 truncate text-[11px] font-bold text-slate-500">
-              {feature.layerName} · {feature.geometryKindLabel}
-              {feature.selectionLabel ? ` · ${feature.selectionLabel}` : ""}
-            </p>
-          </div>
-        </article>
+          onSelectFeature={onSelectFeature}
+          onToggleFeatureVisibility={onToggleFeatureVisibility}
+        />
       ))}
     </div>
   );

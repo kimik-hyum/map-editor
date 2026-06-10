@@ -9,12 +9,16 @@ type LayerListProps = {
   viewModel: LayerPanelViewModel;
   onToggleLayerVisibility: (layer: LayerListItemViewModel) => void;
   onToggleFeatureVisibility: (feature: LayerFeatureListItemViewModel) => void;
+  onSelectFeature: (feature: LayerFeatureListItemViewModel) => void;
+  onActivateLayer: (layer: LayerListItemViewModel) => void;
 };
 
 export function LayerList({
   viewModel,
   onToggleLayerVisibility,
   onToggleFeatureVisibility,
+  onSelectFeature,
+  onActivateLayer,
 }: LayerListProps) {
   if (!viewModel.isReady) {
     return (
@@ -51,6 +55,8 @@ export function LayerList({
               layer={layer}
               onToggleLayerVisibility={onToggleLayerVisibility}
               onToggleFeatureVisibility={onToggleFeatureVisibility}
+              onSelectFeature={onSelectFeature}
+              onActivateLayer={onActivateLayer}
             />
           </li>
         ))}

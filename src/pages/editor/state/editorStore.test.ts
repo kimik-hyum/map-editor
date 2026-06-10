@@ -286,3 +286,47 @@ describe("editorStore - 스냅샷 불변성(타입)", () => {
     expect([assertScene, assertPast, assertFuture]).toEqual([true, true, true]);
   });
 });
+
+describe("editorStore - 도형 포커스 요청", () => {
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+  });
+
+  it("요청마다 번호가 증가해 같은 도형 연속 요청도 구분된다", () => {
+    useEditorStore.getState().requestFeatureFocus("a");
+    const first = useEditorStore.getState().featureFocusRequest;
+    useEditorStore.getState().requestFeatureFocus("a");
+    const second = useEditorStore.getState().featureFocusRequest;
+
+    expect(first).toMatchObject({ featureId: "a", requestId: 1 });
+    expect(second).toMatchObject({ featureId: "a", requestId: 2 });
+  });
+
+  it("resetScene은 포커스 요청을 비운다", () => {
+    useEditorStore.getState().requestFeatureFocus("a");
+    useEditorStore.getState().resetScene();
+
+    expect(useEditorStore.getState().featureFocusRequest).toBeNull();
+  });
+
+  it("처리한 요청 번호를 소비하면 요청이 비워진다", () => {
+    useEditorStore.getState().requestFeatureFocus("a");
+    const request = useEditorStore.getState().featureFocusRequest;
+
+    useEditorStore.getState().consumeFeatureFocusRequest(request?.requestId ?? 0);
+
+    expect(useEditorStore.getState().featureFocusRequest).toBeNull();
+  });
+
+  it("처리 중 새 요청이 들어왔으면 이전 번호 소비는 무시된다", () => {
+    useEditorStore.getState().requestFeatureFocus("a");
+    const stale = useEditorStore.getState().featureFocusRequest;
+    useEditorStore.getState().requestFeatureFocus("b");
+
+    useEditorStore.getState().consumeFeatureFocusRequest(stale?.requestId ?? 0);
+
+    expect(useEditorStore.getState().featureFocusRequest).toMatchObject({
+      featureId: "b",
+    });
+  });
+});

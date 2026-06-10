@@ -10,6 +10,7 @@ import {
   createVertexDetailOverlayLayer,
   createVertexOverlayLayer,
   type EditAffordance,
+  centerViewOnFeature,
   type EditorRenderState,
   invalidateFeatureStyles,
   type ProjectedVertex,
@@ -55,6 +56,7 @@ export function useOpenLayersEditorMap() {
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
   const hoveredFeatureId = useEditorStore((state) => state.hoveredFeatureId);
   const activeMode = useEditorStore((state) => state.activeMode);
+  const featureFocusRequest = useEditorStore((state) => state.featureFocusRequest);
 
   // 커서 위치 기준 편집 동작(정점 위=삭제, 외곽선=추가, 그 외=없음). 툴팁 분기에 사용.
   const [editAffordance, setEditAffordance] = useState<EditAffordance>(null);
@@ -262,6 +264,22 @@ export function useOpenLayersEditorMap() {
     );
     invalidateFeatureStyles(map, changedIds);
   }, [hoveredFeatureId]);
+
+  // 패널 등에서 온 "이 도형으로 지도 이동" 요청을 소비한다(요청 번호가 바뀔 때마다 1회).
+  // 줌은 유지하고 중심만 옮긴다. 지도 클릭 선택은 요청을 만들지 않으므로 화면이 튀지 않는다.
+  // 처리 후 요청을 비워 리마운트 때 같은 요청이 재생되지 않게 한다.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !featureFocusRequest) {
+      return;
+    }
+    centerViewOnFeature(
+      map,
+      useEditorStore.getState().scene as EditorScene | null,
+      featureFocusRequest.featureId,
+    );
+    useEditorStore.getState().consumeFeatureFocusRequest(featureFocusRequest.requestId);
+  }, [featureFocusRequest]);
 
   // 모드별 interaction 게이팅: Select만 선택/편집/affordance를 켜고, 나머지는 끈다.
   // 선택 상태 자체는 유지하고(하이라이트 보존), 편집 off 시 정점 핸들/상세/힌트만 내린다.
