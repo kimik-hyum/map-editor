@@ -133,6 +133,25 @@ describe("createLayerPanelViewModel", () => {
     });
   });
 
+  it("런타임 선택(selectedFeatureIds)을 도형 행 isSelected로 반영한다", () => {
+    const layer = createLayer({
+      features: [createFeature({ id: "a" }), createFeature({ id: "b" })],
+    });
+
+    const viewModel = createLayerPanelViewModel(createScene([layer]), null, ["b"]);
+
+    expect(viewModel.layers[0].features.map((feature) => feature.isSelected)).toEqual([
+      false,
+      true,
+    ]);
+  });
+
+  it("선택 인자가 없으면 모든 도형이 비선택이다", () => {
+    const viewModel = createLayerPanelViewModel(createScene([createLayer()]), null);
+
+    expect(viewModel.layers[0].features[0].isSelected).toBe(false);
+  });
+
   it("편집 불가 레이어는 editability 배지 라벨을 노출하고, 편집 가능 레이어는 노출하지 않는다", () => {
     const readonlyLayer = createLayer({
       id: "readonly-layer",

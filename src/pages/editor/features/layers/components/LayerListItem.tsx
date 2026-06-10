@@ -11,12 +11,16 @@ type LayerListItemProps = {
   layer: LayerListItemViewModel;
   onToggleLayerVisibility: (layer: LayerListItemViewModel) => void;
   onToggleFeatureVisibility: (feature: LayerFeatureListItemViewModel) => void;
+  onSelectFeature: (feature: LayerFeatureListItemViewModel) => void;
+  onActivateLayer: (layer: LayerListItemViewModel) => void;
 };
 
 export function LayerListItem({
   layer,
   onToggleLayerVisibility,
   onToggleFeatureVisibility,
+  onSelectFeature,
+  onActivateLayer,
 }: LayerListItemProps) {
   return (
     <Collapsible.Root
@@ -36,7 +40,11 @@ export function LayerListItem({
         />
 
         <div className="min-w-0 flex-1">
-          <Collapsible.Trigger className="group flex w-full min-w-0 items-start justify-between gap-2 text-left">
+          {/* 헤더 클릭 = 펼침/접힘 + 활성(포커스) 레이어 지정. */}
+          <Collapsible.Trigger
+            className="group flex w-full min-w-0 items-start justify-between gap-2 text-left"
+            onClick={() => onActivateLayer(layer)}
+          >
             <span className="min-w-0">
               <span className="block truncate text-sm font-black text-slate-950">
                 {layer.name}
@@ -78,6 +86,7 @@ export function LayerListItem({
             <LayerFeatureList
               features={layer.features}
               onToggleFeatureVisibility={onToggleFeatureVisibility}
+              onSelectFeature={onSelectFeature}
             />
           </Collapsible.Panel>
         </div>

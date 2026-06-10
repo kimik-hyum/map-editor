@@ -4,7 +4,6 @@ import {
 } from "@/pages/editor/theme/editorStyleResolver";
 import {
   EditabilityState,
-  SelectionState,
   VisibilityState,
   editabilityLabels,
   geometryKindLabels,
@@ -17,12 +16,6 @@ import {
   layerRoleLabels,
 } from "@/pages/editor/types/editorTypes";
 
-const selectionLabels: Partial<Record<SelectionState, string>> = {
-  [SelectionState.Active]: "활성",
-  [SelectionState.Selected]: "선택",
-  [SelectionState.Hovered]: "호버",
-};
-
 export type LayerFeatureListItemViewModel = {
   id: string;
   name: string;
@@ -34,7 +27,8 @@ export type LayerFeatureListItemViewModel = {
   isToggleDisabled: boolean;
   geometryKind: GeometryKind;
   geometryKindLabel: string;
-  selectionLabel: string | null;
+  // 런타임 선택(selectedFeatureIds) 기준. 지도 클릭/패널 클릭 어느 쪽이든 같은 값을 본다.
+  isSelected: boolean;
   accentColor: string;
 };
 
@@ -96,6 +90,7 @@ function getFeatureName(feature: DeepReadonly<EditorFeature>) {
 function createLayerFeatureListItemViewModel(
   feature: DeepReadonly<EditorFeature>,
   layer: DeepReadonly<EditorLayer>,
+  selectedIds: ReadonlySet<string>,
 ): LayerFeatureListItemViewModel {
   const visibility = getFeatureVisibility(feature);
   // 부모 레이어가 숨김이면 그 아래 도형은 모두 유효 숨김으로 본다(도형 자체 상태는 보존).
@@ -110,7 +105,7 @@ function createLayerFeatureListItemViewModel(
     isToggleDisabled: !layerVisible,
     geometryKind: feature.geometryKind,
     geometryKindLabel: geometryKindLabels[feature.geometryKind],
-    selectionLabel: selectionLabels[feature.state.selection] ?? null,
+    isSelected: selectedIds.has(feature.id),
     // 스타일 리졸버는 읽기 전용 입력을 받지 않으므로 경계에서 mutable로 캐스팅한다(변경하지 않음).
     accentColor: resolvePolygonStyle(feature as EditorFeature, layer as EditorLayer)
       .strokeColor,
@@ -120,6 +115,7 @@ function createLayerFeatureListItemViewModel(
 function createLayerListItemViewModel(
   layer: DeepReadonly<EditorLayer>,
   activeLayerId: string | null,
+  selectedIds: ReadonlySet<string>,
   stackIndex: number,
 ): LayerListItemViewModel {
   return {
@@ -138,7 +134,7 @@ function createLayerListItemViewModel(
         : editabilityLabels[layer.behavior.editability],
     featureCount: layer.features.length,
     features: layer.features.map((feature) =>
-      createLayerFeatureListItemViewModel(feature, layer),
+      createLayerFeatureListItemViewModel(feature, layer, selectedIds),
     ),
   };
 }
@@ -156,6 +152,7 @@ function getLayersByVisualStack(scene: DeepReadonly<EditorScene>) {
 export function createLayerPanelViewModel(
   scene: DeepReadonly<EditorScene> | null,
   activeLayerId: string | null,
+  selectedFeatureIds: readonly string[] = [],
 ): LayerPanelViewModel {
   if (!scene) {
     return {
@@ -167,9 +164,10 @@ export function createLayerPanelViewModel(
     };
   }
 
+  const selectedIds = new Set(selectedFeatureIds);
   const orderedLayers = getLayersByVisualStack(scene);
   const layers = orderedLayers.map(({ layer }, stackIndex) =>
-    createLayerListItemViewModel(layer, activeLayerId, stackIndex),
+    createLayerListItemViewModel(layer, activeLayerId, selectedIds, stackIndex),
   );
 
   return {

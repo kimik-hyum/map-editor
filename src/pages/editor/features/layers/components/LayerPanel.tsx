@@ -7,7 +7,12 @@ import { LayerList } from "./LayerList";
 
 export function LayerPanel() {
   const viewModel = useLayerPanelViewModel();
-  const { toggleLayerVisibility, toggleFeatureVisibility } = useLayerPanelActions();
+  const {
+    toggleLayerVisibility,
+    toggleFeatureVisibility,
+    selectFeature,
+    activateLayer,
+  } = useLayerPanelActions();
 
   return (
     <FloatingPanel
@@ -34,6 +39,8 @@ export function LayerPanel() {
             viewModel={viewModel}
             onToggleLayerVisibility={toggleLayerVisibility}
             onToggleFeatureVisibility={toggleFeatureVisibility}
+            onSelectFeature={selectFeature}
+            onActivateLayer={activateLayer}
           />
         </SegmentedTabs.Panel>
         <SegmentedTabs.Panel
@@ -43,6 +50,7 @@ export function LayerPanel() {
           <LayerFeatureSummary
             viewModel={viewModel}
             onToggleFeatureVisibility={toggleFeatureVisibility}
+            onSelectFeature={selectFeature}
           />
         </SegmentedTabs.Panel>
       </SegmentedTabs.Root>

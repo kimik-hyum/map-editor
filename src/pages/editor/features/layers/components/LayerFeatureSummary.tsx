@@ -7,11 +7,13 @@ import { LayerVisibilityIcon } from "./LayerVisibilityIcon";
 type LayerFeatureSummaryProps = {
   viewModel: LayerPanelViewModel;
   onToggleFeatureVisibility: (feature: LayerFeatureListItemViewModel) => void;
+  onSelectFeature: (feature: LayerFeatureListItemViewModel) => void;
 };
 
 export function LayerFeatureSummary({
   viewModel,
   onToggleFeatureVisibility,
+  onSelectFeature,
 }: LayerFeatureSummaryProps) {
   if (!viewModel.isReady) {
     return (
@@ -40,7 +42,11 @@ export function LayerFeatureSummary({
     <div className="grid gap-2">
       {features.map((feature) => (
         <article
-          className="flex min-w-0 items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm"
+          className={
+            feature.isSelected
+              ? "flex min-w-0 items-start gap-2 rounded-lg border border-indigo-300 bg-indigo-50 p-2.5 shadow-sm"
+              : "flex min-w-0 items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm"
+          }
           key={feature.id}
         >
           <LayerVisibilityIcon
@@ -54,15 +60,22 @@ export function LayerFeatureSummary({
             className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
             style={{ backgroundColor: feature.accentColor }}
           />
-          <div className="min-w-0 flex-1">
+          {/* 본문 클릭 = 도형 선택(다시 클릭하면 해제). 레이어 탭·지도와 같은 선택 상태를 공유한다. */}
+          <button
+            aria-label={`${feature.name} 선택`}
+            aria-pressed={feature.isSelected}
+            className="min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left"
+            onClick={() => onSelectFeature(feature)}
+            type="button"
+          >
             <h3 className="m-0 truncate text-sm font-black text-slate-950">
               {feature.name}
             </h3>
             <p className="m-0 mt-0.5 truncate text-[11px] font-bold text-slate-500">
               {feature.layerName} · {feature.geometryKindLabel}
-              {feature.selectionLabel ? ` · ${feature.selectionLabel}` : ""}
+              {feature.isSelected ? " · 선택" : ""}
             </p>
-          </div>
+          </button>
         </article>
       ))}
     </div>
