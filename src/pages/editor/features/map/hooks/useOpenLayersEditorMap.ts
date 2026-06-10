@@ -10,8 +10,8 @@ import {
   createVertexDetailOverlayLayer,
   createVertexOverlayLayer,
   type EditAffordance,
+  centerViewOnFeature,
   type EditorRenderState,
-  fitViewToFeature,
   invalidateFeatureStyles,
   type ProjectedVertex,
   projectSelectedVertices,
@@ -266,13 +266,13 @@ export function useOpenLayersEditorMap() {
   }, [hoveredFeatureId]);
 
   // 패널 등에서 온 "이 도형으로 지도 이동" 요청을 소비한다(요청 번호가 바뀔 때마다 1회).
-  // 지도 클릭 선택은 요청을 만들지 않으므로 클릭할 때마다 화면이 튀지 않는다.
+  // 줌은 유지하고 중심만 옮긴다. 지도 클릭 선택은 요청을 만들지 않으므로 화면이 튀지 않는다.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !featureFocusRequest) {
       return;
     }
-    fitViewToFeature(
+    centerViewOnFeature(
       map,
       useEditorStore.getState().scene as EditorScene | null,
       featureFocusRequest.featureId,

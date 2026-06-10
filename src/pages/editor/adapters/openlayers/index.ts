@@ -11,7 +11,7 @@ export * from "./createOpenLayersMapView";
 export * from "./createOpenLayersStyle";
 export * from "./createOpenStreetMapLayer";
 export * from "./editorContentLayers";
-export * from "./fitViewToFeature";
+export * from "./centerViewOnFeature";
 export * from "./geometryDistance";
 export * from "./invalidateFeatureStyles";
 export * from "./readVertexViewInfo";
