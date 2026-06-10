@@ -3,6 +3,7 @@ import type Feature from "ol/Feature";
 import GeoJSON from "ol/format/GeoJSON";
 import type Geometry from "ol/geom/Geometry";
 import SimpleGeometry from "ol/geom/SimpleGeometry";
+import type { EventsKey } from "ol/events";
 import { primaryAction } from "ol/events/condition";
 import Modify, { type ModifyEvent } from "ol/interaction/Modify";
 import type OpenLayersMap from "ol/Map";
@@ -104,46 +105,12 @@ const DELETE_HIT_PX = 10;
 // 선택된 도형의 정점을 드래그(이동)/우클릭(삭제)으로 편집합니다.
 // - 선택 구조는 그대로 두고, Modify는 안정적인 Collection에만 바인딩합니다.
 // - 드래그 중에는 OL 콘텐츠 피처가 실시간으로 움직이고, 끝(modifyend)에만 store에 커밋합니다.
-// 반환: { sync(선택 id 재바인딩), detach() }.
+// 반환: { sync(선택 id 재바인딩), setActive(모드별 활성 토글), detach() }.
 export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOptions) {
   const features = new Collection<Feature>();
-  const modify = new Modify({
-    features,
-    // 좌클릭(primaryAction)만 편집 제스처로 받는다 → 우클릭은 Modify의 드래그/이동에 전혀 관여하지 않는다.
-    // (좌클릭 외곽선=정점 추가, 좌클릭 정점 드래그=이동)
-    condition: primaryAction,
-    insertVertexCondition: (event) => primaryAction(event),
-    // 내장 삭제(좌클릭/alt 등)는 끈다. 삭제는 아래 우클릭 전용 경로로만 처리한다(드래그 불가).
-    deleteCondition: () => false,
-    style: createHandleStyle(),
-  });
-  // 마지막에 추가된 interaction이 먼저 처리되므로, 정점 근처에서는 팬보다 편집이 우선된다.
-  map.addInteraction(modify);
 
-  // 우클릭 = 정점 삭제 전용(드래그 없음). 우클릭은 condition에서 제외돼 Modify 드래그/이동을 시작하지 않으므로,
-  // 커서 근처에 정점이 있을 때만 Modify.removePoint로 그 정점을 직접 제거한다(removePoint가 dragSegments를 스스로 세팅).
-  const viewport = map.getViewport();
-  const handleContextMenu = (event: MouseEvent) => {
-    event.preventDefault();
-    if (features.getLength() === 0) {
-      return;
-    }
-    const resolution = map.getView().getResolution();
-    if (resolution === undefined) {
-      return;
-    }
-    const coordinate = map.getEventCoordinate(event);
-    // 세그먼트·빈 곳 우클릭은 무시: 커서가 정점 허용오차 안일 때만 삭제.
-    const geometries = features
-      .getArray()
-      .map((feature) => feature.getGeometry())
-      .filter((geometry): geometry is Geometry => geometry != null);
-    if (nearestVertexDistance(geometries, coordinate) > DELETE_HIT_PX * resolution) {
-      return;
-    }
-    modify.removePoint(coordinate);
-  };
-  viewport.addEventListener("contextmenu", handleContextMenu);
+  // Select 외 모드에서는 정점 편집(드래그/삽입/삭제·우클릭)을 전부 멈춘다.
+  let active = true;
 
   // 드래그 시작 시 원본 geometry를 복제해 두고(=실제 변경 여부 판단). originals 비어있지 않음 = 편집 제스처 진행 중.
   const originals = new Map<string, Geometry>();
@@ -157,7 +124,8 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
     }
   };
 
-  const startKey = modify.on("modifystart", (event: ModifyEvent) => {
+  // modifystart: 원본 geometry 스냅샷(변경 여부 판단). 드래그 원인이면 즉시 드래그로 본다.
+  const handleModifyStart = (event: ModifyEvent) => {
     originals.clear();
     activeDragSignaled = false;
     event.features.forEach((feature) => {
@@ -172,16 +140,10 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
     if (event.mapBrowserEvent?.type === "pointerdrag") {
       signalActiveDrag();
     }
-  });
+  };
 
-  // 삽입(pointerdown) 후 이어서 정점을 끌 때처럼, 편집 제스처 중 실제 드래그가 시작되면 한 번 핸들을 숨긴다.
-  const dragKey = map.on("pointerdrag", () => {
-    if (originals.size > 0) {
-      signalActiveDrag();
-    }
-  });
-
-  const endKey = modify.on("modifyend", (event: ModifyEvent) => {
+  // modifyend: 실제로 바뀐 피처만 store에 커밋. 정점 추가 제스처면 onInsert 알림.
+  const handleModifyEnd = (event: ModifyEvent) => {
     let inserted = false;
     event.features.forEach((feature) => {
       const id = feature.getId();
@@ -206,7 +168,78 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
       options.onInsert?.();
     }
     options.onModifyEnd();
+  };
+
+  // Modify 인스턴스 생성 + modifystart/modifyend 바인딩. 진행 중 제스처 취소 시 stale 내부 상태를
+  // 버리려면 재생성이 필요하므로 함수로 둔다(startKey/endKey도 새 인스턴스에 다시 묶는다).
+  let startKey: EventsKey;
+  let endKey: EventsKey;
+  const buildModify = () => {
+    const instance = new Modify({
+      features,
+      // 좌클릭(primaryAction)만 편집 제스처로 받는다 → 우클릭은 Modify의 드래그/이동에 전혀 관여하지 않는다.
+      // (좌클릭 외곽선=정점 추가, 좌클릭 정점 드래그=이동)
+      condition: primaryAction,
+      insertVertexCondition: (event) => primaryAction(event),
+      // 내장 삭제(좌클릭/alt 등)는 끈다. 삭제는 아래 우클릭 전용 경로로만 처리한다(드래그 불가).
+      deleteCondition: () => false,
+      style: createHandleStyle(),
+    });
+    startKey = instance.on("modifystart", handleModifyStart);
+    endKey = instance.on("modifyend", handleModifyEnd);
+    return instance;
+  };
+
+  let modify = buildModify();
+  // 마지막에 추가된 interaction이 먼저 처리되므로, 정점 근처에서는 팬보다 편집이 우선된다.
+  map.addInteraction(modify);
+
+  // 우클릭 = 정점 삭제 전용(드래그 없음). 우클릭은 condition에서 제외돼 Modify 드래그/이동을 시작하지 않으므로,
+  // 커서 근처에 정점이 있을 때만 Modify.removePoint로 그 정점을 직접 제거한다(removePoint가 dragSegments를 스스로 세팅).
+  const viewport = map.getViewport();
+  const handleContextMenu = (event: MouseEvent) => {
+    // 비활성 모드에서는 우클릭을 가로채지 않는다(브라우저 기본 동작 허용).
+    if (!active) {
+      return;
+    }
+    event.preventDefault();
+    if (features.getLength() === 0) {
+      return;
+    }
+    const resolution = map.getView().getResolution();
+    if (resolution === undefined) {
+      return;
+    }
+    const coordinate = map.getEventCoordinate(event);
+    // 세그먼트·빈 곳 우클릭은 무시: 커서가 정점 허용오차 안일 때만 삭제.
+    const geometries = features
+      .getArray()
+      .map((feature) => feature.getGeometry())
+      .filter((geometry): geometry is Geometry => geometry != null);
+    if (nearestVertexDistance(geometries, coordinate) > DELETE_HIT_PX * resolution) {
+      return;
+    }
+    modify.removePoint(coordinate);
+  };
+  viewport.addEventListener("contextmenu", handleContextMenu);
+
+  // 삽입(pointerdown) 후 이어서 정점을 끌 때처럼, 편집 제스처 중 실제 드래그가 시작되면 한 번 핸들을 숨긴다.
+  const dragKey = map.on("pointerdrag", () => {
+    if (active && originals.size > 0) {
+      signalActiveDrag();
+    }
   });
+
+  // 진행 중 제스처가 inactive로 끊기면 OL Modify 내부 상태(dragSegments/featuresBeingModified/
+  // handlingDownUpSequence)가 stale로 남는다(Map은 inactive interaction에 pointerup을 전달하지 않음).
+  // 깨끗한 인스턴스로 교체해 그 잔여 상태를 제거한다.
+  const recreateModify = () => {
+    unByKey(startKey);
+    unByKey(endKey);
+    map.removeInteraction(modify);
+    modify = buildModify();
+    map.addInteraction(modify);
+  };
 
   // 선택된 도형의 OL 피처를 Modify 컬렉션에 다시 바인딩(scene 재빌드 후에도 호출).
   const sync = (selectedIds: ReadonlySet<string>) => {
@@ -233,6 +266,25 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
     });
   };
 
+  // 모드 전환 등으로 비활성화될 때: 진행 중 편집 제스처는 원본으로 되돌리고 커밋하지 않는다.
+  const setActive = (next: boolean) => {
+    if (!next && originals.size > 0) {
+      features.forEach((feature) => {
+        const id = feature.getId();
+        const original = typeof id === "string" ? originals.get(id) : undefined;
+        if (original) {
+          feature.setGeometry(original.clone());
+        }
+      });
+      // inactive 전환으로 끊긴 제스처의 stale 내부 상태를 깨끗한 인스턴스로 버린다.
+      recreateModify();
+    }
+    originals.clear();
+    activeDragSignaled = false;
+    active = next;
+    modify.setActive(next);
+  };
+
   const detach = () => {
     unByKey(startKey);
     unByKey(dragKey);
@@ -242,5 +294,5 @@ export function attachVertexModify(map: OpenLayersMap, options: VertexModifyOpti
     features.clear();
   };
 
-  return { sync, detach };
+  return { sync, setActive, detach };
 }

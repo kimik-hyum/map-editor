@@ -18,6 +18,7 @@ import {
   syncOpenLayersMapScene,
   syncVertexOverlay,
 } from "@/pages/editor/adapters/openlayers";
+import { getMapInteractionActivation } from "@/pages/editor/features/map/model/mapInteractionModel";
 import { getChangedSelectionIds } from "@/pages/editor/features/selection";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import type { EditorScene } from "@/pages/editor/types/editorTypes";
@@ -43,12 +44,17 @@ export function useOpenLayersEditorMap() {
   const selectedVerticesRef = useRef<ProjectedVertex[]>([]);
   // 정점 편집(Modify) 핸들. 선택 변경/씬 재빌드 때 선택 도형으로 재바인딩합니다.
   const modifyRef = useRef<ReturnType<typeof attachVertexModify> | null>(null);
+  // 선택/affordance/상세 핸들. 모드 전환 시 setActive로 켜고 끈다.
+  const selectionRef = useRef<ReturnType<typeof attachEditorSelection> | null>(null);
+  const affordanceRef = useRef<ReturnType<typeof attachEditAffordance> | null>(null);
+  const detailRef = useRef<ReturnType<typeof attachVertexDetail> | null>(null);
   // 외곽선 클릭으로 정점을 추가한 직후 짧은 시간 동안 따라오는 selection 단일클릭을 무시한다(만료 시각, ms).
   const suppressSelectUntilRef = useRef(0);
 
   const scene = useEditorStore((state) => state.scene);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
   const hoveredFeatureId = useEditorStore((state) => state.hoveredFeatureId);
+  const activeMode = useEditorStore((state) => state.activeMode);
 
   // 커서 위치 기준 편집 동작(정점 위=삭제, 외곽선=추가, 그 외=없음). 툴팁 분기에 사용.
   const [editAffordance, setEditAffordance] = useState<EditAffordance>(null);
@@ -69,7 +75,7 @@ export function useOpenLayersEditorMap() {
     map.addLayer(detailLayer);
     detailLayerRef.current = detailLayer;
 
-    const detachSelection = attachEditorSelection(map, {
+    const selection = attachEditorSelection(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
       onSelect: (featureIds) => {
         // 정점 추가 직후 짧은 시간 내 따라오는 단일클릭은 선택을 흔들지 않도록 무시한다(만료 후 자동 해제).
@@ -82,7 +88,7 @@ export function useOpenLayersEditorMap() {
       onHover: (featureId) => useEditorStore.getState().setHoveredFeatureId(featureId),
     });
 
-    const detachDetail = attachVertexDetail(map, {
+    const detail = attachVertexDetail(map, {
       layer: detailLayer,
       getVertices: () => selectedVerticesRef.current,
       radiusPx: VERTEX_DETAIL_RADIUS_PX,
@@ -116,14 +122,24 @@ export function useOpenLayersEditorMap() {
     modifyRef.current = modify;
 
     // 커서가 선택 도형의 정점 위/외곽선/그 외 중 어디인지 판정해 툴팁 분기에 사용.
-    const detachAffordance = attachEditAffordance(map, {
+    const affordance = attachEditAffordance(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
       getSelectedIds: () => useEditorStore.getState().selectedFeatureIds,
       onChange: setEditAffordance,
     });
 
+    selectionRef.current = selection;
+    detailRef.current = detail;
+    affordanceRef.current = affordance;
+
     const moveEndKey = map.on("moveend", () => {
       if (!vertexLayerRef.current) {
+        return;
+      }
+      // 편집 비활성 모드에서는 팬/줌 후에도 정점 핸들을 되살리지 않는다.
+      if (
+        !getMapInteractionActivation(useEditorStore.getState().activeMode).vertexEdit
+      ) {
         return;
       }
       syncVertexOverlay(
@@ -135,16 +151,19 @@ export function useOpenLayersEditorMap() {
     });
 
     return () => {
-      detachSelection();
-      detachDetail();
+      selection.detach();
+      detail.detach();
       modify.detach();
-      detachAffordance();
+      affordance.detach();
       unByKey(moveEndKey);
       map.setTarget(undefined);
       mapRef.current = null;
       vertexLayerRef.current = null;
       detailLayerRef.current = null;
       modifyRef.current = null;
+      selectionRef.current = null;
+      affordanceRef.current = null;
+      detailRef.current = null;
     };
   }, []);
 
@@ -154,21 +173,31 @@ export function useOpenLayersEditorMap() {
       return;
     }
 
+    // 씬(콘텐츠 레이어) 렌더는 모드와 무관하게 항상 동기화한다.
     syncOpenLayersMapScene(map, scene as EditorScene | null, renderStateRef.current);
+
+    // 정점 핸들/편집 바인딩은 편집 활성 모드에서만 갱신한다(비-Select에선 숨김 유지).
+    const editing = getMapInteractionActivation(
+      useEditorStore.getState().activeMode,
+    ).vertexEdit;
     selectedVerticesRef.current = projectSelectedVertices(
       scene as EditorScene | null,
       renderStateRef.current.selectedIds,
     );
     detailLayerRef.current?.getSource()?.clear(true);
-    if (vertexLayerRef.current) {
+    if (editing && vertexLayerRef.current) {
       syncVertexOverlay(
         vertexLayerRef.current,
         scene as EditorScene | null,
         renderStateRef.current.selectedIds,
         readVertexViewInfo(map),
       );
+    } else {
+      vertexLayerRef.current?.getSource()?.clear(true);
     }
-    modifyRef.current?.sync(renderStateRef.current.selectedIds);
+    if (editing) {
+      modifyRef.current?.sync(renderStateRef.current.selectedIds);
+    }
   }, [scene]);
 
   useEffect(() => {
@@ -185,21 +214,31 @@ export function useOpenLayersEditorMap() {
     }
 
     renderStateRef.current.selectedIds = next;
+    // 선택 하이라이트는 모드와 무관하게 갱신한다.
+    invalidateFeatureStyles(map, changedIds);
+
+    // 정점 핸들/편집 바인딩은 편집 활성 모드에서만 갱신한다.
+    const editing = getMapInteractionActivation(
+      useEditorStore.getState().activeMode,
+    ).vertexEdit;
     selectedVerticesRef.current = projectSelectedVertices(
       useEditorStore.getState().scene as EditorScene | null,
       next,
     );
     detailLayerRef.current?.getSource()?.clear(true);
-    invalidateFeatureStyles(map, changedIds);
-    if (vertexLayerRef.current) {
+    if (editing && vertexLayerRef.current) {
       syncVertexOverlay(
         vertexLayerRef.current,
         useEditorStore.getState().scene as EditorScene | null,
         next,
         readVertexViewInfo(map),
       );
+    } else {
+      vertexLayerRef.current?.getSource()?.clear(true);
     }
-    modifyRef.current?.sync(next);
+    if (editing) {
+      modifyRef.current?.sync(next);
+    }
     // 선택이 비면 편집 힌트도 즉시 내린다(다음 포인터 이동을 기다리지 않도록).
     if (next.size === 0) {
       setEditAffordance(null);
@@ -223,6 +262,47 @@ export function useOpenLayersEditorMap() {
     );
     invalidateFeatureStyles(map, changedIds);
   }, [hoveredFeatureId]);
+
+  // 모드별 interaction 게이팅: Select만 선택/편집/affordance를 켜고, 나머지는 끈다.
+  // 선택 상태 자체는 유지하고(하이라이트 보존), 편집 off 시 정점 핸들/상세/힌트만 내린다.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) {
+      return;
+    }
+
+    const activation = getMapInteractionActivation(activeMode);
+    selectionRef.current?.setActive(activation.selection);
+    modifyRef.current?.setActive(activation.vertexEdit);
+    affordanceRef.current?.setActive(activation.affordance);
+    detailRef.current?.setActive(activation.vertexEdit);
+
+    // 선택/호버를 멈춘 모드에서는 잔여 호버 하이라이트를 내린다(선택 자체는 유지).
+    if (!activation.selection) {
+      useEditorStore.getState().setHoveredFeatureId(null);
+    }
+
+    if (activation.vertexEdit) {
+      // 편집 활성(예: Select 복귀): 현재 선택으로 정점 핸들을 복구한다.
+      const currentScene = useEditorStore.getState().scene as EditorScene | null;
+      const selectedIds = renderStateRef.current.selectedIds;
+      selectedVerticesRef.current = projectSelectedVertices(currentScene, selectedIds);
+      if (vertexLayerRef.current) {
+        syncVertexOverlay(
+          vertexLayerRef.current,
+          currentScene,
+          selectedIds,
+          readVertexViewInfo(map),
+        );
+      }
+      modifyRef.current?.sync(selectedIds);
+    } else {
+      // 편집 비활성: 정점/상세 오버레이와 힌트를 즉시 내린다.
+      vertexLayerRef.current?.getSource()?.clear(true);
+      detailLayerRef.current?.getSource()?.clear(true);
+      setEditAffordance(null);
+    }
+  }, [activeMode]);
 
   return { mapElementRef, editAffordance };
 }
