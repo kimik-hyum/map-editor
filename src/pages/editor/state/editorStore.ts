@@ -64,6 +64,7 @@ type EditorStoreActions = {
   setHoveredFeatureId: (featureId: string | null) => void;
   setSelectedFeatureIds: (featureIds: string[]) => void;
   requestFeatureFocus: (featureId: string) => void;
+  consumeFeatureFocusRequest: (requestId: number) => void;
   setActiveMode: (mode: EditorMode) => void;
   setActiveBoundaryKind: (kind: BoundaryKind) => void;
   setActiveDrawShape: (shape: DrawShape) => void;
@@ -357,6 +358,14 @@ export const useEditorStore = create<EditorStore>((set) => {
           requestId: (state.featureFocusRequest?.requestId ?? 0) + 1,
         },
       })),
+    // 처리한 요청을 비워 1회성 계약을 보장한다(리마운트 시 재생 방지).
+    // 처리 중 새 요청이 들어왔을 수 있으므로, 같은 번호일 때만 비운다.
+    consumeFeatureFocusRequest: (requestId) =>
+      set((state) =>
+        state.featureFocusRequest?.requestId === requestId
+          ? { featureFocusRequest: null }
+          : {},
+      ),
     setActiveMode: (activeMode) => set({ activeMode }),
     setActiveBoundaryKind: (activeBoundaryKind) => set({ activeBoundaryKind }),
     setActiveDrawShape: (activeDrawShape) => set({ activeDrawShape }),

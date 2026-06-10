@@ -267,6 +267,7 @@ export function useOpenLayersEditorMap() {
 
   // 패널 등에서 온 "이 도형으로 지도 이동" 요청을 소비한다(요청 번호가 바뀔 때마다 1회).
   // 줌은 유지하고 중심만 옮긴다. 지도 클릭 선택은 요청을 만들지 않으므로 화면이 튀지 않는다.
+  // 처리 후 요청을 비워 리마운트 때 같은 요청이 재생되지 않게 한다.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !featureFocusRequest) {
@@ -277,6 +278,7 @@ export function useOpenLayersEditorMap() {
       useEditorStore.getState().scene as EditorScene | null,
       featureFocusRequest.featureId,
     );
+    useEditorStore.getState().consumeFeatureFocusRequest(featureFocusRequest.requestId);
   }, [featureFocusRequest]);
 
   // 모드별 interaction 게이팅: Select만 선택/편집/affordance를 켜고, 나머지는 끈다.

@@ -308,4 +308,25 @@ describe("editorStore - 도형 포커스 요청", () => {
 
     expect(useEditorStore.getState().featureFocusRequest).toBeNull();
   });
+
+  it("처리한 요청 번호를 소비하면 요청이 비워진다", () => {
+    useEditorStore.getState().requestFeatureFocus("a");
+    const request = useEditorStore.getState().featureFocusRequest;
+
+    useEditorStore.getState().consumeFeatureFocusRequest(request?.requestId ?? 0);
+
+    expect(useEditorStore.getState().featureFocusRequest).toBeNull();
+  });
+
+  it("처리 중 새 요청이 들어왔으면 이전 번호 소비는 무시된다", () => {
+    useEditorStore.getState().requestFeatureFocus("a");
+    const stale = useEditorStore.getState().featureFocusRequest;
+    useEditorStore.getState().requestFeatureFocus("b");
+
+    useEditorStore.getState().consumeFeatureFocusRequest(stale?.requestId ?? 0);
+
+    expect(useEditorStore.getState().featureFocusRequest).toMatchObject({
+      featureId: "b",
+    });
+  });
 });

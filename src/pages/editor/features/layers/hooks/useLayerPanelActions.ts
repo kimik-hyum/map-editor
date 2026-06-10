@@ -44,7 +44,10 @@ export function useLayerPanelActions() {
         return;
       }
       setSelectedFeatureIds([feature.id]);
-      requestFeatureFocus(feature.id);
+      // 숨긴 도형은 지도에서 보이지 않으므로 포커스 이동을 걸지 않는다(선택·하이라이트 상태만 유지).
+      if (feature.isVisible) {
+        requestFeatureFocus(feature.id);
+      }
     },
     [requestFeatureFocus, setSelectedFeatureIds],
   );
