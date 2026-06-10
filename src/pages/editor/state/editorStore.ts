@@ -30,6 +30,13 @@ export const HISTORY_LIMIT = 50;
 // 소비처의 제자리 변경을 컴파일 단계에서 막습니다(런타임 비용 없음).
 type ReadonlyScene = DeepReadonly<EditorScene>;
 
+// 패널 등에서 "이 도형이 보이게 지도를 옮겨 달라"는 1회성 요청입니다.
+// 같은 도형을 연속 요청해도 구분되도록 증가하는 요청 번호를 함께 둡니다(소비는 map hook).
+type FeatureFocusRequest = {
+  featureId: string;
+  requestId: number;
+};
+
 type EditorStoreState = {
   sessionId: string | null;
   scene: ReadonlyScene | null;
@@ -40,6 +47,7 @@ type EditorStoreState = {
   activeLayerId: string | null;
   selectedFeatureIds: string[];
   hoveredFeatureId: string | null;
+  featureFocusRequest: FeatureFocusRequest | null;
   activeMode: EditorMode;
   activeBoundaryKind: BoundaryKind;
   activeDrawShape: DrawShape;
@@ -55,6 +63,7 @@ type EditorStoreActions = {
   setActiveLayerId: (layerId: string | null) => void;
   setHoveredFeatureId: (featureId: string | null) => void;
   setSelectedFeatureIds: (featureIds: string[]) => void;
+  requestFeatureFocus: (featureId: string) => void;
   setActiveMode: (mode: EditorMode) => void;
   setActiveBoundaryKind: (kind: BoundaryKind) => void;
   setActiveDrawShape: (shape: DrawShape) => void;
@@ -251,6 +260,7 @@ export const useEditorStore = create<EditorStore>((set) => {
     activeLayerId: null,
     selectedFeatureIds: [],
     hoveredFeatureId: null,
+    featureFocusRequest: null,
     activeMode: DEFAULT_EDITOR_MODE,
     activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
     activeDrawShape: DEFAULT_DRAW_SHAPE,
@@ -268,6 +278,7 @@ export const useEditorStore = create<EditorStore>((set) => {
         activeLayerId: getInitialActiveLayerId(message.scene),
         selectedFeatureIds: [],
         hoveredFeatureId: null,
+        featureFocusRequest: null,
         activeMode: DEFAULT_EDITOR_MODE,
         activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
         activeDrawShape: DEFAULT_DRAW_SHAPE,
@@ -282,6 +293,7 @@ export const useEditorStore = create<EditorStore>((set) => {
         activeLayerId: getInitialActiveLayerId(scene),
         selectedFeatureIds: [],
         hoveredFeatureId: null,
+        featureFocusRequest: null,
         dirty: false,
       }),
     resetScene: () =>
@@ -294,6 +306,7 @@ export const useEditorStore = create<EditorStore>((set) => {
         activeLayerId: null,
         selectedFeatureIds: [],
         hoveredFeatureId: null,
+        featureFocusRequest: null,
         activeMode: DEFAULT_EDITOR_MODE,
         activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
         activeDrawShape: DEFAULT_DRAW_SHAPE,
@@ -336,6 +349,14 @@ export const useEditorStore = create<EditorStore>((set) => {
         state.hoveredFeatureId === hoveredFeatureId ? state : { hoveredFeatureId },
       ),
     setSelectedFeatureIds: (selectedFeatureIds) => set({ selectedFeatureIds }),
+    // "이 도형이 보이게 지도를 옮겨 달라"는 1회성 요청. 같은 도형 연속 요청도 번호로 구분된다.
+    requestFeatureFocus: (featureId) =>
+      set((state) => ({
+        featureFocusRequest: {
+          featureId,
+          requestId: (state.featureFocusRequest?.requestId ?? 0) + 1,
+        },
+      })),
     setActiveMode: (activeMode) => set({ activeMode }),
     setActiveBoundaryKind: (activeBoundaryKind) => set({ activeBoundaryKind }),
     setActiveDrawShape: (activeDrawShape) => set({ activeDrawShape }),
