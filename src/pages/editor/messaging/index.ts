@@ -6,6 +6,7 @@ export {
   isAllowedParentOrigin,
   resolveParentTargetOrigin,
 } from "./editorMessageChannel";
-export { editorSceneSchema, parseInitMessage } from "./editorSceneSchema";
+export { editorSceneInputSchema, parseInitMessage } from "./editorSceneSchema";
 export type { ParseInitMessageResult } from "./editorSceneSchema";
+export { normalizeSceneInput } from "./normalizeSceneInput";
 export { useEditorMessaging } from "./useEditorMessaging";

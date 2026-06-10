@@ -1,9 +1,9 @@
 import {
   EditorMessageType,
   type EditorErrorMessage,
-  type EditorInitMessage,
+  type EditorInitMessageInput,
   type EditorReadyMessage,
-  type EditorScene,
+  type EditorSceneInput,
   type EditorValidationIssue,
 } from "../types/editorTypes";
 
@@ -38,8 +38,8 @@ export function createReadyMessage(sessionId?: string): EditorReadyMessage {
 
 export function createInitMessage(
   sessionId: string,
-  scene: EditorScene,
-): EditorInitMessage {
+  scene: EditorSceneInput,
+): EditorInitMessageInput {
   return { type: EditorMessageType.Init, sessionId, scene };
 }
 

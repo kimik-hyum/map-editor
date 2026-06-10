@@ -4,4 +4,5 @@ export * from "./enums";
 export * from "./geometry";
 export * from "./layerAccess";
 export * from "./messages";
+export * from "./sceneInput";
 export * from "./validation";
