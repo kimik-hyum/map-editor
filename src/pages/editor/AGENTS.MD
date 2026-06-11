@@ -5,7 +5,7 @@
 - 실제 타입 선언은 역할별로 `types/enums.ts`, `types/geometry.ts`, `types/validation.ts`, `types/scene.ts`, `types/messages.ts`에 나누어 둔다.
 - 레이어와 도형 상태를 새로 추가할 때는 문자열 리터럴을 흩뿌리지 말고 먼저 `types/enums.ts`의 enum 확장을 검토한다.
 - 에디터의 의미 기반 색상 토큰과 기본 테마 값은 `theme/editorTheme.ts`를 기준으로 한다.
-- `EditorScene -> EditorLayer[] -> EditorFeature[]` 구조를 기본 모델로 유지한다.
+- `EditorScene -> EditorLayer[] -> EditorFeature[]` 구조를 기본 모델로 유지한다. 단, 운용은 "1레이어 = 1도형" 평탄 스택이다: 입력은 레이어 단계 없는 도형 목록이고, 정규화가 도형 하나당 내부 레이어 하나를 만든다.
 - `EditorScene` 인스턴스를 담는 지역변수·파라미터·store 필드는 `scene`으로 명명한다. 전역 `document` 셰도잉을 피하기 위함이며, 브라우저 DOM(`document.getElementById` 등) 접근부는 예외로 둔다.
 - 샘플 씬 데이터는 `fixtures/` 아래에 두고 렌더링 코드는 해당 씬 모델을 읽도록 작성한다.
 - 전역 에디터 상태는 `state/editorStore.ts`를 기준으로 하며 OpenLayers 객체를 store에 넣지 않는다.

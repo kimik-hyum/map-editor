@@ -33,7 +33,7 @@ Codex와 Claude는 이 문서를 기준으로 `EditorPage` 비대화, OpenLayers
 - Zustand store에 OpenLayers 객체, DOM node, React ref를 넣지 않는다.
 - `features/*/model`에서 React, Zustand, OpenLayers를 import하지 않는다.
 - `adapters/openlayers`에서 React hook을 import하지 않는다.
-- store의 `scene`은 `EditorScene -> EditorLayer[] -> EditorFeature[]` 구조를 유지한다.
+- store의 `scene`은 `EditorScene -> EditorLayer[] -> EditorFeature[]` 구조를 유지한다. 운용은 "1레이어 = 1도형" 평탄 스택이며(입력 = 도형 목록, 정규화가 1:1로 펼침), 패널·순서·잠금 기능은 이 평탄 모델을 전제로 설계한다.
 - geometry 변경만 history에 쌓는다. 선택, 호버, 패널 표시, 레이어 visibility 같은 view/UI 변경은 별도 정책이 없는 한 silent로 둔다.
 - scene 스냅샷은 읽기 전용 소비를 기본으로 보고, mutation은 store action 내부 경계에서만 수행한다.
 - 다른 상태에서 파생되는 값(예: 모드별 interaction 활성 플래그)은 store에 저장하지 않고 순수 함수로 계산한다(파생 상태 중복 금지).
