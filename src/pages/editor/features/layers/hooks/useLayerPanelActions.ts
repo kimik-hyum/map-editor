@@ -1,69 +1,46 @@
 import { useCallback } from "react";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import {
-  getNextFeatureVisibility,
   getNextLayerVisibility,
-  type LayerFeatureListItemViewModel,
-  type LayerListItemViewModel,
+  type FeatureStackRowViewModel,
 } from "../model/layerPanelModel";
 
 export function useLayerPanelActions() {
-  const updateFeatureView = useEditorStore((state) => state.updateFeatureView);
   const updateLayerView = useEditorStore((state) => state.updateLayerView);
   const setSelectedFeatureIds = useEditorStore((state) => state.setSelectedFeatureIds);
-  const setActiveLayerId = useEditorStore((state) => state.setActiveLayerId);
   const requestFeatureFocus = useEditorStore((state) => state.requestFeatureFocus);
 
-  const toggleFeatureVisibility = useCallback(
-    (feature: LayerFeatureListItemViewModel) => {
-      updateFeatureView(feature.id, {
-        visibility: getNextFeatureVisibility(feature.visibility),
-      });
-    },
-    [updateFeatureView],
-  );
-
-  const toggleLayerVisibility = useCallback(
-    (layer: LayerListItemViewModel) => {
-      updateLayerView(layer.id, {
-        visibility: getNextLayerVisibility(layer.visibility),
+  // 행(도형)의 표시 토글. 1레이어 = 1도형이라 도형을 담은 내부 레이어의 표시를 바꾼다.
+  const toggleRowVisibility = useCallback(
+    (row: FeatureStackRowViewModel) => {
+      updateLayerView(row.layerId, {
+        visibility: getNextLayerVisibility(row.visibility),
       });
     },
     [updateLayerView],
   );
 
-  // 패널 도형 행 클릭 = 그 도형 선택(교체). 지도 클릭 선택과 같은 상태(selectedFeatureIds)를 쓴다.
+  // 패널 행 클릭 = 그 도형 선택(교체). 지도 클릭 선택과 같은 상태(selectedFeatureIds)를 쓴다.
   // 다시 클릭하면 해제한다(패널에서 선택을 끄는 유일한 손잡이).
-  // 선택할 때는 그 도형이 보이도록 지도 이동도 함께 요청한다(해제 시에는 요청하지 않음).
+  // 선택할 때는 그 도형이 보이도록 지도 이동도 함께 요청한다(숨김/해제 시에는 요청하지 않음).
   const selectFeature = useCallback(
-    (feature: LayerFeatureListItemViewModel) => {
+    (row: FeatureStackRowViewModel) => {
       const current = useEditorStore.getState().selectedFeatureIds;
-      const isOnlySelection = current.length === 1 && current[0] === feature.id;
+      const isOnlySelection = current.length === 1 && current[0] === row.id;
       if (isOnlySelection) {
         setSelectedFeatureIds([]);
         return;
       }
-      setSelectedFeatureIds([feature.id]);
-      // 숨긴 도형은 지도에서 보이지 않으므로 포커스 이동을 걸지 않는다(선택·하이라이트 상태만 유지).
-      if (feature.isVisible) {
-        requestFeatureFocus(feature.id);
+      setSelectedFeatureIds([row.id]);
+      if (row.isVisible) {
+        requestFeatureFocus(row.id);
       }
     },
     [requestFeatureFocus, setSelectedFeatureIds],
   );
 
-  // 패널 레이어 행 클릭 = 활성(포커스) 레이어 지정. 도형 선택과는 별개 상태다.
-  const activateLayer = useCallback(
-    (layer: LayerListItemViewModel) => {
-      setActiveLayerId(layer.id);
-    },
-    [setActiveLayerId],
-  );
-
   return {
-    toggleFeatureVisibility,
-    toggleLayerVisibility,
+    toggleRowVisibility,
     selectFeature,
-    activateLayer,
   };
 }

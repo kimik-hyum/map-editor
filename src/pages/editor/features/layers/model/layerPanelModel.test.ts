@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  createLayerPanelViewModel,
-  getNextFeatureVisibility,
-  getNextLayerVisibility,
-} from "./layerPanelModel";
-import { editorDefaultTheme } from "@/pages/editor/theme/editorTheme";
-import {
   EditabilityState,
   FeatureLifecycle,
   GeometryKind,
@@ -18,6 +12,7 @@ import {
   type EditorFeature,
   type EditorLayer,
 } from "@/pages/editor/types/editorTypes";
+import { createLayerPanelViewModel, getNextLayerVisibility } from "./layerPanelModel";
 
 function createFeature(overrides: Partial<EditorFeature> = {}): EditorFeature {
   return {
@@ -43,12 +38,14 @@ function createFeature(overrides: Partial<EditorFeature> = {}): EditorFeature {
   };
 }
 
-function createLayer(overrides: Partial<EditorLayer> = {}): EditorLayer {
-  const features = overrides.features ?? [createFeature()];
-
+// 1레이어 = 1도형 구조의 내부 레이어를 만듭니다.
+function createFeatureLayer(
+  overrides: Partial<EditorLayer> = {},
+  feature: EditorFeature = createFeature(),
+): EditorLayer {
   return {
-    id: "layer",
-    name: "layer",
+    id: `layer-${feature.id}`,
+    name: feature.name ?? feature.id,
     roles: [LayerRole.Editable],
     geometryKinds: [GeometryKind.Polygon],
     view: {
@@ -64,7 +61,7 @@ function createLayer(overrides: Partial<EditorLayer> = {}): EditorLayer {
       deletable: true,
       draggable: true,
     },
-    features,
+    features: [feature],
     ...overrides,
   };
 }
@@ -77,228 +74,177 @@ function createScene(layers: EditorLayer[]): EditorScene {
 }
 
 describe("createLayerPanelViewModel", () => {
-  it("레이어를 zIndex 높은 순서로 시각화한다", () => {
+  it("쌓임 값 높은 순(위→아래)으로 행을 나열하고 순위 라벨을 붙인다", () => {
     const scene = createScene([
-      createLayer({
-        id: "bottom",
-        name: "아래",
-        view: {
-          visibility: VisibilityState.Visible,
-          opacity: 1,
-          zIndex: 10,
-          labelVisible: true,
+      createFeatureLayer(
+        {
+          view: {
+            visibility: VisibilityState.Visible,
+            opacity: 1,
+            zIndex: 10,
+            labelVisible: true,
+          },
         },
-      }),
-      createLayer({
-        id: "top",
-        name: "위",
-        view: {
-          visibility: VisibilityState.Visible,
-          opacity: 1,
-          zIndex: 40,
-          labelVisible: true,
+        createFeature({ id: "bottom", name: "아래" }),
+      ),
+      createFeatureLayer(
+        {
+          view: {
+            visibility: VisibilityState.Visible,
+            opacity: 1,
+            zIndex: 40,
+            labelVisible: true,
+          },
         },
-      }),
+        createFeature({ id: "top", name: "위" }),
+      ),
     ]);
 
-    const viewModel = createLayerPanelViewModel(scene, "top");
+    const viewModel = createLayerPanelViewModel(scene);
 
-    expect(viewModel.layers.map((layer) => layer.id)).toEqual(["top", "bottom"]);
-    expect(viewModel.layers[0]).toMatchObject({
-      isActive: true,
-      orderLabel: "#1",
-    });
+    expect(viewModel.rows.map((row) => row.id)).toEqual(["top", "bottom"]);
+    expect(viewModel.rows[0]).toMatchObject({ name: "위", orderLabel: "#1" });
+    expect(viewModel.featureCount).toBe(2);
   });
 
-  it("레이어 역할과 도형 종류 라벨을 공통 enum 라벨로 표시한다", () => {
-    const feature = createFeature({
-      id: "path-feature",
-      name: "주행 경로",
-      geometryKind: GeometryKind.Path,
-    });
-    const layer = createLayer({
-      id: "reference-layer",
-      roles: [LayerRole.Reference],
-      features: [feature],
-    });
+  it("런타임 선택(selectedFeatureIds)을 행 isSelected로 반영한다", () => {
+    const scene = createScene([
+      createFeatureLayer({}, createFeature({ id: "a" })),
+      createFeatureLayer(
+        {
+          view: {
+            visibility: VisibilityState.Visible,
+            opacity: 1,
+            zIndex: 20,
+            labelVisible: true,
+          },
+        },
+        createFeature({ id: "b" }),
+      ),
+    ]);
 
-    const viewModel = createLayerPanelViewModel(createScene([layer]), null);
+    const viewModel = createLayerPanelViewModel(scene, ["b"]);
 
-    expect(viewModel.layers[0].roleLabels).toEqual(["참고"]);
-    expect(viewModel.layers[0].features[0]).toMatchObject({
-      name: "주행 경로",
-      geometryKindLabel: "패스",
-      isVisible: true,
-      visibility: VisibilityState.Visible,
-    });
-  });
-
-  it("런타임 선택(selectedFeatureIds)을 도형 행 isSelected로 반영한다", () => {
-    const layer = createLayer({
-      features: [createFeature({ id: "a" }), createFeature({ id: "b" })],
-    });
-
-    const viewModel = createLayerPanelViewModel(createScene([layer]), null, ["b"]);
-
-    expect(viewModel.layers[0].features.map((feature) => feature.isSelected)).toEqual([
-      false,
-      true,
+    expect(viewModel.rows.map((row) => [row.id, row.isSelected])).toEqual([
+      ["b", true],
+      ["a", false],
     ]);
   });
 
-  it("선택 인자가 없으면 모든 도형이 비선택이다", () => {
-    const viewModel = createLayerPanelViewModel(createScene([createLayer()]), null);
+  it("잠긴 레이어의 도형은 잠금 배지 상태를 가진다", () => {
+    const scene = createScene([
+      createFeatureLayer(
+        {
+          roles: [LayerRole.Reference],
+          behavior: {
+            lock: LockState.Locked,
+            editability: EditabilityState.Readonly,
+            selectable: true,
+            deletable: false,
+            draggable: false,
+          },
+        },
+        createFeature({ id: "ref" }),
+      ),
+    ]);
 
-    expect(viewModel.layers[0].features[0].isSelected).toBe(false);
+    const viewModel = createLayerPanelViewModel(scene);
+
+    expect(viewModel.rows[0].isLocked).toBe(true);
   });
 
-  it("편집 불가 레이어는 editability 배지 라벨을 노출하고, 편집 가능 레이어는 노출하지 않는다", () => {
-    const readonlyLayer = createLayer({
-      id: "readonly-layer",
-      behavior: {
-        lock: LockState.Unlocked,
-        editability: EditabilityState.Readonly,
-        selectable: true,
-        deletable: true,
-        draggable: true,
-      },
-    });
-    const editableLayer = createLayer({ id: "editable-layer" });
+  it("표시 상태를 행에 반영한다(숨김·흐림)", () => {
+    const scene = createScene([
+      createFeatureLayer(
+        {
+          view: {
+            visibility: VisibilityState.Hidden,
+            opacity: 1,
+            zIndex: 10,
+            labelVisible: true,
+          },
+        },
+        createFeature({ id: "hidden" }),
+      ),
+      createFeatureLayer(
+        {
+          view: {
+            visibility: VisibilityState.Dimmed,
+            opacity: 1,
+            zIndex: 20,
+            labelVisible: true,
+          },
+        },
+        createFeature({ id: "dimmed" }),
+      ),
+    ]);
 
-    const viewModel = createLayerPanelViewModel(
-      createScene([readonlyLayer, editableLayer]),
-      null,
-    );
-    const byId = (id: string) => viewModel.layers.find((layer) => layer.id === id);
+    const viewModel = createLayerPanelViewModel(scene);
+    const hidden = viewModel.rows.find((row) => row.id === "hidden");
+    const dimmed = viewModel.rows.find((row) => row.id === "dimmed");
 
-    expect(byId("readonly-layer")?.editabilityLabel).toBe("읽기");
-    expect(byId("editable-layer")?.editabilityLabel).toBeNull();
+    expect(hidden).toMatchObject({ isVisible: false, isDimmed: false });
+    expect(dimmed).toMatchObject({ isVisible: true, isDimmed: true });
   });
 
-  it("도형별 visibility를 표시한다", () => {
-    const feature = createFeature({
-      view: {
-        visibility: VisibilityState.Hidden,
-      },
-    });
-    const layer = createLayer({ features: [feature] });
-
-    const viewModel = createLayerPanelViewModel(createScene([layer]), null);
-
-    expect(viewModel.layers[0].features[0]).toMatchObject({
-      isVisible: false,
-      visibility: VisibilityState.Hidden,
-    });
-  });
-
-  it("상위 레이어가 숨김이면 하위 도형도 유효 숨김 + 토글 비활성으로 표시한다", () => {
-    const feature = createFeature(); // 도형 자체는 Visible
-    const layer = createLayer({
-      view: {
-        visibility: VisibilityState.Hidden,
-        opacity: 1,
-        zIndex: 10,
-        labelVisible: true,
-      },
-      features: [feature],
-    });
-
-    const viewModel = createLayerPanelViewModel(createScene([layer]), null);
-
-    expect(viewModel.layers[0].features[0]).toMatchObject({
-      visibility: VisibilityState.Visible, // 도형 자체 상태는 보존
-      isVisible: false, // 레이어 숨김 → 유효 숨김
-      isToggleDisabled: true,
-    });
-  });
-
-  it("도형 이름이 없으면 GeoJSON label 속성을 이름으로 사용한다", () => {
-    const feature = createFeature({
+  it("이름이 없으면 라벨 속성, 그것도 없으면 id를 쓴다", () => {
+    const labeled = createFeature({
+      id: "labeled",
       name: undefined,
       feature: {
         type: "Feature",
-        id: "geojson-id",
-        geometry: {
-          type: "Polygon",
-          coordinates: [],
+        id: "labeled",
+        geometry: { type: "Polygon", coordinates: [] },
+        properties: { label: "라벨" },
+      },
+    });
+    const bare = createFeature({
+      id: "bare",
+      name: undefined,
+      feature: {
+        type: "Feature",
+        id: "bare",
+        geometry: { type: "Polygon", coordinates: [] },
+        properties: {},
+      },
+    });
+    const scene = createScene([
+      createFeatureLayer({ name: "labeled" }, labeled),
+      createFeatureLayer(
+        {
+          name: "bare",
+          view: {
+            visibility: VisibilityState.Visible,
+            opacity: 1,
+            zIndex: 20,
+            labelVisible: true,
+          },
         },
-        properties: {
-          label: "속성 이름",
-        },
-      },
-    });
-    const layer = createLayer({ features: [feature] });
+        bare,
+      ),
+    ]);
 
-    const viewModel = createLayerPanelViewModel(createScene([layer]), null);
+    const viewModel = createLayerPanelViewModel(scene);
 
-    expect(viewModel.layers[0].features[0].name).toBe("속성 이름");
+    // bare가 더 높은 쌓임 값(20)이라 위에 온다.
+    expect(viewModel.rows.map((row) => row.name)).toEqual(["bare", "라벨"]);
   });
 
-  it("패널 점 색상은 지도와 같은 style resolver 결과를 사용한다", () => {
-    const warningFeature = createFeature({
-      state: {
-        selection: SelectionState.None,
-        lifecycle: FeatureLifecycle.Clean,
-        validation: ValidationState.Warning,
-        issues: [],
-      },
-    });
-    const layer = createLayer({
-      roles: [LayerRole.Background],
-      features: [warningFeature],
-    });
-
-    const viewModel = createLayerPanelViewModel(createScene([layer]), null);
-
-    expect(viewModel.layers[0].features[0].accentColor).toBe(
-      editorDefaultTheme.polygon.warning.strokeColor,
-    );
-  });
-
-  it("dimmed 레이어 opacity는 지도와 같은 effective opacity로 표시한다", () => {
-    const layer = createLayer({
-      view: {
-        visibility: VisibilityState.Dimmed,
-        opacity: 1,
-        zIndex: 10,
-        labelVisible: true,
-      },
-    });
-
-    const viewModel = createLayerPanelViewModel(createScene([layer]), null);
-
-    expect(viewModel.layers[0]).toMatchObject({
-      isDimmed: true,
-      opacity: 0.5,
-      visibility: VisibilityState.Dimmed,
-    });
-  });
-
-  it("눈 아이콘 토글은 보이는 도형을 숨긴다", () => {
-    expect(getNextFeatureVisibility(VisibilityState.Visible)).toBe(
-      VisibilityState.Hidden,
-    );
-    expect(getNextFeatureVisibility(VisibilityState.Dimmed)).toBe(
-      VisibilityState.Hidden,
-    );
-  });
-
-  it("눈 아이콘 토글은 숨긴 도형을 다시 표시한다", () => {
-    expect(getNextFeatureVisibility(VisibilityState.Hidden)).toBe(
-      VisibilityState.Visible,
-    );
+  it("scene이 없으면 준비 안 됨 상태를 돌려준다", () => {
+    const viewModel = createLayerPanelViewModel(null);
+    expect(viewModel).toMatchObject({ isReady: false, isEmpty: true, rows: [] });
   });
 });
 
 describe("getNextLayerVisibility", () => {
-  it("보이는(또는 흐린) 레이어를 숨긴다", () => {
+  it("보이는(또는 흐린) 도형을 숨긴다", () => {
     expect(getNextLayerVisibility(VisibilityState.Visible)).toBe(
       VisibilityState.Hidden,
     );
     expect(getNextLayerVisibility(VisibilityState.Dimmed)).toBe(VisibilityState.Hidden);
   });
 
-  it("숨긴 레이어를 다시 표시한다", () => {
+  it("숨긴 도형을 다시 표시한다", () => {
     expect(getNextLayerVisibility(VisibilityState.Hidden)).toBe(
       VisibilityState.Visible,
     );

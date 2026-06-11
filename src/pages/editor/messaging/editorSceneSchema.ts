@@ -36,24 +36,17 @@ const featureInputSchema = z.object({
   geometry: geometrySchema,
   id: z.string().optional(),
   name: z.string().optional(),
+  locked: z.boolean().optional(),
   visible: z.boolean().optional(),
   themeToken: themeTokenSchema.optional(),
   properties: z.record(z.string(), z.unknown()).optional(),
 });
 
-const layerInputSchema = z.object({
-  features: z.array(featureInputSchema),
-  id: z.string().optional(),
-  name: z.string().optional(),
-  role: z.enum(["editable", "reference", "background"]).optional(),
-  zIndex: z.number().optional(),
-  visible: z.boolean().optional(),
-  opacity: z.number().optional(),
-});
-
+// 레이어 단계 없이 도형 목록만 받습니다(1레이어 = 1도형으로 내부에서 펼침).
+// 배열 순서 = 그리는 순서(뒤가 위).
 export const editorSceneInputSchema = z.object({
   version: z.literal(2),
-  layers: z.array(layerInputSchema),
+  features: z.array(featureInputSchema),
   id: z.string().optional(),
   name: z.string().optional(),
   viewport: z

@@ -14,16 +14,15 @@ import type {
   EditorFeatureInput,
   EditorLayer,
   EditorLayerBehavior,
-  EditorLayerInput,
-  EditorLayerRoleInput,
   EditorScene,
   EditorSceneInput,
   GeoJsonGeometry,
 } from "../types/editorTypes";
 
 // 최소 입력(EditorSceneInput, v2)을 내부 리치 모델(EditorScene)로 변환합니다.
-// 호스트가 생략한 값을 기본값/파생값으로 채웁니다: id 생성, geometryKind 파생,
-// role→behavior, state(Clean/Valid), view(Visible), 폴리곤 ring 닫기.
+// 입력은 도형 목록뿐이며, 도형 하나당 내부 레이어 하나를 만들어 쌓습니다(1레이어 = 1도형).
+// 배열 순서 = 그리는 순서(뒤가 위). 호스트가 생략한 값을 기본값/파생값으로 채웁니다:
+// id 생성, geometryKind 파생, 잠금→권한, 기본 상태, 폴리곤 ring 닫기.
 // 순수 함수이며 OpenLayers/React에 의존하지 않습니다.
 
 const GEOMETRY_KIND_BY_TYPE: Record<GeoJsonGeometry["type"], GeometryKind> = {
@@ -65,48 +64,36 @@ function closeGeometryRings(geometry: GeoJsonGeometry): GeoJsonGeometry {
   return geometry;
 }
 
-const ROLE_TO_LAYER_ROLE: Record<EditorLayerRoleInput, LayerRole> = {
-  editable: LayerRole.Editable,
-  reference: LayerRole.Reference,
-  background: LayerRole.Background,
-};
-
-// role → 레이어 behavior. 미입력 role은 editable로 본다.
-function layerBehaviorFor(role: EditorLayerRoleInput): EditorLayerBehavior {
-  if (role === "editable") {
+// 잠금 여부 → 레이어 권한. 잠금 = 읽기 전용 = 참고용(패널 선택은 가능, 변경 불가).
+function layerBehaviorFor(locked: boolean): EditorLayerBehavior {
+  if (locked) {
     return {
-      lock: LockState.Unlocked,
-      editability: EditabilityState.Editable,
+      lock: LockState.Locked,
+      editability: EditabilityState.Readonly,
       selectable: true,
-      deletable: true,
-      draggable: true,
+      deletable: false,
+      draggable: false,
     };
   }
-  // reference / background 는 읽기 전용. background는 선택도 막는다.
   return {
-    lock: LockState.Locked,
-    editability: EditabilityState.Readonly,
-    selectable: role !== "background",
-    deletable: false,
-    draggable: false,
+    lock: LockState.Unlocked,
+    editability: EditabilityState.Editable,
+    selectable: true,
+    deletable: true,
+    draggable: true,
   };
 }
 
-function normalizeFeature(
-  input: EditorFeatureInput,
-  layerId: string,
-  index: number,
-): EditorFeature {
-  const id = input.id ?? `${layerId}-feature-${index}`;
+function normalizeFeature(input: EditorFeatureInput, featureId: string): EditorFeature {
   const geometry = closeGeometryRings(input.geometry);
   const properties =
     input.properties ?? (input.name !== undefined ? { label: input.name } : undefined);
 
   const feature: EditorFeature = {
-    id,
+    id: featureId,
     name: input.name,
     geometryKind: toGeometryKind(input.geometry),
-    feature: { type: "Feature", id, geometry, properties },
+    feature: { type: "Feature", id: featureId, geometry, properties },
     state: {
       selection: SelectionState.None,
       lifecycle: FeatureLifecycle.Clean,
@@ -115,9 +102,6 @@ function normalizeFeature(
     },
   };
 
-  if (input.visible === false) {
-    feature.view = { visibility: VisibilityState.Hidden };
-  }
   if (input.themeToken !== undefined) {
     feature.style = { themeToken: input.themeToken };
   }
@@ -125,29 +109,29 @@ function normalizeFeature(
   return feature;
 }
 
-function normalizeLayer(input: EditorLayerInput, index: number): EditorLayer {
-  const id = input.id ?? `layer-${index}`;
-  const role: EditorLayerRoleInput = input.role ?? "editable";
-  const features = input.features.map((feature, featureIndex) =>
-    normalizeFeature(feature, id, featureIndex),
-  );
-
-  const geometryKinds = Array.from(new Set(features.map((f) => f.geometryKind)));
+// 도형 입력 하나를 "그 도형만 담는 내부 레이어"로 만듭니다.
+// 표시/잠금은 레이어 단위 값으로 옮겨 기존 렌더·게이팅 파이프라인을 그대로 씁니다.
+function toFeatureLayer(input: EditorFeatureInput, index: number): EditorLayer {
+  const featureId = input.id ?? `feature-${index}`;
+  const locked = input.locked ?? false;
+  const feature = normalizeFeature(input, featureId);
 
   return {
-    id,
-    name: input.name ?? id,
-    roles: [ROLE_TO_LAYER_ROLE[role]],
-    geometryKinds: geometryKinds.length > 0 ? geometryKinds : [GeometryKind.Polygon],
+    id: `layer-${featureId}`,
+    name: input.name ?? featureId,
+    // 테마 기본값(잠금=참고 회색, 해제=편집 파랑)이 역할에서 파생되므로 함께 둡니다.
+    roles: [locked ? LayerRole.Reference : LayerRole.Editable],
+    geometryKinds: [feature.geometryKind],
     view: {
       visibility:
         input.visible === false ? VisibilityState.Hidden : VisibilityState.Visible,
-      opacity: input.opacity ?? 1,
-      zIndex: input.zIndex ?? (index + 1) * 10,
+      opacity: 1,
+      // 배열 순서 = 그리는 순서(뒤가 위). 재정렬 여지를 위해 10 간격.
+      zIndex: (index + 1) * 10,
       labelVisible: true,
     },
-    behavior: layerBehaviorFor(role),
-    features,
+    behavior: layerBehaviorFor(locked),
+    features: [feature],
   };
 }
 
@@ -159,7 +143,7 @@ export function normalizeSceneInput(input: EditorSceneInput): EditorScene {
     viewport: input.viewport
       ? { center: input.viewport.center, zoom: input.viewport.zoom }
       : undefined,
-    layers: input.layers.map(normalizeLayer),
+    layers: input.features.map(toFeatureLayer),
   };
 }
 

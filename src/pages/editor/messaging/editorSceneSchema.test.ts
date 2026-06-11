@@ -7,7 +7,8 @@ import {
 } from "../types/editorTypes";
 import { parseInitMessage } from "./editorSceneSchema";
 
-// v2 최소 입력. 호스트가 보내는 형식이며 parseInitMessage가 검증 후 내부 scene으로 normalize한다.
+// v2 최소 입력(레이어 단계 없는 도형 목록). parseInitMessage가 검증 후
+// 도형 하나당 내부 레이어 하나로 normalize한다.
 const validInput = {
   type: EditorMessageType.Init,
   sessionId: "session-1",
@@ -15,24 +16,19 @@ const validInput = {
     version: 2,
     id: "test-scene",
     name: "테스트 씬",
-    layers: [
+    features: [
       {
-        name: "레이어",
-        features: [
-          {
-            name: "도형",
-            geometry: {
-              type: "Polygon",
-              coordinates: [
-                [
-                  [126.9, 37.5],
-                  [127.0, 37.5],
-                  [127.0, 37.6],
-                ],
-              ],
-            },
-          },
-        ],
+        name: "도형",
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [126.9, 37.5],
+              [127.0, 37.5],
+              [127.0, 37.6],
+            ],
+          ],
+        },
       },
     ],
   },
@@ -47,8 +43,8 @@ describe("parseInitMessage", () => {
       const { scene } = result.message;
       expect(result.message.sessionId).toBe("session-1");
       expect(scene.version).toBe(1); // 내부 모델 버전
-      expect(scene.layers).toHaveLength(1);
-      // role 미입력 → editable 기본값
+      expect(scene.layers).toHaveLength(1); // 도형 1개 = 내부 레이어 1개
+      // 잠금 미입력 → 편집 가능 기본값
       expect(scene.layers[0].behavior.editability).toBe(EditabilityState.Editable);
       const feature = scene.layers[0].features[0];
       expect(feature.id).toBeTruthy(); // 자동 생성
@@ -72,7 +68,7 @@ describe("parseInitMessage", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("layers가 없으면 검증 이슈를 반환한다", () => {
+  it("features가 없으면 검증 이슈를 반환한다", () => {
     const result = parseInitMessage({
       type: EditorMessageType.Init,
       sessionId: "s",
@@ -86,11 +82,11 @@ describe("parseInitMessage", () => {
     }
   });
 
-  it("feature에 geometry가 없으면 거부한다", () => {
+  it("도형에 geometry가 없으면 거부한다", () => {
     const result = parseInitMessage({
       type: EditorMessageType.Init,
       sessionId: "s",
-      scene: { version: 2, layers: [{ features: [{ name: "x" }] }] },
+      scene: { version: 2, features: [{ name: "x" }] },
     });
     expect(result.ok).toBe(false);
   });
@@ -101,11 +97,7 @@ describe("parseInitMessage", () => {
       sessionId: "s",
       scene: {
         version: 2,
-        layers: [
-          {
-            features: [{ geometry: { type: "Polygon", coordinates: [[[1]]] } }],
-          },
-        ],
+        features: [{ geometry: { type: "Polygon", coordinates: [[[1]]] } }],
       },
     });
     expect(result.ok).toBe(false);
@@ -117,19 +109,15 @@ describe("parseInitMessage", () => {
       sessionId: "s",
       scene: {
         version: 2,
-        layers: [
+        features: [
           {
-            features: [
-              {
-                geometry: {
-                  type: "LineString",
-                  coordinates: [
-                    [126.9, 37.5],
-                    [127.0, 37.6],
-                  ],
-                },
-              },
-            ],
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [126.9, 37.5],
+                [127.0, 37.6],
+              ],
+            },
           },
         ],
       },
@@ -137,7 +125,7 @@ describe("parseInitMessage", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("중복된 feature id는 거부한다", () => {
+  it("중복된 도형 id는 거부한다", () => {
     const polygon = {
       type: "Polygon",
       coordinates: [
@@ -153,13 +141,9 @@ describe("parseInitMessage", () => {
       sessionId: "s",
       scene: {
         version: 2,
-        layers: [
-          {
-            features: [
-              { id: "dup", geometry: polygon },
-              { id: "dup", geometry: polygon },
-            ],
-          },
+        features: [
+          { id: "dup", geometry: polygon },
+          { id: "dup", geometry: polygon },
         ],
       },
     });
