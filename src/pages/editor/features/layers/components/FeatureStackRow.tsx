@@ -22,7 +22,7 @@ export function FeatureStackRow({
     <li
       className={
         row.isSelected
-          ? "flex min-w-0 items-center gap-2 rounded-md bg-indigo-50 px-2 py-1.5 ring-1 ring-indigo-300"
+          ? "flex min-w-0 items-center gap-2 rounded-md bg-indigo-50 px-2 py-1.5 ring-1 ring-inset ring-indigo-300"
           : "flex min-w-0 items-center gap-2 rounded-md bg-slate-50 px-2 py-1.5"
       }
       ref={rowRef}
