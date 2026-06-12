@@ -36,77 +36,81 @@ function polygon(closed = false): EditorPolygonInputGeometry {
   };
 }
 
-function sceneWith(layers: EditorSceneInput["layers"]): EditorSceneInput {
-  return { version: 2, layers };
+function sceneWith(features: EditorSceneInput["features"]): EditorSceneInput {
+  return { version: 2, features };
 }
 
 describe("normalizeSceneInput", () => {
-  it("내부 EditorScene(version 1)으로 채운다", () => {
+  it("도형 하나당 내부 레이어 하나로 펼친다(1레이어 = 1도형)", () => {
     const scene = normalizeSceneInput(
-      sceneWith([{ features: [{ geometry: polygon() }] }]),
+      sceneWith([{ geometry: polygon() }, { geometry: polygon() }]),
     );
     expect(scene.version).toBe(1);
-    expect(scene.layers).toHaveLength(1);
+    expect(scene.layers).toHaveLength(2);
+    expect(scene.layers[0].features).toHaveLength(1);
+    expect(scene.layers[1].features).toHaveLength(1);
   });
 
-  it("id 미입력 시 결정적으로 생성한다", () => {
-    const scene = normalizeSceneInput(
-      sceneWith([{ features: [{ geometry: polygon() }] }]),
-    );
-    expect(scene.layers[0].id).toBe("layer-0");
-    expect(scene.layers[0].features[0].id).toBe("layer-0-feature-0");
+  it("id 미입력 시 결정적으로 생성하고, 레이어 id는 도형 id에서 파생한다", () => {
+    const scene = normalizeSceneInput(sceneWith([{ geometry: polygon() }]));
+    expect(scene.layers[0].features[0].id).toBe("feature-0");
+    expect(scene.layers[0].id).toBe("layer-feature-0");
   });
 
-  it("role 미입력은 editable, reference/background는 읽기 전용", () => {
+  it("배열 순서 = 그리는 순서: 뒤에 있는 도형이 더 높은 쌓임 값을 가진다", () => {
     const scene = normalizeSceneInput(
       sceneWith([
-        { features: [{ geometry: polygon() }] }, // role 없음 → editable
-        { role: "reference", features: [{ geometry: polygon() }] },
-        { role: "background", features: [{ geometry: polygon() }] },
+        { id: "bottom", geometry: polygon() },
+        { id: "top", geometry: polygon() },
       ]),
     );
-    const [editable, reference, background] = scene.layers;
+    const [bottom, top] = scene.layers;
+    expect(top.view.zIndex).toBeGreaterThan(bottom.view.zIndex);
+  });
+
+  it("잠금 미입력은 편집 가능, 잠금은 읽기 전용·참고 역할", () => {
+    const scene = normalizeSceneInput(
+      sceneWith([{ geometry: polygon() }, { locked: true, geometry: polygon() }]),
+    );
+    const [editable, locked] = scene.layers;
     expect(editable.behavior.editability).toBe(EditabilityState.Editable);
     expect(editable.behavior.lock).toBe(LockState.Unlocked);
     expect(editable.roles).toEqual([LayerRole.Editable]);
-    expect(reference.behavior.editability).toBe(EditabilityState.Readonly);
-    expect(reference.behavior.selectable).toBe(true);
-    expect(background.behavior.selectable).toBe(false);
+    expect(locked.behavior.editability).toBe(EditabilityState.Readonly);
+    expect(locked.behavior.lock).toBe(LockState.Locked);
+    expect(locked.behavior.selectable).toBe(true);
+    expect(locked.roles).toEqual([LayerRole.Reference]);
   });
 
   it("geometryKind를 geometry.type에서 파생한다", () => {
     const scene = normalizeSceneInput(
       sceneWith([
+        { geometry: polygon() },
         {
-          features: [
-            { geometry: polygon() },
-            {
-              geometry: {
-                type: "MultiPolygon",
-                coordinates: [
-                  [
-                    [
-                      [0, 0],
-                      [0, 1],
-                      [1, 1],
-                      [0, 0],
-                    ],
-                  ],
+          geometry: {
+            type: "MultiPolygon",
+            coordinates: [
+              [
+                [
+                  [0, 0],
+                  [0, 1],
+                  [1, 1],
+                  [0, 0],
                 ],
-              },
-            },
-          ],
+              ],
+            ],
+          },
         },
       ]),
     );
-    const kinds = scene.layers[0].features.map((f) => f.geometryKind);
-    expect(kinds).toEqual([GeometryKind.Polygon, GeometryKind.MultiPolygon]);
+    expect(scene.layers.map((layer) => layer.features[0].geometryKind)).toEqual([
+      GeometryKind.Polygon,
+      GeometryKind.MultiPolygon,
+    ]);
   });
 
   it("열린 폴리곤 ring을 닫는다", () => {
-    const scene = normalizeSceneInput(
-      sceneWith([{ features: [{ geometry: polygon(false) }] }]),
-    );
+    const scene = normalizeSceneInput(sceneWith([{ geometry: polygon(false) }]));
     const geom = scene.layers[0].features[0].feature.geometry;
     expect(geom.type).toBe("Polygon");
     if (geom.type === "Polygon") {
@@ -115,17 +119,17 @@ describe("normalizeSceneInput", () => {
     }
   });
 
-  it("state/view 기본값을 채우고 themeToken을 style로 옮긴다", () => {
+  it("기본 상태를 채우고 표시·테마 입력을 반영한다", () => {
     const scene = normalizeSceneInput(
       sceneWith([
-        {
-          features: [{ geometry: polygon(), themeToken: "editable", visible: false }],
-        },
+        { geometry: polygon(), themeToken: "editable", visible: false, name: "가" },
       ]),
     );
-    const feature = scene.layers[0].features[0];
+    const layer = scene.layers[0];
+    const feature = layer.features[0];
     expect(feature.state.selection).toBe(SelectionState.None);
     expect(feature.style?.themeToken).toBe("editable");
-    expect(feature.view?.visibility).toBe(VisibilityState.Hidden);
+    expect(layer.view.visibility).toBe(VisibilityState.Hidden);
+    expect(layer.name).toBe("가");
   });
 });

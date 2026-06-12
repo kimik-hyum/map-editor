@@ -10,7 +10,7 @@ async function openEditorViaDemo(page: Page): Promise<Page> {
   ]);
 
   await editorPage.waitForLoadState();
-  await expect(editorPage.getByText("편집 대상 권역")).toBeVisible();
+  await expect(editorPage.getByText("권역 A")).toBeVisible();
 
   return editorPage;
 }
