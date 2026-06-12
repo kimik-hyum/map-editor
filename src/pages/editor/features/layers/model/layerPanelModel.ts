@@ -23,8 +23,11 @@ export type FeatureStackRowViewModel = {
   visibility: VisibilityState;
   isVisible: boolean;
   isDimmed: boolean;
-  // 잠금 = 읽기 전용·참고용(표시 전용 배지, 토글은 후속).
+  // 잠금 = 읽기 전용·참고용.
   isLocked: boolean;
+  // 순서 이동 가능 여부(맨 위 행은 위로, 맨 아래 행은 아래로 이동 불가).
+  canMoveUp: boolean;
+  canMoveDown: boolean;
   // 런타임 선택(selectedFeatureIds) 기준. 지도/패널 어느 쪽 선택이든 같은 값을 본다.
   isSelected: boolean;
   accentColor: string;
@@ -74,6 +77,9 @@ function createFeatureStackRowViewModel(
     isVisible: layer.view.visibility !== VisibilityState.Hidden,
     isDimmed: layer.view.visibility === VisibilityState.Dimmed,
     isLocked: layer.behavior.lock === LockState.Locked,
+    // 위/아래 이동 가능 여부는 전체 행이 모인 뒤 위치 기준으로 다시 채워진다.
+    canMoveUp: false,
+    canMoveDown: false,
     isSelected: selectedIds.has(feature.id),
     // 스타일 리졸버는 읽기 전용 입력을 받지 않으므로 경계에서 mutable로 캐스팅한다(변경하지 않음).
     accentColor: resolvePolygonStyle(feature as EditorFeature, layer as EditorLayer)
@@ -106,11 +112,17 @@ export function createLayerPanelViewModel(
   }
 
   const selectedIds = new Set(selectedFeatureIds);
-  const rows = getLayersByVisualStack(scene).flatMap(({ layer }, stackIndex) =>
-    layer.features.map((feature) =>
-      createFeatureStackRowViewModel(layer, feature, selectedIds, stackIndex),
-    ),
-  );
+  const rows = getLayersByVisualStack(scene)
+    .flatMap(({ layer }, stackIndex) =>
+      layer.features.map((feature) =>
+        createFeatureStackRowViewModel(layer, feature, selectedIds, stackIndex),
+      ),
+    )
+    .map((row, index, all) => ({
+      ...row,
+      canMoveUp: index > 0,
+      canMoveDown: index < all.length - 1,
+    }));
 
   return {
     isReady: true,

@@ -1,4 +1,6 @@
-import { Lock, LockOpen } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { ChevronDown, ChevronUp, Lock, LockOpen } from "lucide-react";
 import { useScrollIntoViewWhenSelected } from "../hooks/useScrollIntoViewWhenSelected";
 import type { FeatureStackRowViewModel } from "../model/layerPanelModel";
 import { LayerVisibilityIcon } from "./LayerVisibilityIcon";
@@ -8,27 +10,44 @@ type FeatureStackRowProps = {
   onToggleVisibility: (row: FeatureStackRowViewModel) => void;
   onToggleLock: (row: FeatureStackRowViewModel) => void;
   onSelect: (row: FeatureStackRowViewModel) => void;
+  onMove: (row: FeatureStackRowViewModel, direction: "up" | "down") => void;
 };
 
-// 평탄 스택(1레이어 = 1도형)의 행 하나. 선택 하이라이트·패널 스크롤 추적·표시/잠금 토글을 담당합니다.
-// 구역: 왼쪽 = 상태 토글(표시·잠금), 가운데 = 선택, 오른쪽 = 순서(향후 이동 버튼 자리).
+// 평탄 스택(1레이어 = 1도형)의 행 하나. 선택 하이라이트·스크롤 추적·표시/잠금 토글·순서 이동을 담당합니다.
+// 구역: 왼쪽 = 상태 토글(표시·잠금), 가운데 = 선택, 오른쪽 = 순서(#N ↔ ▲▼).
+// 행 어디서든 8px 이상 끌면 드래그 재정렬이 시작됩니다(클릭은 그대로 각 버튼으로 전달).
 export function FeatureStackRow({
   row,
   onToggleVisibility,
   onToggleLock,
   onSelect,
+  onMove,
 }: FeatureStackRowProps) {
   // 지도에서 선택돼도 패널이 해당 행으로 따라가도록 스크롤한다.
   const rowRef = useScrollIntoViewWhenSelected<HTMLLIElement>(row.isSelected);
+  const { setNodeRef, transform, transition, isDragging, listeners } = useSortable({
+    id: row.id,
+  });
+
+  const setRefs = (element: HTMLLIElement | null) => {
+    rowRef.current = element;
+    setNodeRef(element);
+  };
+
+  // 순서 컨트롤(▲▼)은 평소엔 #N 배지로 보이고, 행에 마우스를 올리거나 행이 선택되면
+  // 같은 자리에서 화살표로 바뀐다(패널 밀도 유지 — 상시 노출 없음).
+  const showOrderControls = row.isSelected;
 
   return (
     <li
-      className={
+      className={`group flex min-w-0 select-none items-center gap-2 rounded-md px-2 py-1.5 ${
         row.isSelected
-          ? "flex min-w-0 items-center gap-2 rounded-md bg-indigo-50 px-2 py-1.5 ring-1 ring-inset ring-indigo-300"
-          : "flex min-w-0 items-center gap-2 rounded-md bg-slate-50 px-2 py-1.5"
-      }
-      ref={rowRef}
+          ? "bg-indigo-50 ring-1 ring-inset ring-indigo-300"
+          : "bg-slate-50"
+      } ${isDragging ? "z-10 opacity-70 shadow-md" : ""}`}
+      ref={setRefs}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      {...listeners}
     >
       <LayerVisibilityIcon
         disabled={false}
@@ -77,8 +96,41 @@ export function FeatureStackRow({
           ) : null}
         </span>
       </button>
-      <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-black text-slate-500">
-        {row.orderLabel}
+      {/* 오른쪽 순서 구역: 평소 #N, 호버/선택 시 ▲▼로 교체(같은 자리·고정 폭이라 레이아웃이 흔들리지 않음). */}
+      <span className="flex h-7 w-12 shrink-0 items-center justify-end">
+        <span
+          className={`${
+            showOrderControls ? "hidden" : "group-hover:hidden"
+          } rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-black text-slate-500`}
+        >
+          {row.orderLabel}
+        </span>
+        <span
+          className={`${
+            showOrderControls ? "flex" : "hidden group-hover:flex"
+          } items-center`}
+        >
+          <button
+            aria-label={`${row.name} 위로 이동`}
+            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-0 text-slate-500 hover:text-slate-900 disabled:cursor-default disabled:opacity-30"
+            disabled={!row.canMoveUp}
+            onClick={() => onMove(row, "up")}
+            title="위로 이동"
+            type="button"
+          >
+            <ChevronUp aria-hidden className="h-4 w-4" />
+          </button>
+          <button
+            aria-label={`${row.name} 아래로 이동`}
+            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-0 text-slate-500 hover:text-slate-900 disabled:cursor-default disabled:opacity-30"
+            disabled={!row.canMoveDown}
+            onClick={() => onMove(row, "down")}
+            title="아래로 이동"
+            type="button"
+          >
+            <ChevronDown aria-hidden className="h-4 w-4" />
+          </button>
+        </span>
       </span>
     </li>
   );

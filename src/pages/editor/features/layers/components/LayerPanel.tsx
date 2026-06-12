@@ -1,12 +1,40 @@
+import {
+  closestCenter,
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { FloatingPanel } from "@/pages/editor/components/FloatingPanel";
 import { useLayerPanelActions } from "../hooks/useLayerPanelActions";
 import { useLayerPanelViewModel } from "../hooks/useLayerPanelViewModel";
 import { FeatureStackRow } from "./FeatureStackRow";
 
-// 1레이어 = 1도형 평탄 스택을 위(맨 앞)부터 나열합니다. 행 클릭 = 선택, 눈 아이콘 = 표시 토글.
+// 1레이어 = 1도형 평탄 스택을 위(맨 앞)부터 나열합니다.
+// 행 클릭 = 선택, 눈/자물쇠 = 토글, 드래그(8px 이상) 또는 ▲▼(호버·선택 시 노출) = 순서 이동.
 export function LayerPanel() {
   const viewModel = useLayerPanelViewModel();
-  const { toggleRowVisibility, toggleRowLock, selectFeature } = useLayerPanelActions();
+  const { toggleRowVisibility, toggleRowLock, selectFeature, moveRow, reorderRow } =
+    useLayerPanelActions();
+
+  // 8px 이상 움직여야 드래그로 인정 → 행 안의 버튼 클릭(선택/토글)과 충돌하지 않는다.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) {
+      return;
+    }
+    const activeRow = viewModel.rows.find((row) => row.id === active.id);
+    const overRow = viewModel.rows.find((row) => row.id === over.id);
+    if (activeRow && overRow) {
+      reorderRow(activeRow.layerId, overRow.layerId);
+    }
+  };
 
   return (
     <FloatingPanel
@@ -32,17 +60,29 @@ export function LayerPanel() {
               {viewModel.featureCount}개 도형
             </span>
           </div>
-          <ol className="m-0 grid min-h-0 list-none gap-1.5 overflow-auto p-0">
-            {viewModel.rows.map((row) => (
-              <FeatureStackRow
-                key={row.id}
-                row={row}
-                onSelect={selectFeature}
-                onToggleLock={toggleRowLock}
-                onToggleVisibility={toggleRowVisibility}
-              />
-            ))}
-          </ol>
+          <DndContext
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+            sensors={sensors}
+          >
+            <SortableContext
+              items={viewModel.rows.map((row) => row.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ol className="m-0 grid min-h-0 list-none gap-1.5 overflow-auto p-0">
+                {viewModel.rows.map((row) => (
+                  <FeatureStackRow
+                    key={row.id}
+                    row={row}
+                    onMove={moveRow}
+                    onSelect={selectFeature}
+                    onToggleLock={toggleRowLock}
+                    onToggleVisibility={toggleRowVisibility}
+                  />
+                ))}
+              </ol>
+            </SortableContext>
+          </DndContext>
         </div>
       )}
     </FloatingPanel>
