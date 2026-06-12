@@ -378,3 +378,30 @@ describe("editorStore - 도형 잠금 토글", () => {
     expect(useEditorStore.getState().selectedFeatureIds).toEqual(["feature-1"]);
   });
 });
+
+describe("editorStore - 쌓임 값 일괄 갱신", () => {
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_A));
+  });
+
+  it("여러 레이어의 쌓임 값을 한 번에 바꾼다", () => {
+    useEditorStore.getState().updateLayerZIndexes([{ layerId: "layer-1", zIndex: 70 }]);
+
+    expect(useEditorStore.getState().scene?.layers[0]?.view.zIndex).toBe(70);
+  });
+
+  it("같은 값이면 아무것도 바꾸지 않는다", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().updateLayerZIndexes([{ layerId: "layer-1", zIndex: 10 }]);
+
+    expect(useEditorStore.getState().scene).toBe(before);
+  });
+
+  it("쌓임 값 갱신은 히스토리에 쌓이지 않는다(silent)", () => {
+    const pastBefore = useEditorStore.getState().past.length;
+    useEditorStore.getState().updateLayerZIndexes([{ layerId: "layer-1", zIndex: 70 }]);
+
+    expect(useEditorStore.getState().past.length).toBe(pastBefore);
+  });
+});

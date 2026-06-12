@@ -16,14 +16,12 @@ export type FeatureStackRowViewModel = {
   // 도형을 담은 내부 레이어 id(표시 토글의 키).
   layerId: string;
   name: string;
-  // 시각 스택 순위 라벨(#1 = 맨 위).
-  orderLabel: string;
   geometryKindLabel: string;
   // 표시 토글 다음 상태 계산에 쓰는 현재 표시 상태.
   visibility: VisibilityState;
   isVisible: boolean;
   isDimmed: boolean;
-  // 잠금 = 읽기 전용·참고용(표시 전용 배지, 토글은 후속).
+  // 잠금 = 읽기 전용·참고용.
   isLocked: boolean;
   // 런타임 선택(selectedFeatureIds) 기준. 지도/패널 어느 쪽 선택이든 같은 값을 본다.
   isSelected: boolean;
@@ -62,13 +60,11 @@ function createFeatureStackRowViewModel(
   layer: DeepReadonly<EditorLayer>,
   feature: DeepReadonly<EditorFeature>,
   selectedIds: ReadonlySet<string>,
-  stackIndex: number,
 ): FeatureStackRowViewModel {
   return {
     id: feature.id,
     layerId: layer.id,
     name: getFeatureName(feature),
-    orderLabel: `#${stackIndex + 1}`,
     geometryKindLabel: geometryKindLabels[feature.geometryKind],
     visibility: layer.view.visibility,
     isVisible: layer.view.visibility !== VisibilityState.Hidden,
@@ -106,9 +102,9 @@ export function createLayerPanelViewModel(
   }
 
   const selectedIds = new Set(selectedFeatureIds);
-  const rows = getLayersByVisualStack(scene).flatMap(({ layer }, stackIndex) =>
+  const rows = getLayersByVisualStack(scene).flatMap(({ layer }) =>
     layer.features.map((feature) =>
-      createFeatureStackRowViewModel(layer, feature, selectedIds, stackIndex),
+      createFeatureStackRowViewModel(layer, feature, selectedIds),
     ),
   );
 

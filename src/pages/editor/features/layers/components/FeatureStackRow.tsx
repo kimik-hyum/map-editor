@@ -1,4 +1,6 @@
-import { Lock, LockOpen } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, Lock, LockOpen } from "lucide-react";
 import { useScrollIntoViewWhenSelected } from "../hooks/useScrollIntoViewWhenSelected";
 import type { FeatureStackRowViewModel } from "../model/layerPanelModel";
 import { LayerVisibilityIcon } from "./LayerVisibilityIcon";
@@ -10,8 +12,9 @@ type FeatureStackRowProps = {
   onSelect: (row: FeatureStackRowViewModel) => void;
 };
 
-// 평탄 스택(1레이어 = 1도형)의 행 하나. 선택 하이라이트·패널 스크롤 추적·표시/잠금 토글을 담당합니다.
-// 구역: 왼쪽 = 상태 토글(표시·잠금), 가운데 = 선택, 오른쪽 = 순서(향후 이동 버튼 자리).
+// 평탄 스택(1레이어 = 1도형)의 행 하나. 선택 하이라이트·스크롤 추적·표시/잠금 토글·순서 이동을 담당합니다.
+// 구역: 왼쪽 = 상태 토글(표시·잠금), 가운데 = 선택, 오른쪽 = 끌기 핸들(⠿).
+// 순서 변경은 핸들 드래그로 한다(핸들에 포커스를 두고 스페이스 후 방향키로도 이동 가능).
 export function FeatureStackRow({
   row,
   onToggleVisibility,
@@ -20,15 +23,35 @@ export function FeatureStackRow({
 }: FeatureStackRowProps) {
   // 지도에서 선택돼도 패널이 해당 행으로 따라가도록 스크롤한다.
   const rowRef = useScrollIntoViewWhenSelected<HTMLLIElement>(row.isSelected);
+  const {
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+    listeners,
+    attributes,
+  } = useSortable({ id: row.id });
+
+  const setRefs = (element: HTMLLIElement | null) => {
+    rowRef.current = element;
+    setNodeRef(element);
+  };
+
+  // 세로 목록이므로 가로 이동은 0으로 고정한다(가로 스크롤·빈 공간으로 끌리는 현상 방지).
+  const verticalOnlyTransform = transform
+    ? CSS.Transform.toString({ ...transform, x: 0 })
+    : undefined;
 
   return (
     <li
-      className={
+      className={`group flex min-w-0 select-none items-center gap-2 rounded-md px-2 py-1.5 ${
         row.isSelected
-          ? "flex min-w-0 items-center gap-2 rounded-md bg-indigo-50 px-2 py-1.5 ring-1 ring-inset ring-indigo-300"
-          : "flex min-w-0 items-center gap-2 rounded-md bg-slate-50 px-2 py-1.5"
-      }
-      ref={rowRef}
+          ? "bg-indigo-50 ring-1 ring-inset ring-indigo-300"
+          : "bg-slate-50"
+      } ${isDragging ? "z-10 opacity-70 shadow-md" : ""}`}
+      ref={setRefs}
+      style={{ transform: verticalOnlyTransform, transition }}
     >
       <LayerVisibilityIcon
         disabled={false}
@@ -77,9 +100,19 @@ export function FeatureStackRow({
           ) : null}
         </span>
       </button>
-      <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-black text-slate-500">
-        {row.orderLabel}
-      </span>
+      {/* 끌기 핸들: 여기서만 드래그가 시작된다(터치 스크롤 간섭도 핸들로 한정).
+          키보드 이동(스페이스 후 방향키)이 동작하려면 활성자 ref와 속성을 함께 붙여야 한다. */}
+      <button
+        aria-label={`${row.name} 끌어서 순서 변경`}
+        className="flex h-7 w-6 shrink-0 cursor-grab touch-none items-center justify-center border-0 bg-transparent p-0 text-slate-300 hover:text-slate-500 active:cursor-grabbing"
+        ref={setActivatorNodeRef}
+        title="끌어서 순서 변경"
+        type="button"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical aria-hidden className="h-4 w-4" />
+      </button>
     </li>
   );
 }

@@ -74,7 +74,7 @@ function createScene(layers: EditorLayer[]): EditorScene {
 }
 
 describe("createLayerPanelViewModel", () => {
-  it("쌓임 값 높은 순(위→아래)으로 행을 나열하고 순위 라벨을 붙인다", () => {
+  it("쌓임 값 높은 순(위→아래)으로 행을 나열한다", () => {
     const scene = createScene([
       createFeatureLayer(
         {
@@ -103,7 +103,7 @@ describe("createLayerPanelViewModel", () => {
     const viewModel = createLayerPanelViewModel(scene);
 
     expect(viewModel.rows.map((row) => row.id)).toEqual(["top", "bottom"]);
-    expect(viewModel.rows[0]).toMatchObject({ name: "위", orderLabel: "#1" });
+    expect(viewModel.rows[0]).toMatchObject({ name: "위" });
     expect(viewModel.featureCount).toBe(2);
   });
 

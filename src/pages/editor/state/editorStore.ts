@@ -72,6 +72,9 @@ type EditorStoreActions = {
   setActiveBoundaryKind: (kind: BoundaryKind) => void;
   setActiveDrawShape: (shape: DrawShape) => void;
   updateLayerView: (layerId: string, view: Partial<EditorLayerViewState>) => void;
+  updateLayerZIndexes: (
+    updates: ReadonlyArray<{ layerId: string; zIndex: number }>,
+  ) => void;
   setLayerLocked: (layerId: string, locked: boolean) => void;
   updateFeatureView: (featureId: string, view: Partial<EditorFeatureViewState>) => void;
   updateFeatureGeometry: (featureId: string, geometry: GeoJsonGeometry) => void;
@@ -144,6 +147,27 @@ function updateLayerViewInScene(
 
     changed = true;
     return { ...layer, view: nextView };
+  });
+
+  return changed ? { ...scene, layers } : scene;
+}
+
+// 여러 레이어의 쌓임 값을 한 번에 바꿉니다(순서 이동의 재정규화용).
+// 전부 같은 값이면 원본 scene 참조를 그대로 반환합니다(no-op).
+function updateLayerZIndexesInScene(
+  scene: EditorScene,
+  updates: ReadonlyArray<{ layerId: string; zIndex: number }>,
+): EditorScene {
+  const zIndexById = new Map(updates.map((update) => [update.layerId, update.zIndex]));
+  let changed = false;
+
+  const layers = scene.layers.map((layer) => {
+    const zIndex = zIndexById.get(layer.id);
+    if (zIndex === undefined || layer.view.zIndex === zIndex) {
+      return layer;
+    }
+    changed = true;
+    return { ...layer, view: { ...layer.view, zIndex } };
   });
 
   return changed ? { ...scene, layers } : scene;
@@ -416,6 +440,20 @@ export const useEditorStore = create<EditorStore>((set) => {
         }
 
         const next = updateLayerViewInScene(state.scene as EditorScene, layerId, view);
+        if (next === state.scene) {
+          return {};
+        }
+
+        return { scene: next, dirty: next !== state.baselineScene };
+      }),
+    // 순서(쌓임 값) 이동도 silent(히스토리 X) — 보임/잠금과 같은 뷰 정책. 변경 시에만 dirty 갱신.
+    updateLayerZIndexes: (updates) =>
+      set((state) => {
+        if (!state.scene) {
+          return {};
+        }
+
+        const next = updateLayerZIndexesInScene(state.scene as EditorScene, updates);
         if (next === state.scene) {
           return {};
         }
