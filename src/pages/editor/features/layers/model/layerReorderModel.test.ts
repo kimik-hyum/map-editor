@@ -3,7 +3,6 @@ import type { DeepReadonly, EditorLayer } from "@/pages/editor/types/editorTypes
 import {
   getStackZIndexUpdates,
   getVisualStackOrder,
-  moveLayerInStack,
   reorderLayerInStack,
 } from "./layerReorderModel";
 
@@ -32,35 +31,6 @@ describe("getStackZIndexUpdates", () => {
       { layerId: "a", zIndex: 30 },
       { layerId: "b", zIndex: 20 },
       { layerId: "c", zIndex: 10 },
-    ]);
-  });
-});
-
-describe("moveLayerInStack", () => {
-  it("가운데 행을 위로 올리면 순서가 바뀌고 전체가 재정규화된다", () => {
-    expect(moveLayerInStack(layers, "b", "up")).toEqual([
-      { layerId: "b", zIndex: 30 },
-      { layerId: "a", zIndex: 20 },
-      { layerId: "c", zIndex: 10 },
-    ]);
-  });
-
-  it("맨 위 행은 위로, 맨 아래 행은 아래로 이동할 수 없다", () => {
-    expect(moveLayerInStack(layers, "a", "up")).toBeNull();
-    expect(moveLayerInStack(layers, "c", "down")).toBeNull();
-  });
-
-  it("없는 행이면 아무것도 하지 않는다", () => {
-    expect(moveLayerInStack(layers, "missing", "up")).toBeNull();
-  });
-
-  it("호스트가 준 임의 값(동률 포함)도 이동 한 번에 깨끗해진다", () => {
-    const messy = [layerWith("x", 5), layerWith("y", 5), layerWith("z", 100)];
-    // 시각 순서: z(100), x(5), y(5). y를 위로 → z, y, x.
-    expect(moveLayerInStack(messy, "y", "up")).toEqual([
-      { layerId: "z", zIndex: 30 },
-      { layerId: "y", zIndex: 20 },
-      { layerId: "x", zIndex: 10 },
     ]);
   });
 });

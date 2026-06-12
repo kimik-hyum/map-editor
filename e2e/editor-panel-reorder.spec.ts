@@ -15,36 +15,63 @@ async function openEditorViaDemo(page: Page): Promise<Page> {
   return editorPage;
 }
 
-test("화살표 버튼으로 행을 아래/위로 이동하고 스택 순서가 바뀐다", async ({ page }) => {
+test("끌기 핸들로 행을 끌어 스택 순서를 바꾼다", async ({ page }) => {
   const editorPage = await openEditorViaDemo(page);
   const rows = editorPage.locator("ol > li");
 
-  // 초기 스택(위→아래): 권역 C, 권역 B, 권역 A …
+  // 초기 스택(위→아래): 권역 C, 권역 B …
   await expect(rows.nth(0)).toContainText("권역 C");
   await expect(rows.nth(1)).toContainText("권역 B");
 
-  // 행을 선택하면 순서 화살표가 같은 자리(#N)에 나타난다.
-  await editorPage.getByRole("button", { name: "권역 B 선택" }).click();
-  await editorPage.getByRole("button", { name: "권역 B 아래로 이동" }).click();
+  // 권역 C의 끌기 핸들을 잡고 권역 B 아래까지 끌어 내린다.
+  const handle = editorPage.getByRole("button", { name: "권역 C 끌어서 순서 변경" });
+  const handleBox = await handle.boundingBox();
+  const targetBox = await rows.nth(1).boundingBox();
+  if (!handleBox || !targetBox) {
+    throw new Error("끌기 대상 위치를 찾지 못했습니다");
+  }
 
-  await expect(rows.nth(1)).toContainText("권역 A");
-  await expect(rows.nth(2)).toContainText("권역 B");
+  await editorPage.mouse.move(
+    handleBox.x + handleBox.width / 2,
+    handleBox.y + handleBox.height / 2,
+  );
+  await editorPage.mouse.down();
+  await editorPage.mouse.move(
+    handleBox.x + handleBox.width / 2,
+    targetBox.y + targetBox.height * 0.8,
+    { steps: 12 },
+  );
+  await editorPage.mouse.up();
 
-  // 다시 위로 올리면 원래 순서로 돌아온다.
-  await editorPage.getByRole("button", { name: "권역 B 위로 이동" }).click();
-  await expect(rows.nth(1)).toContainText("권역 B");
-  await expect(rows.nth(2)).toContainText("권역 A");
+  await expect(rows.nth(0)).toContainText("권역 B");
+  await expect(rows.nth(1)).toContainText("권역 C");
 });
 
-test("맨 위 행은 위로 이동이 비활성화된다", async ({ page }) => {
+test("행 본문 드래그로는 순서가 바뀌지 않는다(핸들 전용)", async ({ page }) => {
   const editorPage = await openEditorViaDemo(page);
+  const rows = editorPage.locator("ol > li");
 
-  await editorPage.getByRole("button", { name: "권역 C 선택" }).click();
+  await expect(rows.nth(0)).toContainText("권역 C");
 
-  await expect(
-    editorPage.getByRole("button", { name: "권역 C 위로 이동" }),
-  ).toBeDisabled();
-  await expect(
-    editorPage.getByRole("button", { name: "권역 C 아래로 이동" }),
-  ).toBeEnabled();
+  // 행 본문(이름 영역)을 잡고 아래로 끌어도 재정렬이 일어나지 않는다.
+  const body = editorPage.getByRole("button", { name: "권역 C 선택" });
+  const bodyBox = await body.boundingBox();
+  const targetBox = await rows.nth(2).boundingBox();
+  if (!bodyBox || !targetBox) {
+    throw new Error("끌기 대상 위치를 찾지 못했습니다");
+  }
+
+  await editorPage.mouse.move(
+    bodyBox.x + bodyBox.width / 2,
+    bodyBox.y + bodyBox.height / 2,
+  );
+  await editorPage.mouse.down();
+  await editorPage.mouse.move(
+    bodyBox.x + bodyBox.width / 2,
+    targetBox.y + targetBox.height * 0.8,
+    { steps: 12 },
+  );
+  await editorPage.mouse.up();
+
+  await expect(rows.nth(0)).toContainText("권역 C");
 });

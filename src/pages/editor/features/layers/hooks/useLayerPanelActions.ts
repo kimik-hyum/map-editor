@@ -4,7 +4,7 @@ import {
   getNextLayerVisibility,
   type FeatureStackRowViewModel,
 } from "../model/layerPanelModel";
-import { moveLayerInStack, reorderLayerInStack } from "../model/layerReorderModel";
+import { reorderLayerInStack } from "../model/layerReorderModel";
 
 export function useLayerPanelActions() {
   const updateLayerView = useEditorStore((state) => state.updateLayerView);
@@ -50,21 +50,6 @@ export function useLayerPanelActions() {
     [requestFeatureFocus, setSelectedFeatureIds],
   );
 
-  // 행(도형)을 위/아래로 한 칸 이동. 전체 쌓임 값을 재정규화해 한 번에 반영한다.
-  const moveRow = useCallback(
-    (row: FeatureStackRowViewModel, direction: "up" | "down") => {
-      const scene = useEditorStore.getState().scene;
-      if (!scene) {
-        return;
-      }
-      const updates = moveLayerInStack(scene.layers, row.layerId, direction);
-      if (updates) {
-        updateLayerZIndexes(updates);
-      }
-    },
-    [updateLayerZIndexes],
-  );
-
   // 드래그 드롭 결과 반영(끌던 행을 대상 행 위치로). 버튼 이동과 같은 재정규화 계산을 쓴다.
   const reorderRow = useCallback(
     (activeLayerId: string, overLayerId: string) => {
@@ -84,7 +69,6 @@ export function useLayerPanelActions() {
     toggleRowVisibility,
     toggleRowLock,
     selectFeature,
-    moveRow,
     reorderRow,
   };
 }

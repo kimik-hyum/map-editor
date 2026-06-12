@@ -33,27 +33,6 @@ export function getStackZIndexUpdates(
   }));
 }
 
-// 행 하나를 위/아래로 한 칸 이동한 결과의 쌓임 값 갱신 목록. 이동 불가(경계·미존재)면 null.
-export function moveLayerInStack(
-  layers: ReadonlyLayers,
-  layerId: string,
-  direction: "up" | "down",
-): LayerZIndexUpdate[] | null {
-  const order = getVisualStackOrder(layers);
-  const from = order.indexOf(layerId);
-  if (from === -1) {
-    return null;
-  }
-  const to = direction === "up" ? from - 1 : from + 1;
-  if (to < 0 || to >= order.length) {
-    return null;
-  }
-
-  const next = [...order];
-  [next[from], next[to]] = [next[to], next[from]];
-  return getStackZIndexUpdates(next);
-}
-
 // 드래그 드롭 결과(끌던 행을 대상 행 위치로)의 쌓임 값 갱신 목록. 무의미한 드롭이면 null.
 export function reorderLayerInStack(
   layers: ReadonlyLayers,
