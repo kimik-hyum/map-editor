@@ -82,7 +82,8 @@ export function olGeometryToEditorGeometry(geometry: Geometry): GeoJsonGeometry 
   return normalizeClosedRings(object);
 }
 
-function sameCoordinates(a: Geometry, b: Geometry): boolean {
+// 두 geometry의 좌표가 완전히 같은지(no-op 커밋 방지용). 이동/정점편집 어댑터가 공유한다.
+export function sameCoordinates(a: Geometry, b: Geometry): boolean {
   if (a instanceof SimpleGeometry && b instanceof SimpleGeometry) {
     return JSON.stringify(a.getCoordinates()) === JSON.stringify(b.getCoordinates());
   }
