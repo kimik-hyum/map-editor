@@ -28,7 +28,7 @@
 - Linting: `@biomejs/biome`.
 - Map/editor: `ol`.
 - Geometry utilities: `@turf/area`, `@turf/length`, `@turf/bbox`, `@turf/helpers`.
-- Drag and drop: `@dnd-kit/core`, `@dnd-kit/sortable` (패널 스택 재정렬용).
+- Drag and drop: `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/modifiers` (패널 스택 재정렬용).
 - Git hooks: `husky`.
 
 ## Component Rules
