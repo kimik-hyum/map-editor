@@ -4,6 +4,7 @@ import { unByKey } from "ol/Observable";
 import {
   attachEditAffordance,
   attachEditorSelection,
+  attachFeatureTranslate,
   attachVertexDetail,
   attachVertexModify,
   createOpenLayersMap,
@@ -45,6 +46,8 @@ export function useOpenLayersEditorMap() {
   const selectedVerticesRef = useRef<ProjectedVertex[]>([]);
   // 정점 편집(Modify) 핸들. 선택 변경/씬 재빌드 때 선택 도형으로 재바인딩합니다.
   const modifyRef = useRef<ReturnType<typeof attachVertexModify> | null>(null);
+  // 몸통 드래그 이동(Translate) 핸들. Modify보다 먼저 등록해 정점 히트는 Modify가 가져간다.
+  const translateRef = useRef<ReturnType<typeof attachFeatureTranslate> | null>(null);
   // 선택/affordance/상세 핸들. 모드 전환 시 setActive로 켜고 끈다.
   const selectionRef = useRef<ReturnType<typeof attachEditorSelection> | null>(null);
   const affordanceRef = useRef<ReturnType<typeof attachEditAffordance> | null>(null);
@@ -95,6 +98,30 @@ export function useOpenLayersEditorMap() {
       getVertices: () => selectedVerticesRef.current,
       radiusPx: VERTEX_DETAIL_RADIUS_PX,
     });
+
+    // 몸통 드래그 = 도형 통째 이동. Modify보다 "먼저" 추가해야 정점/외곽선은 Modify가 우선 잡는다.
+    const translate = attachFeatureTranslate(map, {
+      getScene: () => useEditorStore.getState().scene as EditorScene | null,
+      onDragStart: () => {
+        // 이동 중에는 정점 핸들/상세를 치운다(끝나면 onDragEnd에서 복구).
+        vertexLayerRef.current?.getSource()?.clear(true);
+        detailLayerRef.current?.getSource()?.clear(true);
+      },
+      onCommit: (featureId, geometry) =>
+        useEditorStore.getState().updateFeatureGeometry(featureId, geometry),
+      onDragEnd: () => {
+        if (!vertexLayerRef.current) {
+          return;
+        }
+        syncVertexOverlay(
+          vertexLayerRef.current,
+          useEditorStore.getState().scene as EditorScene | null,
+          renderStateRef.current.selectedIds,
+          readVertexViewInfo(map),
+        );
+      },
+    });
+    translateRef.current = translate;
 
     const modify = attachVertexModify(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
@@ -155,6 +182,7 @@ export function useOpenLayersEditorMap() {
     return () => {
       selection.detach();
       detail.detach();
+      translate.detach();
       modify.detach();
       affordance.detach();
       unByKey(moveEndKey);
@@ -163,6 +191,7 @@ export function useOpenLayersEditorMap() {
       vertexLayerRef.current = null;
       detailLayerRef.current = null;
       modifyRef.current = null;
+      translateRef.current = null;
       selectionRef.current = null;
       affordanceRef.current = null;
       detailRef.current = null;
@@ -199,6 +228,7 @@ export function useOpenLayersEditorMap() {
     }
     if (editing) {
       modifyRef.current?.sync(renderStateRef.current.selectedIds);
+      translateRef.current?.sync(renderStateRef.current.selectedIds);
     }
   }, [scene]);
 
@@ -240,6 +270,7 @@ export function useOpenLayersEditorMap() {
     }
     if (editing) {
       modifyRef.current?.sync(next);
+      translateRef.current?.sync(next);
     }
     // 선택이 비면 편집 힌트도 즉시 내린다(다음 포인터 이동을 기다리지 않도록).
     if (next.size === 0) {
@@ -292,6 +323,7 @@ export function useOpenLayersEditorMap() {
     const activation = getMapInteractionActivation(activeMode);
     selectionRef.current?.setActive(activation.selection);
     modifyRef.current?.setActive(activation.vertexEdit);
+    translateRef.current?.setActive(activation.vertexEdit);
     affordanceRef.current?.setActive(activation.affordance);
     detailRef.current?.setActive(activation.vertexEdit);
 
@@ -314,6 +346,7 @@ export function useOpenLayersEditorMap() {
         );
       }
       modifyRef.current?.sync(selectedIds);
+      translateRef.current?.sync(selectedIds);
     } else {
       // 편집 비활성: 정점/상세 오버레이와 힌트를 즉시 내린다.
       vertexLayerRef.current?.getSource()?.clear(true);
