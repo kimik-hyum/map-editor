@@ -25,13 +25,19 @@ export function FeatureStackRow({
 }: FeatureStackRowProps) {
   // 지도에서 선택돼도 패널이 해당 행으로 따라가도록 스크롤한다.
   const rowRef = useScrollIntoViewWhenSelected<HTMLLIElement>(row.isSelected);
-  const { setNodeRef, transform, transition, isDragging, listeners, attributes } =
-    useSortable({ id: row.id });
+  const { setNodeRef, transform, transition, isDragging, listeners } = useSortable({
+    id: row.id,
+  });
 
   const setRefs = (element: HTMLLIElement | null) => {
     rowRef.current = element;
     setNodeRef(element);
   };
+
+  // 세로 목록이므로 가로 이동은 0으로 고정한다(가로 스크롤·빈 공간으로 끌리는 현상 방지).
+  const verticalOnlyTransform = transform
+    ? CSS.Transform.toString({ ...transform, x: 0 })
+    : undefined;
 
   // 순서 화살표(▲▼)는 행에 마우스를 올리거나 행이 선택됐을 때만 나타난다(패널 밀도 유지).
   const showOrderControls = row.isSelected;
@@ -44,7 +50,7 @@ export function FeatureStackRow({
           : "bg-slate-50"
       } ${isDragging ? "z-10 opacity-70 shadow-md" : ""}`}
       ref={setRefs}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{ transform: verticalOnlyTransform, transition }}
     >
       <LayerVisibilityIcon
         disabled={false}
@@ -122,15 +128,15 @@ export function FeatureStackRow({
           </button>
         </span>
         {/* 끌기 핸들: 여기서만 드래그가 시작된다(터치 스크롤 간섭도 핸들로 한정). */}
-        <span
+        <button
           aria-label={`${row.name} 끌어서 순서 변경`}
-          className="flex h-7 w-6 shrink-0 cursor-grab touch-none items-center justify-center text-slate-300 hover:text-slate-500 active:cursor-grabbing"
+          className="flex h-7 w-6 shrink-0 cursor-grab touch-none items-center justify-center border-0 bg-transparent p-0 text-slate-300 hover:text-slate-500 active:cursor-grabbing"
           title="끌어서 순서 변경"
-          {...attributes}
+          type="button"
           {...listeners}
         >
           <GripVertical aria-hidden className="h-4 w-4" />
-        </span>
+        </button>
       </span>
     </li>
   );
