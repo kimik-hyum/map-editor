@@ -49,3 +49,27 @@ test("읽기 전용(참고) 도형도 패널에서 선택할 수 있다", async 
   await referenceFeature.click();
   await expect(referenceFeature).toHaveAttribute("aria-pressed", "true");
 });
+
+test("잠금 토글: 잠긴 도형을 해제·재잠금하고 행 선택과 충돌하지 않는다", async ({
+  page,
+}) => {
+  const editorPage = await openEditorViaDemo(page);
+
+  // 잠긴 도형(참고 1): 처음엔 잠금 상태.
+  const lockToggle = editorPage.getByRole("button", { name: /참고 1 잠금/ }).first();
+  await expect(lockToggle).toHaveAttribute("aria-pressed", "true");
+
+  // 해제 → 재잠금.
+  await lockToggle.click();
+  await expect(lockToggle).toHaveAttribute("aria-pressed", "false");
+  await lockToggle.click();
+  await expect(lockToggle).toHaveAttribute("aria-pressed", "true");
+
+  // 잠금 버튼 클릭이 행 선택을 트리거하지 않는다.
+  const selectButton = editorPage.getByRole("button", { name: "참고 1 선택" });
+  await expect(selectButton).toHaveAttribute("aria-pressed", "false");
+
+  // 편집 가능한 도형(권역 A)은 처음엔 잠금 해제 상태.
+  const editableLock = editorPage.getByRole("button", { name: /권역 A 잠금/ }).first();
+  await expect(editableLock).toHaveAttribute("aria-pressed", "false");
+});

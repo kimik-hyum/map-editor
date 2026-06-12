@@ -330,3 +330,51 @@ describe("editorStore - 도형 포커스 요청", () => {
     });
   });
 });
+
+describe("editorStore - 도형 잠금 토글", () => {
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_A));
+  });
+
+  it("잠그면 권한과 역할이 읽기 전용·참고로 함께 바뀐다", () => {
+    useEditorStore.getState().setLayerLocked("layer-1", true);
+
+    const layer = useEditorStore.getState().scene?.layers[0];
+    expect(layer?.behavior.lock).toBe(LockState.Locked);
+    expect(layer?.behavior.editability).toBe(EditabilityState.Readonly);
+    expect(layer?.behavior.deletable).toBe(false);
+    expect(layer?.roles).toEqual([LayerRole.Reference]);
+  });
+
+  it("해제하면 편집 가능 권한·역할로 되돌아간다", () => {
+    useEditorStore.getState().setLayerLocked("layer-1", true);
+    useEditorStore.getState().setLayerLocked("layer-1", false);
+
+    const layer = useEditorStore.getState().scene?.layers[0];
+    expect(layer?.behavior.lock).toBe(LockState.Unlocked);
+    expect(layer?.behavior.editability).toBe(EditabilityState.Editable);
+    expect(layer?.roles).toEqual([LayerRole.Editable]);
+  });
+
+  it("같은 상태로의 토글은 아무것도 바꾸지 않는다", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().setLayerLocked("layer-1", false);
+
+    expect(useEditorStore.getState().scene).toBe(before);
+  });
+
+  it("잠금 토글은 히스토리에 쌓이지 않는다(silent)", () => {
+    const pastBefore = useEditorStore.getState().past.length;
+    useEditorStore.getState().setLayerLocked("layer-1", true);
+
+    expect(useEditorStore.getState().past.length).toBe(pastBefore);
+  });
+
+  it("선택 상태는 잠금 토글에 영향받지 않는다", () => {
+    useEditorStore.getState().setSelectedFeatureIds(["feature-1"]);
+    useEditorStore.getState().setLayerLocked("layer-1", true);
+
+    expect(useEditorStore.getState().selectedFeatureIds).toEqual(["feature-1"]);
+  });
+});

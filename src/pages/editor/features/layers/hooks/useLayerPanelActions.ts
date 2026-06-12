@@ -7,6 +7,7 @@ import {
 
 export function useLayerPanelActions() {
   const updateLayerView = useEditorStore((state) => state.updateLayerView);
+  const setLayerLocked = useEditorStore((state) => state.setLayerLocked);
   const setSelectedFeatureIds = useEditorStore((state) => state.setSelectedFeatureIds);
   const requestFeatureFocus = useEditorStore((state) => state.requestFeatureFocus);
 
@@ -18,6 +19,14 @@ export function useLayerPanelActions() {
       });
     },
     [updateLayerView],
+  );
+
+  // 행(도형)의 잠금 토글. 잠금 = 읽기 전용·참고용(선택은 유지되고 정점 핸들만 떨어진다).
+  const toggleRowLock = useCallback(
+    (row: FeatureStackRowViewModel) => {
+      setLayerLocked(row.layerId, !row.isLocked);
+    },
+    [setLayerLocked],
   );
 
   // 패널 행 클릭 = 그 도형 선택(교체). 지도 클릭 선택과 같은 상태(selectedFeatureIds)를 쓴다.
@@ -41,6 +50,7 @@ export function useLayerPanelActions() {
 
   return {
     toggleRowVisibility,
+    toggleRowLock,
     selectFeature,
   };
 }

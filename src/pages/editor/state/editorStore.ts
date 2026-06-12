@@ -1,9 +1,12 @@
 import { create } from "zustand";
 import {
   BoundaryKind,
+  EditabilityState,
   EditorMode,
   FeatureLifecycle,
   GeometryKind,
+  LayerRole,
+  LockState,
   VisibilityState,
   type DeepReadonly,
   type DrawShape,
@@ -69,6 +72,7 @@ type EditorStoreActions = {
   setActiveBoundaryKind: (kind: BoundaryKind) => void;
   setActiveDrawShape: (shape: DrawShape) => void;
   updateLayerView: (layerId: string, view: Partial<EditorLayerViewState>) => void;
+  setLayerLocked: (layerId: string, locked: boolean) => void;
   updateFeatureView: (featureId: string, view: Partial<EditorFeatureViewState>) => void;
   updateFeatureGeometry: (featureId: string, geometry: GeoJsonGeometry) => void;
 };
@@ -140,6 +144,41 @@ function updateLayerViewInScene(
 
     changed = true;
     return { ...layer, view: nextView };
+  });
+
+  return changed ? { ...scene, layers } : scene;
+}
+
+// 잠금 = 읽기 전용 = 참고용. 잠금 여부에 따라 권한과 역할(테마 기본값)을 함께 일관되게 바꿉니다.
+// 같은 상태면 원본 scene 참조를 그대로 반환합니다(no-op). 정규화의 잠금 매핑과 같은 규칙입니다.
+function setLayerLockedInScene(
+  scene: EditorScene,
+  layerId: string,
+  locked: boolean,
+): EditorScene {
+  let changed = false;
+
+  const layers = scene.layers.map((layer) => {
+    if (layer.id !== layerId) {
+      return layer;
+    }
+    const isLocked = layer.behavior.lock === LockState.Locked;
+    if (isLocked === locked) {
+      return layer;
+    }
+
+    changed = true;
+    return {
+      ...layer,
+      roles: [locked ? LayerRole.Reference : LayerRole.Editable],
+      behavior: {
+        ...layer.behavior,
+        lock: locked ? LockState.Locked : LockState.Unlocked,
+        editability: locked ? EditabilityState.Readonly : EditabilityState.Editable,
+        deletable: !locked,
+        draggable: !locked,
+      },
+    };
   });
 
   return changed ? { ...scene, layers } : scene;
@@ -377,6 +416,20 @@ export const useEditorStore = create<EditorStore>((set) => {
         }
 
         const next = updateLayerViewInScene(state.scene as EditorScene, layerId, view);
+        if (next === state.scene) {
+          return {};
+        }
+
+        return { scene: next, dirty: next !== state.baselineScene };
+      }),
+    // 잠금 토글도 silent(히스토리 X). 변경이 있을 때만 dirty를 갱신합니다.
+    setLayerLocked: (layerId, locked) =>
+      set((state) => {
+        if (!state.scene) {
+          return {};
+        }
+
+        const next = setLayerLockedInScene(state.scene as EditorScene, layerId, locked);
         if (next === state.scene) {
           return {};
         }

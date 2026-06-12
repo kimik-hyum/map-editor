@@ -6,7 +6,7 @@ import { FeatureStackRow } from "./FeatureStackRow";
 // 1레이어 = 1도형 평탄 스택을 위(맨 앞)부터 나열합니다. 행 클릭 = 선택, 눈 아이콘 = 표시 토글.
 export function LayerPanel() {
   const viewModel = useLayerPanelViewModel();
-  const { toggleRowVisibility, selectFeature } = useLayerPanelActions();
+  const { toggleRowVisibility, toggleRowLock, selectFeature } = useLayerPanelActions();
 
   return (
     <FloatingPanel
@@ -38,6 +38,7 @@ export function LayerPanel() {
                 key={row.id}
                 row={row}
                 onSelect={selectFeature}
+                onToggleLock={toggleRowLock}
                 onToggleVisibility={toggleRowVisibility}
               />
             ))}
