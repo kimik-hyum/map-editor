@@ -7,6 +7,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
+import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
   SortableContext,
   sortableKeyboardCoordinates,
@@ -66,8 +67,10 @@ export function LayerPanel() {
               {viewModel.featureCount}개 도형
             </span>
           </div>
+          {/* 세로축 고정 + 목록(부모) 경계 클램프: 아래·위로 무한히 끌려 스크롤 영역이 늘어나는 것을 막는다. */}
           <DndContext
             collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
             onDragEnd={handleDragEnd}
             sensors={sensors}
           >

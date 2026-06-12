@@ -38,11 +38,6 @@ export function FeatureStackRow({
     setNodeRef(element);
   };
 
-  // 세로 목록이므로 가로 이동은 0으로 고정한다(가로 스크롤·빈 공간으로 끌리는 현상 방지).
-  const verticalOnlyTransform = transform
-    ? CSS.Transform.toString({ ...transform, x: 0 })
-    : undefined;
-
   return (
     <li
       className={`group flex min-w-0 select-none items-center gap-2 rounded-md px-2 py-1.5 ${
@@ -51,7 +46,7 @@ export function FeatureStackRow({
           : "bg-slate-50"
       } ${isDragging ? "z-10 opacity-70 shadow-md" : ""}`}
       ref={setRefs}
-      style={{ transform: verticalOnlyTransform, transition }}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
     >
       <LayerVisibilityIcon
         disabled={false}
