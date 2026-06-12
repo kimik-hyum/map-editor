@@ -103,7 +103,11 @@ describe("createLayerPanelViewModel", () => {
     const viewModel = createLayerPanelViewModel(scene);
 
     expect(viewModel.rows.map((row) => row.id)).toEqual(["top", "bottom"]);
-    expect(viewModel.rows[0]).toMatchObject({ name: "위", orderLabel: "#1" });
+    expect(viewModel.rows[0]).toMatchObject({
+      name: "위",
+      canMoveUp: false,
+      canMoveDown: true,
+    });
     expect(viewModel.featureCount).toBe(2);
   });
 

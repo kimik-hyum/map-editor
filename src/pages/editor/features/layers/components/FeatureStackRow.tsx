@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, ChevronUp, Lock, LockOpen } from "lucide-react";
+import { ChevronDown, ChevronUp, GripVertical, Lock, LockOpen } from "lucide-react";
 import { useScrollIntoViewWhenSelected } from "../hooks/useScrollIntoViewWhenSelected";
 import type { FeatureStackRowViewModel } from "../model/layerPanelModel";
 import { LayerVisibilityIcon } from "./LayerVisibilityIcon";
@@ -14,8 +14,8 @@ type FeatureStackRowProps = {
 };
 
 // 평탄 스택(1레이어 = 1도형)의 행 하나. 선택 하이라이트·스크롤 추적·표시/잠금 토글·순서 이동을 담당합니다.
-// 구역: 왼쪽 = 상태 토글(표시·잠금), 가운데 = 선택, 오른쪽 = 순서(#N ↔ ▲▼).
-// 행 어디서든 8px 이상 끌면 드래그 재정렬이 시작됩니다(클릭은 그대로 각 버튼으로 전달).
+// 구역: 왼쪽 = 상태 토글(표시·잠금), 가운데 = 선택, 오른쪽 = 순서(▲▼는 호버·선택 시, 끌기 핸들은 상시).
+// 드래그 재정렬은 오른쪽 끝 끌기 핸들(⠿)에서만 시작됩니다.
 export function FeatureStackRow({
   row,
   onToggleVisibility,
@@ -25,17 +25,15 @@ export function FeatureStackRow({
 }: FeatureStackRowProps) {
   // 지도에서 선택돼도 패널이 해당 행으로 따라가도록 스크롤한다.
   const rowRef = useScrollIntoViewWhenSelected<HTMLLIElement>(row.isSelected);
-  const { setNodeRef, transform, transition, isDragging, listeners } = useSortable({
-    id: row.id,
-  });
+  const { setNodeRef, transform, transition, isDragging, listeners, attributes } =
+    useSortable({ id: row.id });
 
   const setRefs = (element: HTMLLIElement | null) => {
     rowRef.current = element;
     setNodeRef(element);
   };
 
-  // 순서 컨트롤(▲▼)은 평소엔 #N 배지로 보이고, 행에 마우스를 올리거나 행이 선택되면
-  // 같은 자리에서 화살표로 바뀐다(패널 밀도 유지 — 상시 노출 없음).
+  // 순서 화살표(▲▼)는 행에 마우스를 올리거나 행이 선택됐을 때만 나타난다(패널 밀도 유지).
   const showOrderControls = row.isSelected;
 
   return (
@@ -47,7 +45,6 @@ export function FeatureStackRow({
       } ${isDragging ? "z-10 opacity-70 shadow-md" : ""}`}
       ref={setRefs}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      {...listeners}
     >
       <LayerVisibilityIcon
         disabled={false}
@@ -96,15 +93,8 @@ export function FeatureStackRow({
           ) : null}
         </span>
       </button>
-      {/* 오른쪽 순서 구역: 평소 #N, 호버/선택 시 ▲▼로 교체(같은 자리·고정 폭이라 레이아웃이 흔들리지 않음). */}
-      <span className="flex h-7 w-12 shrink-0 items-center justify-end">
-        <span
-          className={`${
-            showOrderControls ? "hidden" : "group-hover:hidden"
-          } rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-black text-slate-500`}
-        >
-          {row.orderLabel}
-        </span>
+      {/* 오른쪽 순서 구역: ▲▼는 호버/선택 시에만, 끌기 핸들(⠿)은 상시. 드래그는 핸들에서만 시작된다. */}
+      <span className="flex h-7 shrink-0 items-center justify-end">
         <span
           className={`${
             showOrderControls ? "flex" : "hidden group-hover:flex"
@@ -130,6 +120,16 @@ export function FeatureStackRow({
           >
             <ChevronDown aria-hidden className="h-4 w-4" />
           </button>
+        </span>
+        {/* 끌기 핸들: 여기서만 드래그가 시작된다(터치 스크롤 간섭도 핸들로 한정). */}
+        <span
+          aria-label={`${row.name} 끌어서 순서 변경`}
+          className="flex h-7 w-6 shrink-0 cursor-grab touch-none items-center justify-center text-slate-300 hover:text-slate-500 active:cursor-grabbing"
+          title="끌어서 순서 변경"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical aria-hidden className="h-4 w-4" />
         </span>
       </span>
     </li>

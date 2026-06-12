@@ -13,15 +13,15 @@ import { useLayerPanelViewModel } from "../hooks/useLayerPanelViewModel";
 import { FeatureStackRow } from "./FeatureStackRow";
 
 // 1레이어 = 1도형 평탄 스택을 위(맨 앞)부터 나열합니다.
-// 행 클릭 = 선택, 눈/자물쇠 = 토글, 드래그(8px 이상) 또는 ▲▼(호버·선택 시 노출) = 순서 이동.
+// 행 클릭 = 선택, 눈/자물쇠 = 토글, 끌기 핸들(⠿) 드래그 또는 ▲▼(호버·선택 시 노출) = 순서 이동.
 export function LayerPanel() {
   const viewModel = useLayerPanelViewModel();
   const { toggleRowVisibility, toggleRowLock, selectFeature, moveRow, reorderRow } =
     useLayerPanelActions();
 
-  // 8px 이상 움직여야 드래그로 인정 → 행 안의 버튼 클릭(선택/토글)과 충돌하지 않는다.
+  // 드래그는 끌기 핸들에서만 시작된다. 약간의 이동 거리 제한으로 단순 클릭과 구분한다.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
