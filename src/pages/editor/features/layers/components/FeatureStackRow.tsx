@@ -23,9 +23,15 @@ export function FeatureStackRow({
 }: FeatureStackRowProps) {
   // 지도에서 선택돼도 패널이 해당 행으로 따라가도록 스크롤한다.
   const rowRef = useScrollIntoViewWhenSelected<HTMLLIElement>(row.isSelected);
-  const { setNodeRef, transform, transition, isDragging, listeners } = useSortable({
-    id: row.id,
-  });
+  const {
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+    listeners,
+    attributes,
+  } = useSortable({ id: row.id });
 
   const setRefs = (element: HTMLLIElement | null) => {
     rowRef.current = element;
@@ -94,12 +100,15 @@ export function FeatureStackRow({
           ) : null}
         </span>
       </button>
-      {/* 끌기 핸들: 여기서만 드래그가 시작된다(터치 스크롤 간섭도 핸들로 한정). */}
+      {/* 끌기 핸들: 여기서만 드래그가 시작된다(터치 스크롤 간섭도 핸들로 한정).
+          키보드 이동(스페이스 후 방향키)이 동작하려면 활성자 ref와 속성을 함께 붙여야 한다. */}
       <button
         aria-label={`${row.name} 끌어서 순서 변경`}
         className="flex h-7 w-6 shrink-0 cursor-grab touch-none items-center justify-center border-0 bg-transparent p-0 text-slate-300 hover:text-slate-500 active:cursor-grabbing"
+        ref={setActivatorNodeRef}
         title="끌어서 순서 변경"
         type="button"
+        {...attributes}
         {...listeners}
       >
         <GripVertical aria-hidden className="h-4 w-4" />
