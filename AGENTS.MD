@@ -41,8 +41,8 @@
 
 - 커밋 메시지는 Conventional Commit 타입을 사용한다. 예: `feat: 편집기 추가`, `chore: 설정 변경`.
 - 허용 타입: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
-- 타입과 선택적 scope를 제외한 메시지 본문은 한글로 작성한다.
-- 타입 뒤 메시지에 영문 알파벳이 포함되면 Husky `commit-msg` 훅에서 거부된다.
+- 타입과 선택적 scope를 제외한 메시지 본문은 한글을 최소 1자 이상 포함해야 한다.
+- 타입 뒤 메시지에는 영문 알파벳을 혼용할 수 있지만, 한글 없이 영문만 작성하면 Husky `commit-msg` 훅에서 거부된다.
 - 브랜치는 작업 성격을 앞에 두고 `/` 뒤에 짧은 설명 키워드를 kebab-case로 작성한다.
 - 브랜치 예시: `feat/layer-panel`, `fix/post-message-validation`, `docs/editor-roadmap`, `packages/turf-validation`, `refactor/openlayers-adapter`, `test/editor-store`.
 - 브랜치 이름에는 작업자나 도구 이름을 붙이지 않는다.
