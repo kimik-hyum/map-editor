@@ -379,6 +379,113 @@ describe("editorStore - 도형 잠금 토글", () => {
   });
 });
 
+// 1레이어 = 1도형 평탄 스택: 두 레이어 각각에 도형 하나씩 둔 씬.
+function sampleTwoFeatureScene(): EditorScene {
+  const baseLayer = sampleScene(GEOMETRY_A).layers[0];
+  return {
+    version: 1,
+    layers: [
+      baseLayer,
+      {
+        ...baseLayer,
+        id: "layer-2",
+        name: "레이어 2",
+        view: { ...baseLayer.view, zIndex: 20 },
+        features: [
+          {
+            ...baseLayer.features[0],
+            id: "feature-2",
+            name: "도형 2",
+            feature: {
+              ...baseLayer.features[0].feature,
+              id: "feature-2",
+              geometry: GEOMETRY_A,
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function geometryOf(featureId: string): DeepReadonly<GeoJsonGeometry> | undefined {
+  const scene = useEditorStore.getState().scene;
+  for (const layer of scene?.layers ?? []) {
+    for (const feature of layer.features) {
+      if (feature.id === featureId) {
+        return feature.feature.geometry;
+      }
+    }
+  }
+  return undefined;
+}
+
+describe("editorStore - 다중 이동 배치 커밋", () => {
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleTwoFeatureScene());
+  });
+
+  it("여러 피처를 한 스냅샷(=undo 1단계)으로 묶어 커밋한다", () => {
+    useEditorStore.getState().updateFeaturesGeometry([
+      { featureId: "feature-1", geometry: GEOMETRY_B },
+      { featureId: "feature-2", geometry: GEOMETRY_B },
+    ]);
+
+    const state = useEditorStore.getState();
+    expect(state.past).toHaveLength(1);
+    expect(state.dirty).toBe(true);
+    expect(geometryOf("feature-1")).toEqual(GEOMETRY_B);
+    expect(geometryOf("feature-2")).toEqual(GEOMETRY_B);
+  });
+
+  it("undo 한 번이면 묶인 피처가 모두 함께 복원된다", () => {
+    useEditorStore.getState().updateFeaturesGeometry([
+      { featureId: "feature-1", geometry: GEOMETRY_B },
+      { featureId: "feature-2", geometry: GEOMETRY_B },
+    ]);
+    useEditorStore.getState().undo();
+
+    expect(geometryOf("feature-1")).toEqual(GEOMETRY_A);
+    expect(geometryOf("feature-2")).toEqual(GEOMETRY_A);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+    expect(useEditorStore.getState().dirty).toBe(false);
+  });
+
+  it("실제로 바뀐 피처가 없으면 히스토리·dirty를 만들지 않는다", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().updateFeaturesGeometry([
+      { featureId: "feature-1", geometry: GEOMETRY_A },
+      { featureId: "feature-2", geometry: GEOMETRY_A },
+    ]);
+
+    const state = useEditorStore.getState();
+    expect(state.scene).toBe(before);
+    expect(state.past).toHaveLength(0);
+    expect(state.dirty).toBe(false);
+  });
+
+  it("일부만 실제로 바뀌어도 한 스냅샷으로 쌓인다", () => {
+    useEditorStore.getState().updateFeaturesGeometry([
+      { featureId: "feature-1", geometry: GEOMETRY_B },
+      { featureId: "feature-2", geometry: GEOMETRY_A },
+    ]);
+
+    const state = useEditorStore.getState();
+    expect(state.past).toHaveLength(1);
+    expect(geometryOf("feature-1")).toEqual(GEOMETRY_B);
+    expect(geometryOf("feature-2")).toEqual(GEOMETRY_A);
+  });
+
+  it("빈 묶음은 아무것도 바꾸지 않는다(no-op)", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().updateFeaturesGeometry([]);
+
+    expect(useEditorStore.getState().scene).toBe(before);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+  });
+});
+
 describe("editorStore - 쌓임 값 일괄 갱신", () => {
   beforeEach(() => {
     useEditorStore.getState().resetScene();

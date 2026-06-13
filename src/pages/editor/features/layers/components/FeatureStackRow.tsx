@@ -1,6 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Lock, LockOpen } from "lucide-react";
+import { isToggleSelectionModifier } from "@/pages/editor/features/selection";
 import { useScrollIntoViewWhenSelected } from "../hooks/useScrollIntoViewWhenSelected";
 import type { FeatureStackRowViewModel } from "../model/layerPanelModel";
 import { LayerVisibilityIcon } from "./LayerVisibilityIcon";
@@ -9,7 +10,7 @@ type FeatureStackRowProps = {
   row: FeatureStackRowViewModel;
   onToggleVisibility: (row: FeatureStackRowViewModel) => void;
   onToggleLock: (row: FeatureStackRowViewModel) => void;
-  onSelect: (row: FeatureStackRowViewModel) => void;
+  onSelect: (row: FeatureStackRowViewModel, additive: boolean) => void;
 };
 
 // 평탄 스택(1레이어 = 1도형)의 행 하나. 선택 하이라이트·스크롤 추적·표시/잠금 토글·순서 이동을 담당합니다.
@@ -82,7 +83,7 @@ export function FeatureStackRow({
         aria-label={`${row.name} 선택`}
         aria-pressed={row.isSelected}
         className="min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left"
-        onClick={() => onSelect(row)}
+        onClick={(event) => onSelect(row, isToggleSelectionModifier(event))}
         type="button"
       >
         <span className="block truncate text-sm font-black leading-5 text-slate-950">

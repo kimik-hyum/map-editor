@@ -16,8 +16,11 @@ type FeatureTranslateOptions = {
   // "실제로" 움직이기 시작했을 때 제스처당 1회 호출(정점 핸들 숨김 등).
   // 단순 클릭(눌렀다 뗌)에는 호출되지 않아 핸들이 깜빡이지 않는다.
   onDragStart: () => void;
-  // 좌표가 실제로 바뀐 피처만 호출(EPSG:4326 GeoJSON). 기존 히스토리 정책대로 undo 대상.
-  onCommit: (featureId: string, geometry: GeoJsonGeometry) => void;
+  // 좌표가 실제로 바뀐 피처들을 제스처당 1회 묶어서 호출(EPSG:4326 GeoJSON).
+  // 한 번의 드래그 = undo 1단계가 되도록 다중 이동도 배치로 커밋한다. 변경이 없으면 호출하지 않는다.
+  onCommit: (
+    updates: ReadonlyArray<{ featureId: string; geometry: GeoJsonGeometry }>,
+  ) => void;
   // 이동 제스처 종료 시(오버레이 복구 등). 커밋 여부와 무관하게 호출.
   onDragEnd: () => void;
 };
@@ -59,6 +62,7 @@ export function attachFeatureTranslate(
   };
 
   const handleTranslateEnd = (event: TranslateEvent) => {
+    const updates: { featureId: string; geometry: GeoJsonGeometry }[] = [];
     event.features.forEach((feature) => {
       const id = feature.getId();
       const geometry = feature.getGeometry();
@@ -71,8 +75,12 @@ export function attachFeatureTranslate(
       if (before && sameCoordinates(before, geometry)) {
         return;
       }
-      options.onCommit(id, olGeometryToEditorGeometry(geometry));
+      updates.push({ featureId: id, geometry: olGeometryToEditorGeometry(geometry) });
     });
+    // 한 번의 드래그로 움직인 모든 피처를 한 커밋(=undo 1단계)으로 묶는다. 변경이 없으면 호출하지 않는다.
+    if (updates.length > 0) {
+      options.onCommit(updates);
+    }
     originals.clear();
     if (dragSignaled) {
       options.onDragEnd();

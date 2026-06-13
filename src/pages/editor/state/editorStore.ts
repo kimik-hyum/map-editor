@@ -78,6 +78,9 @@ type EditorStoreActions = {
   setLayerLocked: (layerId: string, locked: boolean) => void;
   updateFeatureView: (featureId: string, view: Partial<EditorFeatureViewState>) => void;
   updateFeatureGeometry: (featureId: string, geometry: GeoJsonGeometry) => void;
+  updateFeaturesGeometry: (
+    updates: ReadonlyArray<{ featureId: string; geometry: GeoJsonGeometry }>,
+  ) => void;
 };
 
 export type EditorStore = EditorStoreState & EditorStoreActions;
@@ -221,6 +224,57 @@ function updateFeatureGeometryInScene(
 
     const features = layer.features.map((feature) => {
       if (feature.id !== featureId) {
+        return feature;
+      }
+      if (areGeometriesEqual(feature.feature.geometry, geometry)) {
+        return feature;
+      }
+
+      layerChanged = true;
+      changed = true;
+      return {
+        ...feature,
+        feature: {
+          ...feature.feature,
+          geometry,
+        },
+        state: {
+          ...feature.state,
+          lifecycle:
+            feature.state.lifecycle === FeatureLifecycle.Created
+              ? FeatureLifecycle.Created
+              : FeatureLifecycle.Updated,
+        },
+      };
+    });
+
+    return layerChanged ? { ...layer, features } : layer;
+  });
+
+  return changed ? { ...scene, layers } : scene;
+}
+
+// 여러 피처의 geometry를 한 번의 순회로 바꿉니다(다중 이동의 배치 커밋용).
+// 대상이 없거나 전부 동일 geometry이면 원본 scene 참조를 그대로 반환합니다(no-op → 히스토리 없음).
+function updateFeaturesGeometryInScene(
+  scene: EditorScene,
+  updates: ReadonlyArray<{ featureId: string; geometry: GeoJsonGeometry }>,
+): EditorScene {
+  if (updates.length === 0) {
+    return scene;
+  }
+
+  const geometryById = new Map(
+    updates.map((update) => [update.featureId, update.geometry]),
+  );
+  let changed = false;
+
+  const layers = scene.layers.map((layer) => {
+    let layerChanged = false;
+
+    const features = layer.features.map((feature) => {
+      const geometry = geometryById.get(feature.id);
+      if (geometry === undefined) {
         return feature;
       }
       if (areGeometriesEqual(feature.feature.geometry, geometry)) {
@@ -496,5 +550,8 @@ export const useEditorStore = create<EditorStore>((set) => {
       commitSceneEdit((scene) =>
         updateFeatureGeometryInScene(scene, featureId, geometry),
       ),
+    // 다중 이동 커밋: 여러 피처 geometry를 한 스냅샷(=undo 1단계)으로 묶습니다. 변경 0개면 히스토리 없음.
+    updateFeaturesGeometry: (updates) =>
+      commitSceneEdit((scene) => updateFeaturesGeometryInScene(scene, updates)),
   };
 });

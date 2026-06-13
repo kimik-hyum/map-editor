@@ -73,3 +73,45 @@ test("잠금 토글: 잠긴 도형을 해제·재잠금하고 행 선택과 충�
   const editableLock = editorPage.getByRole("button", { name: /권역 A 잠금/ }).first();
   await expect(editableLock).toHaveAttribute("aria-pressed", "false");
 });
+
+test("Cmd/Ctrl 클릭으로 여러 도형을 토글 선택하고, 일반 클릭은 교체한다", async ({
+  page,
+}) => {
+  const editorPage = await openEditorViaDemo(page);
+
+  const featureA = editorPage.getByRole("button", { name: "권역 A 선택" }).first();
+  const featureB = editorPage.getByRole("button", { name: "권역 B 선택" }).first();
+  const featureC = editorPage.getByRole("button", { name: "권역 C 선택" }).first();
+
+  // 일반 클릭으로 A 선택.
+  await featureA.click();
+  await expect(featureA).toHaveAttribute("aria-pressed", "true");
+
+  // 보조키 클릭으로 B 추가(A 유지).
+  await featureB.click({ modifiers: ["ControlOrMeta"] });
+  await expect(featureA).toHaveAttribute("aria-pressed", "true");
+  await expect(featureB).toHaveAttribute("aria-pressed", "true");
+
+  // 보조키 클릭으로 A 제거(B 유지).
+  await featureA.click({ modifiers: ["ControlOrMeta"] });
+  await expect(featureA).toHaveAttribute("aria-pressed", "false");
+  await expect(featureB).toHaveAttribute("aria-pressed", "true");
+
+  // 일반 클릭은 교체: C만 선택으로.
+  await featureC.click();
+  await expect(featureC).toHaveAttribute("aria-pressed", "true");
+  await expect(featureB).toHaveAttribute("aria-pressed", "false");
+});
+
+test("잠긴(참고) 도형도 보조키로 다중 선택에 넣을 수 있다", async ({ page }) => {
+  const editorPage = await openEditorViaDemo(page);
+
+  const editable = editorPage.getByRole("button", { name: "권역 A 선택" }).first();
+  const locked = editorPage.getByRole("button", { name: "참고 1 선택" }).first();
+
+  await editable.click();
+  await locked.click({ modifiers: ["ControlOrMeta"] });
+
+  await expect(editable).toHaveAttribute("aria-pressed", "true");
+  await expect(locked).toHaveAttribute("aria-pressed", "true");
+});

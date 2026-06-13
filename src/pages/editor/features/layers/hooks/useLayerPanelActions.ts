@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { toggleFeatureSelection } from "@/pages/editor/features/selection";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import {
   getNextLayerVisibility,
@@ -31,12 +32,16 @@ export function useLayerPanelActions() {
     [setLayerLocked],
   );
 
-  // 패널 행 클릭 = 그 도형 선택(교체). 지도 클릭 선택과 같은 상태(selectedFeatureIds)를 쓴다.
-  // 다시 클릭하면 해제한다(패널에서 선택을 끄는 유일한 손잡이).
-  // 선택할 때는 그 도형이 보이도록 지도 이동도 함께 요청한다(숨김/해제 시에는 요청하지 않음).
+  // 패널 행 클릭 = 그 도형 선택. 지도 클릭 선택과 같은 상태(selectedFeatureIds)를 쓴다.
+  // - 보조키(Cmd/Ctrl): 선택에 추가/제거(토글). 세트 구성 중이므로 지도 포커스는 옮기지 않는다.
+  // - 일반: 그 도형으로 교체(이미 단독 선택이면 해제). 새로 선택되면 지도 포커스를 옮긴다.
   const selectFeature = useCallback(
-    (row: FeatureStackRowViewModel) => {
+    (row: FeatureStackRowViewModel, additive: boolean) => {
       const current = useEditorStore.getState().selectedFeatureIds;
+      if (additive) {
+        setSelectedFeatureIds(toggleFeatureSelection(current, row.id));
+        return;
+      }
       const isOnlySelection = current.length === 1 && current[0] === row.id;
       if (isOnlySelection) {
         setSelectedFeatureIds([]);
