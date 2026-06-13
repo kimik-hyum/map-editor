@@ -1,6 +1,7 @@
 import {
   canEditLayerVertices,
   isPolygonalGeometry,
+  VisibilityState,
   type DeepReadonly,
   type EditorScene,
   type GeoJsonGeometry,
@@ -36,6 +37,8 @@ export function deriveGeometryOpTargets(
   const [targetId] = selectedIds;
 
   // 편집 가능(보임+편집가능+잠금해제)하고 폴리곤인 도형만 모읍니다(target 포함).
+  // 레이어 가시성 외에 "도형별 숨김"도 제외합니다 — 렌더러/정점 오버레이와 같은 기준이라,
+  // 안 보이는 도형 위에 마커가 뜨거나 연산 대상이 되지 않게 합니다.
   const polygons: PolygonEntry[] = [];
   let target: PolygonEntry | null = null;
   for (const layer of scene.layers) {
@@ -43,6 +46,9 @@ export function deriveGeometryOpTargets(
       continue;
     }
     for (const feature of layer.features) {
+      if (feature.view?.visibility === VisibilityState.Hidden) {
+        continue;
+      }
       const geometry = feature.feature.geometry as GeoJsonGeometry;
       if (!isPolygonalGeometry(geometry)) {
         continue;

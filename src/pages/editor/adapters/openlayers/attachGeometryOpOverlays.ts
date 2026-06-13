@@ -4,7 +4,8 @@ import { fromLonLat } from "ol/proj";
 
 // 후보 폴리곤 하나의 오버레이 입력(앵커 경위도 + 제거 가능 여부).
 // features/* 정책을 모르게 어댑터가 자체 정의합니다(구조가 같으면 모델 출력을 그대로 받습니다).
-export type GeometryOpOverlayInput = {
+// 내부 입력 계약이라 export하지 않습니다(sync 인자 타입으로만 사용).
+type GeometryOpOverlayInput = {
   featureId: string;
   lonLat: [number, number];
   canSubtract: boolean;

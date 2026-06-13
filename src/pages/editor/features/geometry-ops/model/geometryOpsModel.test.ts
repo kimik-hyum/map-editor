@@ -158,6 +158,33 @@ describe("deriveGeometryOpTargets", () => {
     expect(deriveGeometryOpTargets(s, new Set(["missing"])).targetId).toBeNull();
   });
 
+  it("도형별 숨김(feature.view=Hidden)은 후보에서 제외된다", () => {
+    const hidden: EditorFeature = {
+      ...feature("hidden", square(1, 1, 3, 3)),
+      view: { visibility: VisibilityState.Hidden },
+    };
+    const s = scene([
+      layer("layer-a", [feature("a", square(0, 0, 2, 2))]),
+      layer("layer-hidden", [hidden]),
+      layer("layer-d", [feature("d", square(1, 1, 3, 3))]),
+    ]);
+    const result = deriveGeometryOpTargets(s, new Set(["a"]));
+    expect(result.mergeCandidateIds).toEqual(["d"]);
+    expect(result.subtractCandidateIds).toEqual(["d"]);
+  });
+
+  it("선택한 target이 도형별 숨김이면 비어 있다", () => {
+    const hiddenTarget: EditorFeature = {
+      ...feature("a", square(0, 0, 2, 2)),
+      view: { visibility: VisibilityState.Hidden },
+    };
+    const s = scene([
+      layer("layer-a", [hiddenTarget]),
+      layer("layer-b", [feature("b", square(1, 1, 3, 3))]),
+    ]);
+    expect(deriveGeometryOpTargets(s, new Set(["a"])).targetId).toBeNull();
+  });
+
   it("병합 후보가 없으면(다른 폴리곤 없음) 두 목록 모두 비어 있다", () => {
     const s = scene([layer("layer-a", [feature("a", square(0, 0, 2, 2))])]);
     const result = deriveGeometryOpTargets(s, new Set(["a"]));

@@ -83,3 +83,15 @@ describe("polygonAnchorLonLat", () => {
     expect(polygonAnchorLonLat(square(0, 0, 2, 4))).toEqual([1, 4]);
   });
 });
+
+describe("잘못된 입력 안전성", () => {
+  // Zod는 좌표 구조만 검증하므로 빈 ring 같은 기하적 무효 입력이 들어올 수 있다.
+  const broken = { type: "Polygon", coordinates: [] } as PolygonalGeometry;
+
+  it("연산이 예외를 던지지 않고 안전한 기본값으로 떨어진다", () => {
+    expect(() => unionGeometries(broken, A)).not.toThrow();
+    expect(() => subtractGeometry(broken, A)).not.toThrow();
+    expect(() => overlapAreaSquareMeters(broken, A)).not.toThrow();
+    expect(overlapAreaSquareMeters(broken, A)).toBe(0);
+  });
+});
