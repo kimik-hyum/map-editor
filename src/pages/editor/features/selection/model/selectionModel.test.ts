@@ -12,8 +12,8 @@ import {
   type EditorLayer,
 } from "@/pages/editor/types/editorTypes";
 import {
+  deriveSelectionTargets,
   getChangedSelectionIds,
-  getSingleEditableEditTargetIds,
   isToggleSelectionModifier,
   resolveSelection,
   toggleFeatureSelection,
@@ -120,59 +120,80 @@ function scene(layers: EditorLayer[]): EditorScene {
   return { version: 1, layers };
 }
 
-describe("getSingleEditableEditTargetIds", () => {
+describe("deriveSelectionTargets", () => {
   const editableScene = scene([layer("layer-a", [feature("a")])]);
 
-  it("편집 가능 도형 1개 선택이면 그 id를 편집 대상으로 준다", () => {
-    expect([...getSingleEditableEditTargetIds(editableScene, new Set(["a"]))]).toEqual([
-      "a",
-    ]);
+  const lockedLayer = (id: string, features: EditorFeature[]) =>
+    layer(id, features, {
+      behavior: {
+        lock: LockState.Locked,
+        editability: EditabilityState.Readonly,
+        selectable: true,
+        deletable: false,
+        draggable: false,
+      },
+    });
+
+  const hiddenLayer = (id: string, features: EditorFeature[]) =>
+    layer(id, features, {
+      view: {
+        visibility: VisibilityState.Hidden,
+        opacity: 1,
+        zIndex: 10,
+        labelVisible: true,
+      },
+    });
+
+  it("편집 가능 도형 1개 선택이면 정점·이동 대상이 모두 그 id다", () => {
+    const targets = deriveSelectionTargets(editableScene, new Set(["a"]));
+    expect([...targets.vertexEditTargetIds]).toEqual(["a"]);
+    expect([...targets.translateTargetIds]).toEqual(["a"]);
   });
 
-  it("2개 이상 선택이면 편집 대상이 비어 있다(다중 = 하이라이트만)", () => {
+  it("2개 이상 선택이면 정점 대상은 비고 이동 대상은 편집 가능한 전부다", () => {
     const multi = scene([
       layer("layer-a", [feature("a")]),
       layer("layer-b", [feature("b")]),
     ]);
-    expect(getSingleEditableEditTargetIds(multi, new Set(["a", "b"])).size).toBe(0);
+    const targets = deriveSelectionTargets(multi, new Set(["a", "b"]));
+    expect(targets.vertexEditTargetIds.size).toBe(0);
+    expect([...targets.translateTargetIds].sort()).toEqual(["a", "b"]);
   });
 
-  it("선택이 없으면 비어 있다", () => {
-    expect(getSingleEditableEditTargetIds(editableScene, new Set()).size).toBe(0);
-  });
-
-  it("잠긴/읽기 전용 도형 1개 선택이면 비어 있다(선택은 되어도 편집 대상 아님)", () => {
-    const locked = scene([
-      layer("layer-a", [feature("a")], {
-        behavior: {
-          lock: LockState.Locked,
-          editability: EditabilityState.Readonly,
-          selectable: true,
-          deletable: false,
-          draggable: false,
-        },
-      }),
+  it("다중 선택 중 잠금/숨김 도형은 이동 대상에서도 빠진다", () => {
+    const mixed = scene([
+      layer("layer-a", [feature("a")]),
+      lockedLayer("layer-b", [feature("b")]),
+      hiddenLayer("layer-c", [feature("c")]),
     ]);
-    expect(getSingleEditableEditTargetIds(locked, new Set(["a"])).size).toBe(0);
+    const targets = deriveSelectionTargets(mixed, new Set(["a", "b", "c"]));
+    expect(targets.vertexEditTargetIds.size).toBe(0);
+    expect([...targets.translateTargetIds]).toEqual(["a"]);
   });
 
-  it("숨긴 도형 1개 선택이면 비어 있다", () => {
-    const hidden = scene([
-      layer("layer-a", [feature("a")], {
-        view: {
-          visibility: VisibilityState.Hidden,
-          opacity: 1,
-          zIndex: 10,
-          labelVisible: true,
-        },
-      }),
-    ]);
-    expect(getSingleEditableEditTargetIds(hidden, new Set(["a"])).size).toBe(0);
+  it("선택이 없으면 두 집합 모두 비어 있다", () => {
+    const targets = deriveSelectionTargets(editableScene, new Set());
+    expect(targets.vertexEditTargetIds.size).toBe(0);
+    expect(targets.translateTargetIds.size).toBe(0);
   });
 
-  it("scene에 없는 id는 비어 있다", () => {
-    expect(
-      getSingleEditableEditTargetIds(editableScene, new Set(["missing"])).size,
-    ).toBe(0);
+  it("잠긴/읽기 전용 도형 1개 선택이면 두 집합 모두 비어 있다(선택은 되어도 편집 대상 아님)", () => {
+    const locked = scene([lockedLayer("layer-a", [feature("a")])]);
+    const targets = deriveSelectionTargets(locked, new Set(["a"]));
+    expect(targets.vertexEditTargetIds.size).toBe(0);
+    expect(targets.translateTargetIds.size).toBe(0);
+  });
+
+  it("숨긴 도형 1개 선택이면 두 집합 모두 비어 있다", () => {
+    const hidden = scene([hiddenLayer("layer-a", [feature("a")])]);
+    const targets = deriveSelectionTargets(hidden, new Set(["a"]));
+    expect(targets.vertexEditTargetIds.size).toBe(0);
+    expect(targets.translateTargetIds.size).toBe(0);
+  });
+
+  it("scene에 없는 id는 두 집합 모두 비어 있다", () => {
+    const targets = deriveSelectionTargets(editableScene, new Set(["missing"]));
+    expect(targets.vertexEditTargetIds.size).toBe(0);
+    expect(targets.translateTargetIds.size).toBe(0);
   });
 });

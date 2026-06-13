@@ -59,25 +59,42 @@ export function resolveSelection(
   return pickedId === null ? [] : [pickedId];
 }
 
-// 편집(정점편집·이동) 대상 id 집합입니다.
-// "정확히 1개"가 선택됐고 그 도형이 편집 가능(보임+편집가능+잠금해제)일 때만 그 id, 아니면 빈 집합.
-// → 다중 선택·읽기 전용·숨김·잠금은 모두 빈 집합이라 편집 바인딩이 붙지 않습니다(하이라이트만).
-export function getSingleEditableEditTargetIds(
+// 선택으로부터 두 편집 대상 집합을 한 번의 scene 순회로 도출합니다.
+// - vertexEditTargetIds: 정점편집·삽입/삭제·편집 힌트·정점 오버레이용.
+//   "정확히 1개"가 선택됐고 그 도형이 편집 가능(보임+편집가능+잠금해제)일 때만 그 id.
+// - translateTargetIds: 몸통 드래그 이동용. 선택된 것 중 편집 가능한 도형 "전부"(다중 허용).
+// → 다중 선택은 하이라이트 + 몸통 이동까지 허용하되, 정점 단위 편집은 1개일 때만 붙습니다.
+//   읽기 전용·숨김·잠금 도형은 두 집합 모두에서 빠집니다.
+export type SelectionTargets = {
+  vertexEditTargetIds: Set<string>;
+  translateTargetIds: Set<string>;
+};
+
+export function deriveSelectionTargets(
   scene: DeepReadonly<EditorScene> | null,
   selectedIds: ReadonlySet<string>,
-): Set<string> {
-  if (!scene || selectedIds.size !== 1) {
-    return new Set();
+): SelectionTargets {
+  if (!scene || selectedIds.size === 0) {
+    return { vertexEditTargetIds: new Set(), translateTargetIds: new Set() };
   }
-  const [onlyId] = selectedIds;
+
+  // 이동 대상: 선택된 것 중 편집 가능한(보임+편집가능+잠금해제) 도형 전부.
+  const translateTargetIds = new Set<string>();
   for (const layer of scene.layers) {
+    if (!canEditLayerVertices(scene as EditorScene, layer.id)) {
+      continue;
+    }
     for (const feature of layer.features) {
-      if (feature.id === onlyId) {
-        return canEditLayerVertices(scene as EditorScene, layer.id)
-          ? new Set([onlyId])
-          : new Set();
+      if (selectedIds.has(feature.id)) {
+        translateTargetIds.add(feature.id);
       }
     }
   }
-  return new Set();
+
+  // 정점 편집 대상: 정확히 1개만 선택됐을 때만.
+  // size===1이면 translateTargetIds는 그 한 개이거나(편집 가능) 비어 있음(불가) — 둘 다 올바른 결과.
+  const vertexEditTargetIds =
+    selectedIds.size === 1 ? new Set(translateTargetIds) : new Set<string>();
+
+  return { vertexEditTargetIds, translateTargetIds };
 }

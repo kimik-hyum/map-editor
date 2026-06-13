@@ -1,7 +1,8 @@
 export {
+  deriveSelectionTargets,
   getChangedSelectionIds,
-  getSingleEditableEditTargetIds,
   isToggleSelectionModifier,
   resolveSelection,
+  type SelectionTargets,
   toggleFeatureSelection,
 } from "./model/selectionModel";
