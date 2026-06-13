@@ -1,4 +1,7 @@
-export { GeometryOpToolbar } from "./components/GeometryOpToolbar";
+export {
+  GeometryOpMarkers,
+  type GeometryOpMarkerData,
+} from "./components/GeometryOpMarkers";
 export {
   hasAreaOverlap,
   MIN_OVERLAP_AREA_SQUARE_METERS,

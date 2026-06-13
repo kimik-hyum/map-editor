@@ -1,6 +1,6 @@
 import "ol/ol.css";
 import { MapCursorTooltip } from "@/shared/ui/MapCursorTooltip";
-import { GeometryOpToolbar } from "./features/geometry-ops";
+import { GeometryOpMarkers } from "./features/geometry-ops";
 import { LayerPanel } from "./features/layers";
 import { useOpenLayersEditorMap } from "./features/map";
 import { useEditorMessaging } from "./messaging";
@@ -32,14 +32,10 @@ export function EditorPage() {
         aria-label="OSM map editor"
       />
       <MapCursorTooltip text={editHint} containerRef={mapElementRef} />
-      <GeometryOpToolbar
-        anchor={geometryOp.anchor}
-        canMerge={geometryOp.canMerge}
-        canSubtract={geometryOp.canSubtract}
-        pickMode={geometryOp.pickMode}
+      <GeometryOpMarkers
+        markers={geometryOp.markers}
         onMerge={geometryOp.onMerge}
         onSubtract={geometryOp.onSubtract}
-        onCancelPick={geometryOp.onCancelPick}
       />
       {isSceneReady ? (
         <LayerPanel />

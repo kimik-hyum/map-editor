@@ -23,6 +23,7 @@ import {
 } from "@/pages/editor/adapters/openlayers";
 import {
   deriveGeometryOpTargets,
+  type GeometryOpMarkerData,
   type GeometryOpTargets,
   subtractGeometry,
   unionGeometries,
@@ -44,9 +45,6 @@ import {
 
 // 호버 시 커서로부터 이 픽셀 반경 안의 정점을 상세로 드러냅니다(편집 grab 허용보다 크게).
 const VERTEX_DETAIL_RADIUS_PX = 28;
-
-// 불리언 연산의 "상대 고르기" 모드. null이면 일반(버튼 노출) 상태입니다.
-type GeometryOpPickMode = "merge" | "subtract" | null;
 
 const EMPTY_GEOMETRY_OP_TARGETS: GeometryOpTargets = {
   targetId: null,
@@ -98,6 +96,29 @@ function applySubtract(targetId: string, cutterId: string) {
   useEditorStore.getState().subtractFeature(targetId, subtractGeometry(target, cutter));
 }
 
+// 후보 폴리곤마다 화면 마커(병합 +, 겹치면 제거 -)를 만든다. 각 후보의 상단 중앙에 앵커한다.
+// 앵커를 못 잡는 후보(정점 없음 등)는 건너뛴다.
+function buildGeometryOpMarkers(
+  map: OpenLayersMap,
+  scene: EditorScene | null,
+  targets: GeometryOpTargets,
+): GeometryOpMarkerData[] {
+  const subtractable = new Set(targets.subtractCandidateIds);
+  const markers: GeometryOpMarkerData[] = [];
+  for (const featureId of targets.mergeCandidateIds) {
+    const anchor = getFeatureAnchorPixel(map, scene, featureId);
+    if (anchor) {
+      markers.push({
+        featureId,
+        x: anchor.x,
+        y: anchor.y,
+        canSubtract: subtractable.has(featureId),
+      });
+    }
+  }
+  return markers;
+}
+
 export function useOpenLayersEditorMap() {
   const mapElementRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<OpenLayersMap | null>(null);
@@ -129,10 +150,8 @@ export function useOpenLayersEditorMap() {
   const detailRef = useRef<ReturnType<typeof attachVertexDetail> | null>(null);
   // 외곽선 클릭으로 정점을 추가한 직후 짧은 시간 동안 따라오는 selection 단일클릭을 무시한다(만료 시각, ms).
   const suppressSelectUntilRef = useRef(0);
-  // 불리언 연산 후보(병합/제거 대상). 클릭(상대 고르기) 시점에 최신을 읽도록 ref로도 둔다.
+  // 불리언 연산 후보(병합/제거 대상). 마커 클릭·moveend 재계산 시점에 최신을 읽도록 ref로도 둔다.
   const geometryOpTargetsRef = useRef<GeometryOpTargets>(EMPTY_GEOMETRY_OP_TARGETS);
-  // 현재 상대 고르기 모드. 선택 클릭 핸들러가 동기적으로 읽어 클릭을 가로챈다.
-  const geometryOpPickModeRef = useRef<GeometryOpPickMode>(null);
 
   const scene = useEditorStore((state) => state.scene);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
@@ -142,45 +161,23 @@ export function useOpenLayersEditorMap() {
 
   // 커서 위치 기준 편집 동작(정점 위=삭제, 외곽선=추가, 그 외=없음). 툴팁 분기에 사용.
   const [editAffordance, setEditAffordance] = useState<EditAffordance>(null);
-  // 도형 위 불리언 연산 툴바 상태(EditorPage가 렌더). 앵커 픽셀·가능 연산·상대 고르기 모드.
-  const [geometryOpAnchor, setGeometryOpAnchor] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-  const [geometryOpAvailability, setGeometryOpAvailability] = useState<{
-    canMerge: boolean;
-    canSubtract: boolean;
-  }>({ canMerge: false, canSubtract: false });
-  const [geometryOpPickMode, setGeometryOpPickMode] =
-    useState<GeometryOpPickMode>(null);
+  // 도형 위 불리언 연산 마커들(EditorPage가 렌더). 선택 도형을 뺀 후보마다 +(병합), 겹치면 -(제거).
+  const [geometryOpMarkers, setGeometryOpMarkers] = useState<GeometryOpMarkerData[]>(
+    [],
+  );
 
-  // 상대 고르기 모드를 켠다. ref와 state를 함께 갱신(핸들러는 ref, 렌더는 state).
-  const enterGeometryOpPickMode = (mode: "merge" | "subtract") => {
-    geometryOpPickModeRef.current = mode;
-    setGeometryOpPickMode(mode);
-  };
-  const cancelGeometryOpPickMode = () => {
-    geometryOpPickModeRef.current = null;
-    setGeometryOpPickMode(null);
-  };
-
-  // 병합 버튼: 항상 상대 고르기 모드로(떨어진 폴리곤도 명시 선택해 합칠 수 있게).
-  const handleGeometryOpMerge = () => {
-    if (geometryOpTargetsRef.current.mergeCandidateIds.length > 0) {
-      enterGeometryOpPickMode("merge");
+  // 마커 클릭 핸들러: 선택 도형(target)과 클릭한 후보(otherId) 사이의 연산을 바로 적용한다.
+  const handleGeometryOpMerge = (otherId: string) => {
+    const targetId = geometryOpTargetsRef.current.targetId;
+    if (targetId) {
+      applyMerge(targetId, otherId);
     }
   };
-  // 제거 버튼: 겹친 후보가 정확히 1개면 바로 적용, 여러 개면 상대 고르기 모드로.
-  const handleGeometryOpSubtract = () => {
-    const { targetId, subtractCandidateIds } = geometryOpTargetsRef.current;
-    if (!targetId || subtractCandidateIds.length === 0) {
-      return;
+  const handleGeometryOpSubtract = (cutterId: string) => {
+    const targetId = geometryOpTargetsRef.current.targetId;
+    if (targetId) {
+      applySubtract(targetId, cutterId);
     }
-    if (subtractCandidateIds.length === 1) {
-      applySubtract(targetId, subtractCandidateIds[0]);
-      return;
-    }
-    enterGeometryOpPickMode("subtract");
   };
 
   useEffect(() => {
@@ -202,26 +199,6 @@ export function useOpenLayersEditorMap() {
     const selection = attachEditorSelection(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
       onSelect: (featureId, modifiers) => {
-        // 상대 고르기 모드: 클릭을 operand 선택으로 가로챈다(선택 자체는 바꾸지 않음).
-        // 후보가 아닌 곳/빈 곳을 클릭하면 모드만 해제(취소)된다.
-        const pickMode = geometryOpPickModeRef.current;
-        if (pickMode) {
-          geometryOpPickModeRef.current = null;
-          setGeometryOpPickMode(null);
-          const { targetId, mergeCandidateIds, subtractCandidateIds } =
-            geometryOpTargetsRef.current;
-          if (featureId && targetId && featureId !== targetId) {
-            if (pickMode === "merge" && mergeCandidateIds.includes(featureId)) {
-              applyMerge(targetId, featureId);
-            } else if (
-              pickMode === "subtract" &&
-              subtractCandidateIds.includes(featureId)
-            ) {
-              applySubtract(targetId, featureId);
-            }
-          }
-          return;
-        }
         // 정점 추가 직후 짧은 시간 내 따라오는 단일클릭은 선택을 흔들지 않도록 무시한다(만료 후 자동 해제).
         if (performance.now() < suppressSelectUntilRef.current) {
           suppressSelectUntilRef.current = 0;
@@ -327,17 +304,14 @@ export function useOpenLayersEditorMap() {
       );
     });
 
-    // 불리언 연산 툴바 앵커는 팬/줌 후에도 도형 상단 중앙을 따라가야 한다(후보는 그대로, 위치만 갱신).
+    // 불리언 연산 마커는 팬/줌 후에도 각 후보 도형의 상단 중앙을 따라가야 한다(후보는 그대로, 위치만 갱신).
     const anchorMoveEndKey = map.on("moveend", () => {
-      const targetId = geometryOpTargetsRef.current.targetId;
-      setGeometryOpAnchor(
-        targetId
-          ? getFeatureAnchorPixel(
-              map,
-              useEditorStore.getState().scene as EditorScene | null,
-              targetId,
-            )
-          : null,
+      setGeometryOpMarkers(
+        buildGeometryOpMarkers(
+          map,
+          useEditorStore.getState().scene as EditorScene | null,
+          geometryOpTargetsRef.current,
+        ),
       );
     });
 
@@ -509,21 +483,18 @@ export function useOpenLayersEditorMap() {
     }
 
     const activation = getMapInteractionActivation(activeMode);
-    // 상대 고르기 모드에서는 정점편집·이동·힌트를 잠시 끈다(클릭이 깔끔한 operand 선택이 되도록).
-    // 모드를 빠져나오면 이 이펙트가 다시 돌아 선택 도형의 핸들을 복구한다.
-    const editingActive = activation.vertexEdit && !geometryOpPickMode;
     selectionRef.current?.setActive(activation.selection);
-    modifyRef.current?.setActive(editingActive);
-    translateRef.current?.setActive(editingActive);
-    affordanceRef.current?.setActive(activation.affordance && !geometryOpPickMode);
-    detailRef.current?.setActive(editingActive);
+    modifyRef.current?.setActive(activation.vertexEdit);
+    translateRef.current?.setActive(activation.vertexEdit);
+    affordanceRef.current?.setActive(activation.affordance);
+    detailRef.current?.setActive(activation.vertexEdit);
 
     // 선택/호버를 멈춘 모드에서는 잔여 호버 하이라이트를 내린다(선택 자체는 유지).
     if (!activation.selection) {
       useEditorStore.getState().setHoveredFeatureId(null);
     }
 
-    if (editingActive) {
+    if (activation.vertexEdit) {
       // 편집 활성(예: Select 복귀): 정점 편집 대상(1개)으로 핸들을, 이동 대상(선택 전부)으로 Translate를 복구한다.
       const currentScene = useEditorStore.getState().scene as EditorScene | null;
       const { vertexEditTargetIds, translateTargetIds } = deriveSelectionTargets(
@@ -547,76 +518,41 @@ export function useOpenLayersEditorMap() {
       modifyRef.current?.sync(vertexEditTargetIds);
       translateRef.current?.sync(translateTargetIds);
     } else {
-      // 편집 비활성(다른 모드 또는 상대 고르기 중): 정점/상세 오버레이와 힌트를 즉시 내린다.
+      // 편집 비활성: 정점/상세 오버레이와 힌트를 즉시 내린다.
       vertexLayerRef.current?.getSource()?.clear(true);
       detailLayerRef.current?.getSource()?.clear(true);
       setEditAffordance(null);
     }
-  }, [activeMode, geometryOpPickMode]);
+  }, [activeMode]);
 
-  // 도형 위 불리언 연산 툴바: 단일 폴리곤 선택 시 병합/제거 후보를 도출하고 앵커를 잡는다.
-  // 선택/scene/모드가 바뀔 때마다 재계산한다(앵커의 팬·줌 추적은 moveend가 담당).
+  // 도형 위 불리언 연산 마커: 단일 폴리곤 선택 시 다른 폴리곤마다 병합(+)·겹치면 제거(-) 마커를 띄운다.
+  // 선택/scene/모드가 바뀔 때마다 후보를 재도출한다(마커 위치의 팬·줌 추적은 moveend가 담당).
   useEffect(() => {
     const map = mapRef.current;
     if (!map) {
       return;
     }
 
-    // 선택 모드가 아니면 툴바를 숨기고 상대 고르기 모드를 해제한다.
+    // 선택 모드가 아니면 마커를 숨긴다.
     if (!getMapInteractionActivation(activeMode).selection) {
       geometryOpTargetsRef.current = EMPTY_GEOMETRY_OP_TARGETS;
-      setGeometryOpAvailability({ canMerge: false, canSubtract: false });
-      setGeometryOpAnchor(null);
-      geometryOpPickModeRef.current = null;
-      setGeometryOpPickMode(null);
+      setGeometryOpMarkers([]);
       return;
     }
 
     const currentScene = scene as EditorScene | null;
     const targets = deriveGeometryOpTargets(currentScene, new Set(selectedFeatureIds));
     geometryOpTargetsRef.current = targets;
-    setGeometryOpAvailability({
-      canMerge: targets.mergeCandidateIds.length > 0,
-      canSubtract: targets.subtractCandidateIds.length > 0,
-    });
-    setGeometryOpAnchor(
-      targets.targetId
-        ? getFeatureAnchorPixel(map, currentScene, targets.targetId)
-        : null,
-    );
-    // 대상이 사라지면(선택 해제·다중·비폴리곤) 상대 고르기 모드도 해제한다.
-    if (!targets.targetId) {
-      geometryOpPickModeRef.current = null;
-      setGeometryOpPickMode(null);
-    }
+    setGeometryOpMarkers(buildGeometryOpMarkers(map, currentScene, targets));
   }, [scene, selectedFeatureIds, activeMode]);
-
-  // 상대 고르기 모드에서 Esc로 취소한다.
-  useEffect(() => {
-    if (!geometryOpPickMode) {
-      return;
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        geometryOpPickModeRef.current = null;
-        setGeometryOpPickMode(null);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [geometryOpPickMode]);
 
   return {
     mapElementRef,
     editAffordance,
     geometryOp: {
-      anchor: geometryOpAnchor,
-      canMerge: geometryOpAvailability.canMerge,
-      canSubtract: geometryOpAvailability.canSubtract,
-      pickMode: geometryOpPickMode,
+      markers: geometryOpMarkers,
       onMerge: handleGeometryOpMerge,
       onSubtract: handleGeometryOpSubtract,
-      onCancelPick: cancelGeometryOpPickMode,
     },
   };
 }
