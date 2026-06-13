@@ -1,3 +1,4 @@
+export { GeometryOpToolbar } from "./components/GeometryOpToolbar";
 export {
   hasAreaOverlap,
   MIN_OVERLAP_AREA_SQUARE_METERS,

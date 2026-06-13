@@ -13,6 +13,7 @@ export * from "./createOpenLayersStyle";
 export * from "./createOpenStreetMapLayer";
 export * from "./editorContentLayers";
 export * from "./centerViewOnFeature";
+export * from "./getFeatureAnchorPixel";
 export * from "./geometryDistance";
 export * from "./invalidateFeatureStyles";
 export * from "./readVertexViewInfo";
