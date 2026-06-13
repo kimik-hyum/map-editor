@@ -7,7 +7,9 @@ import { getEditorLayerId } from "./editorContentLayers";
 type EditorSelectionOptions = {
   // 핸들러는 한 번만 붙으므로 항상 최신 scene을 읽도록 getter로 받습니다.
   getScene: () => EditorScene | null;
-  onSelect: (featureIds: string[]) => void;
+  // 픽한 피처 id(없으면 null)와 보조키(Cmd/Ctrl) 여부를 알립니다.
+  // 교체/토글/해제 정책은 hook이 결정합니다(어댑터는 features/* 정책을 모름).
+  onSelect: (featureId: string | null, additive: boolean) => void;
   onHover: (featureId: string | null) => void;
 };
 
@@ -56,7 +58,10 @@ export function attachEditorSelection(
     }
     const scene = options.getScene();
     const id = scene ? pickSelectableFeatureId(map, event.pixel, scene) : null;
-    options.onSelect(id ? [id] : []);
+    // Cmd(macOS)/Ctrl(기타) = 다중 선택 토글. (DOM 이벤트 속성만 읽는다 — 정책은 hook이 판단)
+    const original = event.originalEvent as MouseEvent | undefined;
+    const additive = Boolean(original && (original.metaKey || original.ctrlKey));
+    options.onSelect(id, additive);
   });
 
   const moveKey = map.on("pointermove", (event) => {

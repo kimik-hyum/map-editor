@@ -21,7 +21,11 @@ import {
   syncVertexOverlay,
 } from "@/pages/editor/adapters/openlayers";
 import { getMapInteractionActivation } from "@/pages/editor/features/map/model/mapInteractionModel";
-import { getChangedSelectionIds } from "@/pages/editor/features/selection";
+import {
+  getChangedSelectionIds,
+  getSingleEditableEditTargetIds,
+  resolveSelection,
+} from "@/pages/editor/features/selection";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import type { EditorScene } from "@/pages/editor/types/editorTypes";
 
@@ -42,7 +46,10 @@ export function useOpenLayersEditorMap() {
     selectedIds: new Set<string>(),
     hoveredId: null,
   });
-  // 현재 선택된 도형의 전체 투영 정점. 호버 상세에서 커서 반경 질의에 사용합니다.
+  // 편집(정점편집·이동·affordance) 대상 id. 선택 전체가 아니라 "정확히 1개의 편집 가능 도형"일 때만 채워진다.
+  // 다중 선택·읽기전용·잠금·숨김이면 비어 있어 편집 바인딩이 붙지 않는다(하이라이트는 selectedIds 전체).
+  const editTargetIdsRef = useRef<Set<string>>(new Set());
+  // 현재 편집 대상 도형의 전체 투영 정점. 호버 상세에서 커서 반경 질의에 사용합니다.
   const selectedVerticesRef = useRef<ProjectedVertex[]>([]);
   // 정점 편집(Modify) 핸들. 선택 변경/씬 재빌드 때 선택 도형으로 재바인딩합니다.
   const modifyRef = useRef<ReturnType<typeof attachVertexModify> | null>(null);
@@ -82,13 +89,17 @@ export function useOpenLayersEditorMap() {
 
     const selection = attachEditorSelection(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
-      onSelect: (featureIds) => {
+      onSelect: (featureId, additive) => {
         // 정점 추가 직후 짧은 시간 내 따라오는 단일클릭은 선택을 흔들지 않도록 무시한다(만료 후 자동 해제).
         if (performance.now() < suppressSelectUntilRef.current) {
           suppressSelectUntilRef.current = 0;
           return;
         }
-        useEditorStore.getState().setSelectedFeatureIds(featureIds);
+        // 교체/토글/해제 정책은 순수 함수가 결정한다(보조키면 토글, 빈 곳 보조키는 no-op).
+        const current = useEditorStore.getState().selectedFeatureIds;
+        useEditorStore
+          .getState()
+          .setSelectedFeatureIds(resolveSelection(current, featureId, additive));
       },
       onHover: (featureId) => useEditorStore.getState().setHoveredFeatureId(featureId),
     });
@@ -116,7 +127,7 @@ export function useOpenLayersEditorMap() {
         syncVertexOverlay(
           vertexLayerRef.current,
           useEditorStore.getState().scene as EditorScene | null,
-          renderStateRef.current.selectedIds,
+          editTargetIdsRef.current,
           readVertexViewInfo(map),
         );
       },
@@ -143,7 +154,7 @@ export function useOpenLayersEditorMap() {
         syncVertexOverlay(
           vertexLayerRef.current,
           useEditorStore.getState().scene as EditorScene | null,
-          renderStateRef.current.selectedIds,
+          editTargetIdsRef.current,
           readVertexViewInfo(map),
         );
       },
@@ -153,7 +164,8 @@ export function useOpenLayersEditorMap() {
     // 커서가 선택 도형의 정점 위/외곽선/그 외 중 어디인지 판정해 툴팁 분기에 사용.
     const affordance = attachEditAffordance(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
-      getSelectedIds: () => useEditorStore.getState().selectedFeatureIds,
+      // 편집 힌트는 "편집 대상(정확히 1개의 편집 가능 도형)"에 대해서만 — 다중 선택이면 비어 있어 힌트가 없다.
+      getSelectedIds: () => Array.from(editTargetIdsRef.current),
       onChange: setEditAffordance,
     });
 
@@ -174,7 +186,7 @@ export function useOpenLayersEditorMap() {
       syncVertexOverlay(
         vertexLayerRef.current,
         useEditorStore.getState().scene as EditorScene | null,
-        renderStateRef.current.selectedIds,
+        editTargetIdsRef.current,
         readVertexViewInfo(map),
       );
     });
@@ -207,28 +219,35 @@ export function useOpenLayersEditorMap() {
     // 씬(콘텐츠 레이어) 렌더는 모드와 무관하게 항상 동기화한다.
     syncOpenLayersMapScene(map, scene as EditorScene | null, renderStateRef.current);
 
-    // 정점 핸들/편집 바인딩은 편집 활성 모드에서만 갱신한다(비-Select에선 숨김 유지).
+    // scene이 바뀌면 편집 대상(편집 가능 1개)을 다시 계산한다(편집 가능 여부가 바뀔 수 있음).
+    const editTargetIds = getSingleEditableEditTargetIds(
+      scene,
+      renderStateRef.current.selectedIds,
+    );
+    editTargetIdsRef.current = editTargetIds;
+
+    // 정점 핸들/편집 바인딩은 편집 활성 모드에서만, 그리고 "편집 대상"에만 갱신한다.
     const editing = getMapInteractionActivation(
       useEditorStore.getState().activeMode,
     ).vertexEdit;
     selectedVerticesRef.current = projectSelectedVertices(
       scene as EditorScene | null,
-      renderStateRef.current.selectedIds,
+      editTargetIds,
     );
     detailLayerRef.current?.getSource()?.clear(true);
     if (editing && vertexLayerRef.current) {
       syncVertexOverlay(
         vertexLayerRef.current,
         scene as EditorScene | null,
-        renderStateRef.current.selectedIds,
+        editTargetIds,
         readVertexViewInfo(map),
       );
     } else {
       vertexLayerRef.current?.getSource()?.clear(true);
     }
     if (editing) {
-      modifyRef.current?.sync(renderStateRef.current.selectedIds);
-      translateRef.current?.sync(renderStateRef.current.selectedIds);
+      modifyRef.current?.sync(editTargetIds);
+      translateRef.current?.sync(editTargetIds);
     }
   }, [scene]);
 
@@ -246,34 +265,41 @@ export function useOpenLayersEditorMap() {
     }
 
     renderStateRef.current.selectedIds = next;
-    // 선택 하이라이트는 모드와 무관하게 갱신한다.
+    // 선택 하이라이트는 "선택 전체"에 대해, 모드와 무관하게 갱신한다(다중 선택 모두 강조).
     invalidateFeatureStyles(map, changedIds);
 
-    // 정점 핸들/편집 바인딩은 편집 활성 모드에서만 갱신한다.
+    // 편집 대상(편집 가능 1개)을 다시 계산한다. 다중/읽기전용/잠금/숨김이면 빈 집합.
+    const editTargetIds = getSingleEditableEditTargetIds(
+      useEditorStore.getState().scene as EditorScene | null,
+      next,
+    );
+    editTargetIdsRef.current = editTargetIds;
+
+    // 정점 핸들/편집 바인딩은 편집 활성 모드에서만, 그리고 "편집 대상"에만 갱신한다.
     const editing = getMapInteractionActivation(
       useEditorStore.getState().activeMode,
     ).vertexEdit;
     selectedVerticesRef.current = projectSelectedVertices(
       useEditorStore.getState().scene as EditorScene | null,
-      next,
+      editTargetIds,
     );
     detailLayerRef.current?.getSource()?.clear(true);
     if (editing && vertexLayerRef.current) {
       syncVertexOverlay(
         vertexLayerRef.current,
         useEditorStore.getState().scene as EditorScene | null,
-        next,
+        editTargetIds,
         readVertexViewInfo(map),
       );
     } else {
       vertexLayerRef.current?.getSource()?.clear(true);
     }
     if (editing) {
-      modifyRef.current?.sync(next);
-      translateRef.current?.sync(next);
+      modifyRef.current?.sync(editTargetIds);
+      translateRef.current?.sync(editTargetIds);
     }
-    // 선택이 비면 편집 힌트도 즉시 내린다(다음 포인터 이동을 기다리지 않도록).
-    if (next.size === 0) {
+    // 편집 대상이 없으면(0개·다중·잠금 등) 편집 힌트를 즉시 내린다 — 1→2개로 바뀌는 순간 stale 툴팁 방지.
+    if (editTargetIds.size === 0) {
       setEditAffordance(null);
     }
   }, [selectedFeatureIds]);
@@ -333,20 +359,27 @@ export function useOpenLayersEditorMap() {
     }
 
     if (activation.vertexEdit) {
-      // 편집 활성(예: Select 복귀): 현재 선택으로 정점 핸들을 복구한다.
+      // 편집 활성(예: Select 복귀): 편집 대상(편집 가능 1개)으로 정점 핸들을 복구한다.
       const currentScene = useEditorStore.getState().scene as EditorScene | null;
-      const selectedIds = renderStateRef.current.selectedIds;
-      selectedVerticesRef.current = projectSelectedVertices(currentScene, selectedIds);
+      const editTargetIds = getSingleEditableEditTargetIds(
+        currentScene,
+        renderStateRef.current.selectedIds,
+      );
+      editTargetIdsRef.current = editTargetIds;
+      selectedVerticesRef.current = projectSelectedVertices(
+        currentScene,
+        editTargetIds,
+      );
       if (vertexLayerRef.current) {
         syncVertexOverlay(
           vertexLayerRef.current,
           currentScene,
-          selectedIds,
+          editTargetIds,
           readVertexViewInfo(map),
         );
       }
-      modifyRef.current?.sync(selectedIds);
-      translateRef.current?.sync(selectedIds);
+      modifyRef.current?.sync(editTargetIds);
+      translateRef.current?.sync(editTargetIds);
     } else {
       // 편집 비활성: 정점/상세 오버레이와 힌트를 즉시 내린다.
       vertexLayerRef.current?.getSource()?.clear(true);
