@@ -1,6 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Lock, LockOpen } from "lucide-react";
+import { isToggleSelectionModifier } from "@/pages/editor/features/selection";
 import { useScrollIntoViewWhenSelected } from "../hooks/useScrollIntoViewWhenSelected";
 import type { FeatureStackRowViewModel } from "../model/layerPanelModel";
 import { LayerVisibilityIcon } from "./LayerVisibilityIcon";
@@ -82,7 +83,7 @@ export function FeatureStackRow({
         aria-label={`${row.name} 선택`}
         aria-pressed={row.isSelected}
         className="min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left"
-        onClick={(event) => onSelect(row, event.metaKey || event.ctrlKey)}
+        onClick={(event) => onSelect(row, isToggleSelectionModifier(event))}
         type="button"
       >
         <span className="block truncate text-sm font-black leading-5 text-slate-950">

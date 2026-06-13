@@ -24,6 +24,7 @@ import { getMapInteractionActivation } from "@/pages/editor/features/map/model/m
 import {
   getChangedSelectionIds,
   getSingleEditableEditTargetIds,
+  isToggleSelectionModifier,
   resolveSelection,
 } from "@/pages/editor/features/selection";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
@@ -89,17 +90,20 @@ export function useOpenLayersEditorMap() {
 
     const selection = attachEditorSelection(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
-      onSelect: (featureId, additive) => {
+      onSelect: (featureId, modifiers) => {
         // 정점 추가 직후 짧은 시간 내 따라오는 단일클릭은 선택을 흔들지 않도록 무시한다(만료 후 자동 해제).
         if (performance.now() < suppressSelectUntilRef.current) {
           suppressSelectUntilRef.current = 0;
           return;
         }
-        // 교체/토글/해제 정책은 순수 함수가 결정한다(보조키면 토글, 빈 곳 보조키는 no-op).
+        // 교체/토글/해제 정책은 순수 함수가 결정한다(Cmd/Ctrl이면 토글, 빈 곳 보조키는 no-op).
+        const additive = isToggleSelectionModifier(modifiers);
         const current = useEditorStore.getState().selectedFeatureIds;
-        useEditorStore
-          .getState()
-          .setSelectedFeatureIds(resolveSelection(current, featureId, additive));
+        const next = resolveSelection(current, featureId, additive);
+        // 같은 참조(보조키+빈 곳)면 store를 건드리지 않는다.
+        if (next !== current) {
+          useEditorStore.getState().setSelectedFeatureIds([...next]);
+        }
       },
       onHover: (featureId) => useEditorStore.getState().setHoveredFeatureId(featureId),
     });
@@ -248,6 +252,11 @@ export function useOpenLayersEditorMap() {
     if (editing) {
       modifyRef.current?.sync(editTargetIds);
       translateRef.current?.sync(editTargetIds);
+    }
+    // scene 변경으로 편집 대상이 사라지면(예: 선택된 도형을 잠금/숨김) 편집 힌트도 즉시 내린다.
+    // (선택은 그대로라 selectedFeatureIds 이펙트가 돌지 않으므로 여기서 처리해야 한다.)
+    if (editTargetIds.size === 0) {
+      setEditAffordance(null);
     }
   }, [scene]);
 

@@ -67,8 +67,9 @@ describe("resolveSelection", () => {
     expect(resolveSelection(["a", "b"], "a", true)).toEqual(["b"]);
   });
 
-  it("보조키 + 빈 곳: 그대로 둔다(no-op, 실수 전체 해제 방지)", () => {
-    expect(resolveSelection(["a", "b"], null, true)).toEqual(["a", "b"]);
+  it("보조키 + 빈 곳: 같은 참조를 그대로 반환한다(진짜 no-op)", () => {
+    const current = ["a", "b"];
+    expect(resolveSelection(current, null, true)).toBe(current);
   });
 });
 

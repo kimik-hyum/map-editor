@@ -51,9 +51,10 @@ export function resolveSelection(
   current: readonly string[],
   pickedId: string | null,
   additive: boolean,
-): string[] {
+): readonly string[] {
   if (additive) {
-    return pickedId === null ? [...current] : toggleFeatureSelection(current, pickedId);
+    // 보조키+빈 곳은 진짜 no-op: 같은 참조를 그대로 반환해 불필요한 store 갱신/리렌더를 막는다.
+    return pickedId === null ? current : toggleFeatureSelection(current, pickedId);
   }
   return pickedId === null ? [] : [pickedId];
 }
