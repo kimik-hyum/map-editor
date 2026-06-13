@@ -627,4 +627,13 @@ describe("editorStore - 병합/제거", () => {
     expect(useEditorStore.getState().scene).toBe(before);
     expect(useEditorStore.getState().past).toHaveLength(0);
   });
+
+  it("제거 결과가 기존 geometry와 같으면 히스토리를 만들지 않는다(겹침 없는 difference 등)", () => {
+    const before = useEditorStore.getState().scene;
+    // feature-1은 GEOMETRY_A. 같은 값으로 호출하면 실제 변화가 없어 no-op이어야 한다.
+    useEditorStore.getState().subtractFeature("feature-1", GEOMETRY_A);
+
+    expect(useEditorStore.getState().scene).toBe(before);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+  });
 });

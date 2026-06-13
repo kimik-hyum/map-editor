@@ -391,29 +391,37 @@ function mergeFeaturesInScene(
 }
 
 // 제거(difference): 결과 geometry로 target을 교체하고, 결과가 비면(null) target을 삭제합니다.
-// cutter는 건드리지 않습니다. target이 없으면 원본 scene 참조를 그대로 반환합니다(no-op).
+// cutter는 건드리지 않습니다. target이 없거나 결과가 기존 geometry와 동일하면(겹침 없는 difference 등)
+// 원본 scene 참조를 그대로 반환합니다(no-op → 히스토리 오염 방지).
 function subtractFeatureInScene(
   scene: EditorScene,
   targetId: string,
   geometry: GeoJsonGeometry | null,
 ): EditorScene {
-  let targetFound = false;
+  let changed = false;
   const layers: EditorScene["layers"] = [];
 
   for (const layer of scene.layers) {
-    if (!layer.features.some((feature) => feature.id === targetId)) {
+    const targetFeature = layer.features.find((feature) => feature.id === targetId);
+    if (!targetFeature) {
       layers.push(layer);
       continue;
     }
-    targetFound = true;
 
     if (geometry === null) {
       // 빈 결과 → target 삭제. 평탄 스택에서 비워진 레이어는 드롭한다.
       const features = layer.features.filter((feature) => feature.id !== targetId);
+      changed = true;
       if (features.length === 0) {
         continue;
       }
       layers.push({ ...layer, features });
+      continue;
+    }
+
+    // 동일 geometry면 교체하지 않는다(공개 액션이라 stale 후보·직접 호출로 무변경 결과가 올 수 있음).
+    if (areGeometriesEqual(targetFeature.feature.geometry, geometry)) {
+      layers.push(layer);
       continue;
     }
 
@@ -423,13 +431,11 @@ function subtractFeatureInScene(
         ? replaceFeatureGeometry(feature, geometry, kind)
         : feature,
     );
+    changed = true;
     layers.push({ ...layer, geometryKinds: [kind], features });
   }
 
-  if (!targetFound) {
-    return scene;
-  }
-  return { ...scene, layers };
+  return changed ? { ...scene, layers } : scene;
 }
 
 // 대상 피처가 없거나 동일 값이면 원본 scene 참조를 그대로 반환합니다(no-op).

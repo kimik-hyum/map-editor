@@ -509,18 +509,21 @@ export function useOpenLayersEditorMap() {
     }
 
     const activation = getMapInteractionActivation(activeMode);
+    // 상대 고르기 모드에서는 정점편집·이동·힌트를 잠시 끈다(클릭이 깔끔한 operand 선택이 되도록).
+    // 모드를 빠져나오면 이 이펙트가 다시 돌아 선택 도형의 핸들을 복구한다.
+    const editingActive = activation.vertexEdit && !geometryOpPickMode;
     selectionRef.current?.setActive(activation.selection);
-    modifyRef.current?.setActive(activation.vertexEdit);
-    translateRef.current?.setActive(activation.vertexEdit);
-    affordanceRef.current?.setActive(activation.affordance);
-    detailRef.current?.setActive(activation.vertexEdit);
+    modifyRef.current?.setActive(editingActive);
+    translateRef.current?.setActive(editingActive);
+    affordanceRef.current?.setActive(activation.affordance && !geometryOpPickMode);
+    detailRef.current?.setActive(editingActive);
 
     // 선택/호버를 멈춘 모드에서는 잔여 호버 하이라이트를 내린다(선택 자체는 유지).
     if (!activation.selection) {
       useEditorStore.getState().setHoveredFeatureId(null);
     }
 
-    if (activation.vertexEdit) {
+    if (editingActive) {
       // 편집 활성(예: Select 복귀): 정점 편집 대상(1개)으로 핸들을, 이동 대상(선택 전부)으로 Translate를 복구한다.
       const currentScene = useEditorStore.getState().scene as EditorScene | null;
       const { vertexEditTargetIds, translateTargetIds } = deriveSelectionTargets(
@@ -544,12 +547,12 @@ export function useOpenLayersEditorMap() {
       modifyRef.current?.sync(vertexEditTargetIds);
       translateRef.current?.sync(translateTargetIds);
     } else {
-      // 편집 비활성: 정점/상세 오버레이와 힌트를 즉시 내린다.
+      // 편집 비활성(다른 모드 또는 상대 고르기 중): 정점/상세 오버레이와 힌트를 즉시 내린다.
       vertexLayerRef.current?.getSource()?.clear(true);
       detailLayerRef.current?.getSource()?.clear(true);
       setEditAffordance(null);
     }
-  }, [activeMode]);
+  }, [activeMode, geometryOpPickMode]);
 
   // 도형 위 불리언 연산 툴바: 단일 폴리곤 선택 시 병합/제거 후보를 도출하고 앵커를 잡는다.
   // 선택/scene/모드가 바뀔 때마다 재계산한다(앵커의 팬·줌 추적은 moveend가 담당).
