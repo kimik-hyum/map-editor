@@ -4,6 +4,7 @@ import {
   EditabilityState,
   EditorMode,
   FeatureLifecycle,
+  geometryKindFromGeometry,
   GeometryKind,
   LayerRole,
   LockState,
@@ -81,6 +82,8 @@ type EditorStoreActions = {
   updateFeaturesGeometry: (
     updates: ReadonlyArray<{ featureId: string; geometry: GeoJsonGeometry }>,
   ) => void;
+  mergeFeatures: (targetId: string, otherId: string, geometry: GeoJsonGeometry) => void;
+  subtractFeature: (targetId: string, geometry: GeoJsonGeometry | null) => void;
 };
 
 export type EditorStore = EditorStoreState & EditorStoreActions;
@@ -305,6 +308,130 @@ function updateFeaturesGeometryInScene(
   return changed ? { ...scene, layers } : scene;
 }
 
+// 불리언 연산으로 바뀐 target 피처를 새 geometry/geometryKind/lifecycle로 교체한 사본을 만듭니다.
+// 1레이어 = 1도형 평탄 스택이므로, target이 든 레이어의 geometryKinds도 함께 갱신합니다.
+function replaceFeatureGeometry(
+  feature: EditorScene["layers"][number]["features"][number],
+  geometry: GeoJsonGeometry,
+  kind: GeometryKind,
+) {
+  return {
+    ...feature,
+    geometryKind: kind,
+    feature: { ...feature.feature, geometry },
+    state: {
+      ...feature.state,
+      lifecycle:
+        feature.state.lifecycle === FeatureLifecycle.Created
+          ? FeatureLifecycle.Created
+          : FeatureLifecycle.Updated,
+    },
+  };
+}
+
+// 병합(union): target geometry/kind를 결과로 교체하고 other 피처를 제거합니다(원자적 1편집).
+// 평탄 스택에서 other를 빼 빈 레이어가 되면 그 레이어도 함께 드롭합니다.
+// 둘 중 하나라도 없으면 원본 scene 참조를 그대로 반환합니다(no-op).
+function mergeFeaturesInScene(
+  scene: EditorScene,
+  targetId: string,
+  otherId: string,
+  geometry: GeoJsonGeometry,
+): EditorScene {
+  if (targetId === otherId) {
+    return scene;
+  }
+
+  const kind = geometryKindFromGeometry(geometry);
+  let targetFound = false;
+  let otherFound = false;
+  const layers: EditorScene["layers"] = [];
+
+  for (const layer of scene.layers) {
+    const hadOther = layer.features.some((feature) => feature.id === otherId);
+    if (hadOther) {
+      otherFound = true;
+    }
+
+    let features = hadOther
+      ? layer.features.filter((feature) => feature.id !== otherId)
+      : layer.features;
+
+    const hasTarget = features.some((feature) => feature.id === targetId);
+    if (hasTarget) {
+      targetFound = true;
+      features = features.map((feature) =>
+        feature.id === targetId
+          ? replaceFeatureGeometry(feature, geometry, kind)
+          : feature,
+      );
+    }
+
+    // other를 빼 비워진 레이어는 드롭한다(평탄 스택: other가 단독으로 든 레이어).
+    if (hadOther && features.length === 0) {
+      continue;
+    }
+
+    if (!hadOther && !hasTarget) {
+      layers.push(layer);
+      continue;
+    }
+
+    layers.push(
+      hasTarget
+        ? { ...layer, geometryKinds: [kind], features }
+        : { ...layer, features },
+    );
+  }
+
+  if (!targetFound || !otherFound) {
+    return scene;
+  }
+  return { ...scene, layers };
+}
+
+// 제거(difference): 결과 geometry로 target을 교체하고, 결과가 비면(null) target을 삭제합니다.
+// cutter는 건드리지 않습니다. target이 없으면 원본 scene 참조를 그대로 반환합니다(no-op).
+function subtractFeatureInScene(
+  scene: EditorScene,
+  targetId: string,
+  geometry: GeoJsonGeometry | null,
+): EditorScene {
+  let targetFound = false;
+  const layers: EditorScene["layers"] = [];
+
+  for (const layer of scene.layers) {
+    if (!layer.features.some((feature) => feature.id === targetId)) {
+      layers.push(layer);
+      continue;
+    }
+    targetFound = true;
+
+    if (geometry === null) {
+      // 빈 결과 → target 삭제. 평탄 스택에서 비워진 레이어는 드롭한다.
+      const features = layer.features.filter((feature) => feature.id !== targetId);
+      if (features.length === 0) {
+        continue;
+      }
+      layers.push({ ...layer, features });
+      continue;
+    }
+
+    const kind = geometryKindFromGeometry(geometry);
+    const features = layer.features.map((feature) =>
+      feature.id === targetId
+        ? replaceFeatureGeometry(feature, geometry, kind)
+        : feature,
+    );
+    layers.push({ ...layer, geometryKinds: [kind], features });
+  }
+
+  if (!targetFound) {
+    return scene;
+  }
+  return { ...scene, layers };
+}
+
 // 대상 피처가 없거나 동일 값이면 원본 scene 참조를 그대로 반환합니다(no-op).
 function updateFeatureViewInScene(
   scene: EditorScene,
@@ -365,6 +492,9 @@ export const useEditorStore = create<EditorStore>((set) => {
         past:
           past.length > HISTORY_LIMIT ? past.slice(past.length - HISTORY_LIMIT) : past,
         future: [],
+        // 구조 편집(병합/제거)으로 사라진 피처를 가리키는 선택을 정리한다.
+        // 변경이 없으면 reconcileSelection이 같은 배열 참조를 반환해 불필요한 리렌더가 없다.
+        selectedFeatureIds: reconcileSelection(state.selectedFeatureIds, next),
         dirty: next !== state.baselineScene,
       };
     });
@@ -553,5 +683,13 @@ export const useEditorStore = create<EditorStore>((set) => {
     // 다중 이동 커밋: 여러 피처 geometry를 한 스냅샷(=undo 1단계)으로 묶습니다. 변경 0개면 히스토리 없음.
     updateFeaturesGeometry: (updates) =>
       commitSceneEdit((scene) => updateFeaturesGeometryInScene(scene, updates)),
+    // 병합(union): target을 결과로 교체 + other 제거를 한 스냅샷(=undo 1단계)으로 커밋합니다.
+    mergeFeatures: (targetId, otherId, geometry) =>
+      commitSceneEdit((scene) =>
+        mergeFeaturesInScene(scene, targetId, otherId, geometry),
+      ),
+    // 제거(difference): 결과로 target 교체(결과가 null이면 target 삭제)를 한 스냅샷으로 커밋합니다.
+    subtractFeature: (targetId, geometry) =>
+      commitSceneEdit((scene) => subtractFeatureInScene(scene, targetId, geometry)),
   };
 });

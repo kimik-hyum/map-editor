@@ -512,3 +512,119 @@ describe("editorStore - 쌓임 값 일괄 갱신", () => {
     expect(useEditorStore.getState().past.length).toBe(pastBefore);
   });
 });
+
+const MULTI_POLYGON: GeoJsonGeometry = {
+  type: "MultiPolygon",
+  coordinates: [
+    [
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 0],
+      ],
+    ],
+    [
+      [
+        [5, 5],
+        [6, 5],
+        [6, 6],
+        [5, 5],
+      ],
+    ],
+  ],
+};
+
+function layerIds(): string[] {
+  return useEditorStore.getState().scene?.layers.map((layer) => layer.id) ?? [];
+}
+
+function geometryKindOf(featureId: string): string | undefined {
+  for (const layer of useEditorStore.getState().scene?.layers ?? []) {
+    for (const feature of layer.features) {
+      if (feature.id === featureId) {
+        return feature.geometryKind;
+      }
+    }
+  }
+  return undefined;
+}
+
+describe("editorStore - 병합/제거", () => {
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleTwoFeatureScene());
+  });
+
+  it("병합은 target을 결과로 바꾸고 other 피처/레이어를 제거한다(undo 1단계)", () => {
+    useEditorStore.getState().mergeFeatures("feature-1", "feature-2", GEOMETRY_B);
+
+    const state = useEditorStore.getState();
+    expect(state.past).toHaveLength(1);
+    expect(state.dirty).toBe(true);
+    expect(layerIds()).toEqual(["layer-1"]); // other(layer-2) 드롭
+    expect(geometryOf("feature-1")).toEqual(GEOMETRY_B);
+    expect(geometryOf("feature-2")).toBeUndefined();
+  });
+
+  it("병합 결과가 MultiPolygon이면 geometryKind와 layer.geometryKinds가 함께 갱신된다", () => {
+    useEditorStore.getState().mergeFeatures("feature-1", "feature-2", MULTI_POLYGON);
+
+    expect(geometryKindOf("feature-1")).toBe("multiPolygon");
+    expect(useEditorStore.getState().scene?.layers[0]?.geometryKinds).toEqual([
+      "multiPolygon",
+    ]);
+  });
+
+  it("병합 후 undo 한 번이면 other 피처와 레이어가 함께 복원된다", () => {
+    useEditorStore.getState().mergeFeatures("feature-1", "feature-2", GEOMETRY_B);
+    useEditorStore.getState().undo();
+
+    expect(layerIds()).toEqual(["layer-1", "layer-2"]);
+    expect(geometryOf("feature-1")).toEqual(GEOMETRY_A);
+    expect(geometryOf("feature-2")).toEqual(GEOMETRY_A);
+  });
+
+  it("선택된 other가 병합으로 사라지면 선택에서 정리된다", () => {
+    useEditorStore.getState().setSelectedFeatureIds(["feature-1", "feature-2"]);
+    useEditorStore.getState().mergeFeatures("feature-1", "feature-2", GEOMETRY_B);
+
+    expect(useEditorStore.getState().selectedFeatureIds).toEqual(["feature-1"]);
+  });
+
+  it("target/other 중 하나라도 없으면 아무것도 바꾸지 않는다(no-op)", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().mergeFeatures("feature-1", "ghost", GEOMETRY_B);
+
+    expect(useEditorStore.getState().scene).toBe(before);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+  });
+
+  it("제거는 결과 geometry로 target을 교체한다(cutter는 store가 모름, undo 1단계)", () => {
+    useEditorStore.getState().subtractFeature("feature-1", GEOMETRY_B);
+
+    const state = useEditorStore.getState();
+    expect(state.past).toHaveLength(1);
+    expect(geometryOf("feature-1")).toEqual(GEOMETRY_B);
+    expect(layerIds()).toEqual(["layer-1", "layer-2"]); // 레이어 보존
+  });
+
+  it("제거 결과가 비면(null) target 피처와 레이어가 삭제되고 선택이 정리된다", () => {
+    useEditorStore.getState().setSelectedFeatureIds(["feature-1"]);
+    useEditorStore.getState().subtractFeature("feature-1", null);
+
+    const state = useEditorStore.getState();
+    expect(state.past).toHaveLength(1);
+    expect(layerIds()).toEqual(["layer-2"]);
+    expect(geometryOf("feature-1")).toBeUndefined();
+    expect(state.selectedFeatureIds).toEqual([]);
+  });
+
+  it("없는 target 제거는 아무것도 바꾸지 않는다(no-op)", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().subtractFeature("ghost", GEOMETRY_B);
+
+    expect(useEditorStore.getState().scene).toBe(before);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+  });
+});
