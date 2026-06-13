@@ -1,4 +1,5 @@
 import area from "@turf/area";
+import bbox from "@turf/bbox";
 import difference from "@turf/difference";
 import { feature as toFeature, featureCollection } from "@turf/helpers";
 import intersect from "@turf/intersect";
@@ -61,4 +62,11 @@ export function hasAreaOverlap(
   minArea: number = MIN_OVERLAP_AREA_SQUARE_METERS,
 ): boolean {
   return overlapAreaSquareMeters(a, b) > minArea;
+}
+
+// 폴리곤의 상단 중앙 앵커 좌표(경도/위도)입니다. 마커를 이 점 위쪽에 띄웁니다.
+// bbox = [minX(서), minY(남), maxX(동), maxY(북)] → [가로 중앙, 북쪽 끝].
+export function polygonAnchorLonLat(geometry: PolygonalGeometry): [number, number] {
+  const [minX, , maxX, maxY] = bbox(toTurf(geometry));
+  return [(minX + maxX) / 2, maxY];
 }

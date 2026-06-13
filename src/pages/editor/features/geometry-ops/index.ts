@@ -1,7 +1,4 @@
-export {
-  GeometryOpMarkers,
-  type GeometryOpMarkerData,
-} from "./components/GeometryOpMarkers";
+export { GeometryOpMarkers } from "./components/GeometryOpMarkers";
 export {
   hasAreaOverlap,
   MIN_OVERLAP_AREA_SQUARE_METERS,
@@ -10,6 +7,8 @@ export {
   unionGeometries,
 } from "./model/booleanOps";
 export {
+  buildGeometryOpMarkerInputs,
   deriveGeometryOpTargets,
+  type GeometryOpMarkerInput,
   type GeometryOpTargets,
 } from "./model/geometryOpsModel";

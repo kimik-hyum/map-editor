@@ -33,7 +33,7 @@ export function EditorPage() {
       />
       <MapCursorTooltip text={editHint} containerRef={mapElementRef} />
       <GeometryOpMarkers
-        markers={geometryOp.markers}
+        overlays={geometryOp.overlays}
         onMerge={geometryOp.onMerge}
         onSubtract={geometryOp.onSubtract}
       />

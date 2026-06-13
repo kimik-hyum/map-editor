@@ -3,6 +3,7 @@ import type { PolygonalGeometry } from "@/pages/editor/types/editorTypes";
 import {
   hasAreaOverlap,
   overlapAreaSquareMeters,
+  polygonAnchorLonLat,
   subtractGeometry,
   unionGeometries,
 } from "./booleanOps";
@@ -74,5 +75,11 @@ describe("overlapAreaSquareMeters / hasAreaOverlap", () => {
   it("변끼리 닿기만 하면 겹침으로 보지 않는다(면적 0)", () => {
     expect(overlapAreaSquareMeters(A, EDGE_TOUCH)).toBe(0);
     expect(hasAreaOverlap(A, EDGE_TOUCH)).toBe(false);
+  });
+});
+
+describe("polygonAnchorLonLat", () => {
+  it("bbox 상단 중앙(가로 중앙, 북쪽 끝)을 반환한다", () => {
+    expect(polygonAnchorLonLat(square(0, 0, 2, 4))).toEqual([1, 4]);
   });
 });

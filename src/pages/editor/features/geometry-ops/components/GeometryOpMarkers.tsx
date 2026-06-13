@@ -1,43 +1,40 @@
+import { createPortal } from "react-dom";
 import { GeometryOpMarker } from "./GeometryOpMarker";
 
-// 후보 폴리곤 하나의 마커 데이터(화면 위치 + 제거 가능 여부). hook이 계산해 내려줍니다.
-export type GeometryOpMarkerData = {
+// ol/Overlay가 지도 좌표에 고정한 DOM 핸들. 어댑터 핸들과 구조가 같아 그대로 받습니다(타입 결합 없음).
+type GeometryOpOverlayHandle = {
   featureId: string;
-  x: number;
-  y: number;
+  element: HTMLElement;
   canSubtract: boolean;
 };
 
 type GeometryOpMarkersProps = {
-  markers: GeometryOpMarkerData[];
+  overlays: GeometryOpOverlayHandle[];
   // 후보 도형 id를 받아 선택 도형과 병합/제거합니다.
   onMerge: (featureId: string) => void;
   onSubtract: (featureId: string) => void;
 };
 
-// 선택된 폴리곤을 제외한 모든 후보 폴리곤 위에 병합/제거 마커를 띄우는 지도 오버레이입니다.
-// 위치는 지도 컨테이너 기준 절대좌표이며, 지도 팬/줌 시 hook이 위치를 갱신합니다.
+// 각 후보 폴리곤의 ol/Overlay 요소 안에 병합/제거 마커를 portal로 렌더합니다.
+// 위치 추적(팬·줌)은 OL이 매 프레임 처리하므로 여기서는 내용만 그립니다.
 export function GeometryOpMarkers({
-  markers,
+  overlays,
   onMerge,
   onSubtract,
 }: GeometryOpMarkersProps) {
-  if (markers.length === 0) {
-    return null;
-  }
-
   return (
     <>
-      {markers.map((marker) => (
-        <GeometryOpMarker
-          canSubtract={marker.canSubtract}
-          key={marker.featureId}
-          onMerge={() => onMerge(marker.featureId)}
-          onSubtract={() => onSubtract(marker.featureId)}
-          x={marker.x}
-          y={marker.y}
-        />
-      ))}
+      {overlays.map((handle) =>
+        createPortal(
+          <GeometryOpMarker
+            canSubtract={handle.canSubtract}
+            onMerge={() => onMerge(handle.featureId)}
+            onSubtract={() => onSubtract(handle.featureId)}
+          />,
+          handle.element,
+          handle.featureId,
+        ),
+      )}
     </>
   );
 }

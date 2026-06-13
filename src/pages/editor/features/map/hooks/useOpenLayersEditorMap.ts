@@ -5,6 +5,7 @@ import {
   attachEditAffordance,
   attachEditorSelection,
   attachFeatureTranslate,
+  attachGeometryOpOverlays,
   attachVertexDetail,
   attachVertexModify,
   createOpenLayersMap,
@@ -13,7 +14,7 @@ import {
   type EditAffordance,
   centerViewOnFeature,
   type EditorRenderState,
-  getFeatureAnchorPixel,
+  type GeometryOpOverlayHandle,
   invalidateFeatureStyles,
   type ProjectedVertex,
   projectSelectedVertices,
@@ -22,8 +23,8 @@ import {
   syncVertexOverlay,
 } from "@/pages/editor/adapters/openlayers";
 import {
+  buildGeometryOpMarkerInputs,
   deriveGeometryOpTargets,
-  type GeometryOpMarkerData,
   type GeometryOpTargets,
   subtractGeometry,
   unionGeometries,
@@ -96,29 +97,6 @@ function applySubtract(targetId: string, cutterId: string) {
   useEditorStore.getState().subtractFeature(targetId, subtractGeometry(target, cutter));
 }
 
-// 후보 폴리곤마다 화면 마커(병합 +, 겹치면 제거 -)를 만든다. 각 후보의 상단 중앙에 앵커한다.
-// 앵커를 못 잡는 후보(정점 없음 등)는 건너뛴다.
-function buildGeometryOpMarkers(
-  map: OpenLayersMap,
-  scene: EditorScene | null,
-  targets: GeometryOpTargets,
-): GeometryOpMarkerData[] {
-  const subtractable = new Set(targets.subtractCandidateIds);
-  const markers: GeometryOpMarkerData[] = [];
-  for (const featureId of targets.mergeCandidateIds) {
-    const anchor = getFeatureAnchorPixel(map, scene, featureId);
-    if (anchor) {
-      markers.push({
-        featureId,
-        x: anchor.x,
-        y: anchor.y,
-        canSubtract: subtractable.has(featureId),
-      });
-    }
-  }
-  return markers;
-}
-
 export function useOpenLayersEditorMap() {
   const mapElementRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<OpenLayersMap | null>(null);
@@ -150,8 +128,12 @@ export function useOpenLayersEditorMap() {
   const detailRef = useRef<ReturnType<typeof attachVertexDetail> | null>(null);
   // 외곽선 클릭으로 정점을 추가한 직후 짧은 시간 동안 따라오는 selection 단일클릭을 무시한다(만료 시각, ms).
   const suppressSelectUntilRef = useRef(0);
-  // 불리언 연산 후보(병합/제거 대상). 마커 클릭·moveend 재계산 시점에 최신을 읽도록 ref로도 둔다.
+  // 불리언 연산 후보(병합/제거 대상). 마커 클릭 시점에 최신 target을 읽도록 ref로도 둔다.
   const geometryOpTargetsRef = useRef<GeometryOpTargets>(EMPTY_GEOMETRY_OP_TARGETS);
+  // 후보 도형 위 ol/Overlay 마커 핸들. OL이 팬/줌 위치 추적을 맡는다.
+  const geometryOpOverlaysRef = useRef<ReturnType<
+    typeof attachGeometryOpOverlays
+  > | null>(null);
 
   const scene = useEditorStore((state) => state.scene);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
@@ -161,10 +143,11 @@ export function useOpenLayersEditorMap() {
 
   // 커서 위치 기준 편집 동작(정점 위=삭제, 외곽선=추가, 그 외=없음). 툴팁 분기에 사용.
   const [editAffordance, setEditAffordance] = useState<EditAffordance>(null);
-  // 도형 위 불리언 연산 마커들(EditorPage가 렌더). 선택 도형을 뺀 후보마다 +(병합), 겹치면 -(제거).
-  const [geometryOpMarkers, setGeometryOpMarkers] = useState<GeometryOpMarkerData[]>(
-    [],
-  );
+  // 도형 위 불리언 연산 마커의 ol/Overlay 핸들(EditorPage가 portal 렌더).
+  // 선택 도형을 뺀 후보마다 +(병합), 겹치면 -(제거). 위치 추적은 OL이 담당.
+  const [geometryOpOverlays, setGeometryOpOverlays] = useState<
+    GeometryOpOverlayHandle[]
+  >([]);
 
   // 마커 클릭 핸들러: 선택 도형(target)과 클릭한 후보(otherId) 사이의 연산을 바로 적용한다.
   const handleGeometryOpMerge = (otherId: string) => {
@@ -195,6 +178,9 @@ export function useOpenLayersEditorMap() {
     const detailLayer = createVertexDetailOverlayLayer();
     map.addLayer(detailLayer);
     detailLayerRef.current = detailLayer;
+
+    // 후보 도형 위 병합/제거 마커는 ol/Overlay로 지도 좌표에 고정한다(OL이 팬/줌 위치 추적).
+    geometryOpOverlaysRef.current = attachGeometryOpOverlays(map);
 
     const selection = attachEditorSelection(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
@@ -304,25 +290,14 @@ export function useOpenLayersEditorMap() {
       );
     });
 
-    // 불리언 연산 마커는 팬/줌 후에도 각 후보 도형의 상단 중앙을 따라가야 한다(후보는 그대로, 위치만 갱신).
-    const anchorMoveEndKey = map.on("moveend", () => {
-      setGeometryOpMarkers(
-        buildGeometryOpMarkers(
-          map,
-          useEditorStore.getState().scene as EditorScene | null,
-          geometryOpTargetsRef.current,
-        ),
-      );
-    });
-
     return () => {
       selection.detach();
       detail.detach();
       translate.detach();
       modify.detach();
       affordance.detach();
+      geometryOpOverlaysRef.current?.detach();
       unByKey(moveEndKey);
-      unByKey(anchorMoveEndKey);
       map.setTarget(undefined);
       mapRef.current = null;
       vertexLayerRef.current = null;
@@ -332,6 +307,7 @@ export function useOpenLayersEditorMap() {
       selectionRef.current = null;
       affordanceRef.current = null;
       detailRef.current = null;
+      geometryOpOverlaysRef.current = null;
     };
   }, []);
 
@@ -526,31 +502,30 @@ export function useOpenLayersEditorMap() {
   }, [activeMode]);
 
   // 도형 위 불리언 연산 마커: 단일 폴리곤 선택 시 다른 폴리곤마다 병합(+)·겹치면 제거(-) 마커를 띄운다.
-  // 선택/scene/모드가 바뀔 때마다 후보를 재도출한다(마커 위치의 팬·줌 추적은 moveend가 담당).
+  // 선택/scene/모드가 바뀔 때마다 후보를 재도출해 ol/Overlay에 반영한다(위치의 팬·줌 추적은 OL이 담당).
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map) {
+    const overlays = geometryOpOverlaysRef.current;
+    if (!overlays) {
       return;
     }
 
-    // 선택 모드가 아니면 마커를 숨긴다.
+    // 선택 모드가 아니면 마커를 모두 내린다.
     if (!getMapInteractionActivation(activeMode).selection) {
       geometryOpTargetsRef.current = EMPTY_GEOMETRY_OP_TARGETS;
-      setGeometryOpMarkers([]);
+      setGeometryOpOverlays(overlays.sync([]));
       return;
     }
 
-    const currentScene = scene as EditorScene | null;
-    const targets = deriveGeometryOpTargets(currentScene, new Set(selectedFeatureIds));
+    const targets = deriveGeometryOpTargets(scene, new Set(selectedFeatureIds));
     geometryOpTargetsRef.current = targets;
-    setGeometryOpMarkers(buildGeometryOpMarkers(map, currentScene, targets));
+    setGeometryOpOverlays(overlays.sync(buildGeometryOpMarkerInputs(scene, targets)));
   }, [scene, selectedFeatureIds, activeMode]);
 
   return {
     mapElementRef,
     editAffordance,
     geometryOp: {
-      markers: geometryOpMarkers,
+      overlays: geometryOpOverlays,
       onMerge: handleGeometryOpMerge,
       onSubtract: handleGeometryOpSubtract,
     },

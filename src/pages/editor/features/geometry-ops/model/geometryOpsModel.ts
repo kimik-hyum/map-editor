@@ -6,7 +6,7 @@ import {
   type GeoJsonGeometry,
   type PolygonalGeometry,
 } from "@/pages/editor/types/editorTypes";
-import { hasAreaOverlap } from "./booleanOps";
+import { hasAreaOverlap, polygonAnchorLonLat } from "./booleanOps";
 
 // 선택한 도형(target) 기준으로 병합/제거 가능한 상대 후보를 도출합니다.
 // - target은 "정확히 1개 선택"이고 편집 가능(보임+편집가능+잠금해제)한 폴리곤일 때만 채워집니다.
@@ -72,4 +72,45 @@ export function deriveGeometryOpTargets(
   }
 
   return { targetId: target.id, mergeCandidateIds, subtractCandidateIds };
+}
+
+// 후보 폴리곤마다 화면 마커 입력(앵커 경위도 + 제거 가능 여부)을 만듭니다.
+// 좌표만 주고 픽셀 변환·추적은 ol/Overlay 어댑터에 맡깁니다(팬·줌 자동 추적).
+export type GeometryOpMarkerInput = {
+  featureId: string;
+  lonLat: [number, number];
+  canSubtract: boolean;
+};
+
+export function buildGeometryOpMarkerInputs(
+  scene: DeepReadonly<EditorScene> | null,
+  targets: GeometryOpTargets,
+): GeometryOpMarkerInput[] {
+  if (!scene) {
+    return [];
+  }
+  const subtractable = new Set(targets.subtractCandidateIds);
+  const geometryById = new Map<string, PolygonalGeometry>();
+  for (const layer of scene.layers) {
+    for (const feature of layer.features) {
+      const geometry = feature.feature.geometry as GeoJsonGeometry;
+      if (isPolygonalGeometry(geometry)) {
+        geometryById.set(feature.id, geometry);
+      }
+    }
+  }
+
+  const inputs: GeometryOpMarkerInput[] = [];
+  for (const featureId of targets.mergeCandidateIds) {
+    const geometry = geometryById.get(featureId);
+    if (!geometry) {
+      continue;
+    }
+    inputs.push({
+      featureId,
+      lonLat: polygonAnchorLonLat(geometry),
+      canSubtract: subtractable.has(featureId),
+    });
+  }
+  return inputs;
 }
