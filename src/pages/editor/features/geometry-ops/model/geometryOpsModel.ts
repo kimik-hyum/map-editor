@@ -80,19 +80,21 @@ export function deriveGeometryOpTargets(
   return { targetId: target.id, mergeCandidateIds, subtractCandidateIds };
 }
 
-// 병합/제거 패널에 보여줄 후보 목록을 만듭니다(이름 + 제거 가능 여부).
-// 패널이 별도 영역이라 화면 좌표는 필요 없고, 식별자(name 없으면 호출부가 id로 폴백)와
-// 겹침 여부만 준다. mergeCandidateIds 순서를 그대로 유지한다.
-export type GeometryOpCandidate = {
+// 후보 폴리곤마다 화면 마커 입력(표시명 + 제거 가능 여부)을 만듭니다.
+// name은 칩 윗행에 표시합니다. 이름이 없으면 OL 라벨과 같은 규칙으로 id를 폴백해
+// 식별자가 사라지지 않게 합니다(이름 행은 항상 채워짐 → 이름 없는 도형이 후보가 돼도
+// "feature-4" 같은 식별자가 남는다). 칩 화면 위치(내부 대표점)는 ol/Overlay 어댑터가
+// OL geometry에서 직접 계산하므로 여기서는 좌표를 주지 않습니다.
+export type GeometryOpMarkerInput = {
   featureId: string;
-  name?: string;
+  name: string;
   canSubtract: boolean;
 };
 
-export function buildGeometryOpCandidates(
+export function buildGeometryOpMarkerInputs(
   scene: DeepReadonly<EditorScene> | null,
   targets: GeometryOpTargets,
-): GeometryOpCandidate[] {
+): GeometryOpMarkerInput[] {
   if (!scene) {
     return [];
   }
@@ -106,7 +108,7 @@ export function buildGeometryOpCandidates(
 
   return targets.mergeCandidateIds.map((featureId) => ({
     featureId,
-    name: nameById.get(featureId),
+    name: nameById.get(featureId) ?? featureId,
     canSubtract: subtractable.has(featureId),
   }));
 }
