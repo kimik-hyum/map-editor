@@ -1,7 +1,7 @@
 import {
   EditabilityState,
   FeatureLifecycle,
-  GeometryKind,
+  geometryKindFromGeometry,
   LayerRole,
   LockState,
   SelectionState,
@@ -24,19 +24,6 @@ import type {
 // 배열 순서 = 그리는 순서(뒤가 위). 호스트가 생략한 값을 기본값/파생값으로 채웁니다:
 // id 생성, geometryKind 파생, 잠금→권한, 기본 상태, 폴리곤 ring 닫기.
 // 순수 함수이며 OpenLayers/React에 의존하지 않습니다.
-
-const GEOMETRY_KIND_BY_TYPE: Record<GeoJsonGeometry["type"], GeometryKind> = {
-  Point: GeometryKind.Point,
-  MultiPoint: GeometryKind.MultiPoint,
-  LineString: GeometryKind.Path,
-  MultiLineString: GeometryKind.MultiPath,
-  Polygon: GeometryKind.Polygon,
-  MultiPolygon: GeometryKind.MultiPolygon,
-};
-
-function toGeometryKind(geometry: GeoJsonGeometry): GeometryKind {
-  return GEOMETRY_KIND_BY_TYPE[geometry.type];
-}
 
 // 닫힌 링의 마지막 좌표가 첫 좌표와 같도록 보장합니다(폴리곤 입력 안전망).
 function closeRing(ring: EditorCoordinate[]): EditorCoordinate[] {
@@ -92,7 +79,7 @@ function normalizeFeature(input: EditorFeatureInput, featureId: string): EditorF
   const feature: EditorFeature = {
     id: featureId,
     name: input.name,
-    geometryKind: toGeometryKind(input.geometry),
+    geometryKind: geometryKindFromGeometry(input.geometry),
     feature: { type: "Feature", id: featureId, geometry, properties },
     state: {
       selection: SelectionState.None,

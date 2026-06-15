@@ -113,6 +113,22 @@ describe("createOpenLayersStyle", () => {
     // 0.22 × 1.5 = 0.33
     expect(fill).toContain("0.33");
   });
+
+  it("labelHidden이면 이름 라벨(Text)을 그리지 않는다(칩이 이름을 대신 표시)", () => {
+    const base = createLayer();
+    const labeledLayer: EditorLayer = {
+      ...base,
+      view: { ...base.view, labelVisible: true },
+    };
+
+    const shown = createOpenLayersStyle(createFeature(), labeledLayer) as Style;
+    expect(shown.getText()).toBeTruthy();
+
+    const hidden = createOpenLayersStyle(createFeature(), labeledLayer, {
+      labelHidden: true,
+    }) as Style;
+    expect(hidden.getText()).toBeFalsy();
+  });
 });
 
 describe("scaleFillAlpha", () => {

@@ -1,6 +1,7 @@
 export * from "./attachEditAffordance";
 export * from "./attachEditorSelection";
 export * from "./attachFeatureTranslate";
+export * from "./attachGeometryOpOverlays";
 export * from "./attachVertexDetail";
 export * from "./attachVertexModify";
 export * from "./createOpenLayersFeature";
