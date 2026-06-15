@@ -51,6 +51,24 @@ describe("subtractGeometry", () => {
     expect(subtractGeometry(A, COVERS_A)).toBeNull();
   });
 
+  it("Turf 실패는 null(빈 결과)이 아니라 undefined로 구분한다 — 실패가 target 삭제로 둔갑 방지", () => {
+    // NaN 좌표 폴리곤은 turf difference가 예외를 던진다(degenerate segment).
+    const broken = {
+      type: "Polygon",
+      coordinates: [
+        [
+          [Number.NaN, Number.NaN],
+          [1, 0],
+          [1, 1],
+          [Number.NaN, Number.NaN],
+        ],
+      ],
+    } as PolygonalGeometry;
+    const result = subtractGeometry(broken, A);
+    expect(result).toBeUndefined();
+    expect(result).not.toBeNull();
+  });
+
   it("cutter는 그대로 두고 target에서만 뺀다(교집합 면적만큼 줄어듦)", () => {
     const before = overlapAreaSquareMeters(A, A); // A 전체 면적
     const result = subtractGeometry(A, OVERLAP);

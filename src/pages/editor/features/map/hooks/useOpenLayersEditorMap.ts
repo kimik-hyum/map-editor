@@ -86,7 +86,8 @@ function applyMerge(targetId: string, otherId: string) {
   }
 }
 
-// 제거(difference): target에서 cutter와 겹친 부분을 뺍니다(빈 결과면 store가 target 삭제).
+// 제거(difference): target에서 cutter와 겹친 부분을 뺍니다.
+// undefined = 연산 실패 → no-op(실패가 target 삭제로 둔갑하지 않게). null = 빈 결과 → store가 target 삭제.
 function applySubtract(targetId: string, cutterId: string) {
   const scene = useEditorStore.getState().scene as EditorScene | null;
   const target = getPolygonalGeometryFromScene(scene, targetId);
@@ -94,7 +95,11 @@ function applySubtract(targetId: string, cutterId: string) {
   if (!target || !cutter) {
     return;
   }
-  useEditorStore.getState().subtractFeature(targetId, subtractGeometry(target, cutter));
+  const result = subtractGeometry(target, cutter);
+  if (result === undefined) {
+    return;
+  }
+  useEditorStore.getState().subtractFeature(targetId, result);
 }
 
 export function useOpenLayersEditorMap() {

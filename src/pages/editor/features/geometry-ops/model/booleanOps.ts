@@ -47,17 +47,20 @@ export function unionGeometries(
   );
 }
 
-// target에서 cutter와 겹치는 부분을 뺍니다. target이 완전히 가려지거나 실패하면 null(빈 결과)입니다.
+// target에서 cutter와 겹치는 부분을 뺍니다. 반환값이 세 가지로 구분됩니다:
+// - geometry: 남은 면
+// - null: "정상적인 빈 결과"(target이 cutter에 완전히 가려짐) → 호출부에서 target 삭제
+// - undefined: Turf 연산 실패(잘못된 폴리곤 등) → 호출부에서 no-op (실패가 삭제로 둔갑하면 안 됨)
+// 실패와 빈 결과를 같은 null로 뭉뚱그리면, 예외가 곧 선택 도형 삭제가 되어 데이터 손실이 납니다.
 export function subtractGeometry(
   target: PolygonalGeometry,
   cutter: PolygonalGeometry,
-): PolygonalGeometry | null {
-  return fromTurf(
-    safeTurf(
-      () => difference(featureCollection([toTurf(target), toTurf(cutter)])),
-      null,
-    ),
+): PolygonalGeometry | null | undefined {
+  const result = safeTurf<TurfPolygonFeature | null | undefined>(
+    () => difference(featureCollection([toTurf(target), toTurf(cutter)])),
+    undefined,
   );
+  return result === undefined ? undefined : fromTurf(result);
 }
 
 // 두 폴리곤이 공유하는 면적(㎡). 겹치지 않거나 변끼리 닿기만 하거나 연산이 실패하면 0입니다.
