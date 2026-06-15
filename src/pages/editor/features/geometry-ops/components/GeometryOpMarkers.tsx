@@ -5,6 +5,7 @@ import { GeometryOpMarker } from "./GeometryOpMarker";
 type GeometryOpOverlayHandle = {
   featureId: string;
   element: HTMLElement;
+  name?: string;
   canSubtract: boolean;
 };
 
@@ -28,6 +29,7 @@ export function GeometryOpMarkers({
         createPortal(
           <GeometryOpMarker
             canSubtract={handle.canSubtract}
+            name={handle.name}
             onMerge={() => onMerge(handle.featureId)}
             onSubtract={() => onSubtract(handle.featureId)}
           />,

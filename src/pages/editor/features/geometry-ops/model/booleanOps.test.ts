@@ -3,7 +3,7 @@ import type { PolygonalGeometry } from "@/pages/editor/types/editorTypes";
 import {
   hasAreaOverlap,
   overlapAreaSquareMeters,
-  polygonAnchorLonLat,
+  polygonInteriorLonLat,
   subtractGeometry,
   unionGeometries,
 } from "./booleanOps";
@@ -78,9 +78,15 @@ describe("overlapAreaSquareMeters / hasAreaOverlap", () => {
   });
 });
 
-describe("polygonAnchorLonLat", () => {
-  it("bbox 상단 중앙(가로 중앙, 북쪽 끝)을 반환한다", () => {
-    expect(polygonAnchorLonLat(square(0, 0, 2, 4))).toEqual([1, 4]);
+describe("polygonInteriorLonLat", () => {
+  it("도형 내부의 점을 반환한다(이웃 침범 방지를 위해 면 안쪽)", () => {
+    const point = polygonInteriorLonLat(square(0, 0, 2, 4));
+    expect(point).not.toBeNull();
+    const [x, y] = point ?? [Number.NaN, Number.NaN];
+    expect(x).toBeGreaterThan(0);
+    expect(x).toBeLessThan(2);
+    expect(y).toBeGreaterThan(0);
+    expect(y).toBeLessThan(4);
   });
 });
 

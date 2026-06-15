@@ -4,9 +4,11 @@ import { editorDefaultTheme } from "@/pages/editor/theme/editorTheme";
 import type { EditorFeature, EditorLayer } from "@/pages/editor/types/editorTypes";
 
 // 선택/호버 같은 store 기반 강조 상태입니다(scene 밖이라 스타일 단계에서 반영).
+// labelHidden: 불리언 연산 칩이 이름을 대신 보여줄 때 OL 이름 라벨을 숨겨 중복을 막습니다.
 export type FeatureRenderEmphasis = {
   selected?: boolean;
   hovered?: boolean;
+  labelHidden?: boolean;
 };
 
 // 채움색의 알파를 배율로 조절합니다(호버/선택 강조용). rgba·rgb·hex(#rrggbb)를 다루고
@@ -69,28 +71,29 @@ export function createOpenLayersStyle(
       color: base.strokeColor,
       width: strokeWidth,
     }),
-    text: layer.view.labelVisible
-      ? new Text({
-          backgroundFill: new Fill({
-            color: labelStyle.backgroundColor,
-          }),
-          backgroundStroke: new Stroke({
-            color: labelStyle.borderColor,
-            width: 1,
-          }),
-          fill: new Fill({
-            color: labelStyle.color,
-          }),
-          font: "700 11px Inter, system-ui, sans-serif",
-          overflow: true,
-          padding: [2, 4, 2, 4],
-          stroke: new Stroke({
-            color: labelStyle.haloColor,
-            width: 4,
-          }),
-          text: feature.name ?? String(feature.feature.id ?? ""),
-        })
-      : undefined,
+    text:
+      layer.view.labelVisible && !emphasis.labelHidden
+        ? new Text({
+            backgroundFill: new Fill({
+              color: labelStyle.backgroundColor,
+            }),
+            backgroundStroke: new Stroke({
+              color: labelStyle.borderColor,
+              width: 1,
+            }),
+            fill: new Fill({
+              color: labelStyle.color,
+            }),
+            font: "700 11px Inter, system-ui, sans-serif",
+            overflow: true,
+            padding: [2, 4, 2, 4],
+            stroke: new Stroke({
+              color: labelStyle.haloColor,
+              width: 4,
+            }),
+            text: feature.name ?? String(feature.feature.id ?? ""),
+          })
+        : undefined,
   });
 
   if (!emphasis.selected) {

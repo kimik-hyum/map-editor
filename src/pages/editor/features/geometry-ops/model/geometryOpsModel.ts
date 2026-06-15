@@ -7,7 +7,7 @@ import {
   type GeoJsonGeometry,
   type PolygonalGeometry,
 } from "@/pages/editor/types/editorTypes";
-import { hasAreaOverlap, polygonAnchorLonLat } from "./booleanOps";
+import { hasAreaOverlap, polygonInteriorLonLat } from "./booleanOps";
 
 // 선택한 도형(target) 기준으로 병합/제거 가능한 상대 후보를 도출합니다.
 // - target은 "정확히 1개 선택"이고 편집 가능(보임+편집가능+잠금해제)한 폴리곤일 때만 채워집니다.
@@ -80,13 +80,17 @@ export function deriveGeometryOpTargets(
   return { targetId: target.id, mergeCandidateIds, subtractCandidateIds };
 }
 
-// 후보 폴리곤마다 화면 마커 입력(앵커 경위도 + 제거 가능 여부)을 만듭니다.
-// 좌표만 주고 픽셀 변환·추적은 ol/Overlay 어댑터에 맡깁니다(팬·줌 자동 추적).
+// 후보 폴리곤마다 화면 마커 입력(내부 앵커 경위도 + 이름 + 제거 가능 여부)을 만듭니다.
+// name은 칩에 함께 표시합니다(없으면 칩은 +/- 버튼만). 좌표만 주고 픽셀 변환·추적은
+// ol/Overlay 어댑터에 맡깁니다(팬·줌 자동 추적).
 export type GeometryOpMarkerInput = {
   featureId: string;
   lonLat: [number, number];
+  name?: string;
   canSubtract: boolean;
 };
+
+type CandidatePolygon = { geometry: PolygonalGeometry; name?: string };
 
 export function buildGeometryOpMarkerInputs(
   scene: DeepReadonly<EditorScene> | null,
@@ -96,25 +100,31 @@ export function buildGeometryOpMarkerInputs(
     return [];
   }
   const subtractable = new Set(targets.subtractCandidateIds);
-  const geometryById = new Map<string, PolygonalGeometry>();
+  const candidateById = new Map<string, CandidatePolygon>();
   for (const layer of scene.layers) {
     for (const feature of layer.features) {
       const geometry = feature.feature.geometry as GeoJsonGeometry;
       if (isPolygonalGeometry(geometry)) {
-        geometryById.set(feature.id, geometry);
+        candidateById.set(feature.id, { geometry, name: feature.name });
       }
     }
   }
 
   const inputs: GeometryOpMarkerInput[] = [];
   for (const featureId of targets.mergeCandidateIds) {
-    const geometry = geometryById.get(featureId);
-    if (!geometry) {
+    const candidate = candidateById.get(featureId);
+    if (!candidate) {
+      continue;
+    }
+    const lonLat = polygonInteriorLonLat(candidate.geometry);
+    if (!lonLat) {
+      // 내부점을 못 구한 잘못된 폴리곤은 마커를 건너뛴다(연산 자체는 여전히 가능).
       continue;
     }
     inputs.push({
       featureId,
-      lonLat: polygonAnchorLonLat(geometry),
+      lonLat,
+      name: candidate.name,
       canSubtract: subtractable.has(featureId),
     });
   }

@@ -2,12 +2,13 @@ import type OpenLayersMap from "ol/Map";
 import Overlay from "ol/Overlay";
 import { fromLonLat } from "ol/proj";
 
-// 후보 폴리곤 하나의 오버레이 입력(앵커 경위도 + 제거 가능 여부).
+// 후보 폴리곤 하나의 오버레이 입력(앵커 경위도 + 이름 + 제거 가능 여부).
 // features/* 정책을 모르게 어댑터가 자체 정의합니다(구조가 같으면 모델 출력을 그대로 받습니다).
 // 내부 입력 계약이라 export하지 않습니다(sync 인자 타입으로만 사용).
 type GeometryOpOverlayInput = {
   featureId: string;
   lonLat: [number, number];
+  name?: string;
   canSubtract: boolean;
 };
 
@@ -15,6 +16,7 @@ type GeometryOpOverlayInput = {
 export type GeometryOpOverlayHandle = {
   featureId: string;
   element: HTMLElement;
+  name?: string;
   canSubtract: boolean;
 };
 
@@ -41,9 +43,8 @@ export function attachGeometryOpOverlays(map: OpenLayersMap) {
         const element = document.createElement("div");
         const overlay = new Overlay({
           element,
-          // 앵커(도형 상단 중앙)가 요소의 하단 중앙 → 마커가 도형 위쪽에 뜬다.
-          positioning: "bottom-center",
-          offset: [0, -8],
+          // 앵커(도형 내부 대표점)에 칩 중앙을 맞춰 도형 "안쪽"에 둔다(이웃 비침범·소속 명확).
+          positioning: "center-center",
           stopEvent: true,
         });
         map.addOverlay(overlay);
@@ -54,6 +55,7 @@ export function attachGeometryOpOverlays(map: OpenLayersMap) {
       handles.push({
         featureId: input.featureId,
         element: entry.element,
+        name: input.name,
         canSubtract: input.canSubtract,
       });
     }

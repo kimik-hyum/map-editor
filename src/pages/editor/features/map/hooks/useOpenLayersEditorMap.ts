@@ -110,6 +110,7 @@ export function useOpenLayersEditorMap() {
   const renderStateRef = useRef<EditorRenderState>({
     selectedIds: new Set<string>(),
     hoveredId: null,
+    geometryOpFeatureIds: new Set<string>(),
   });
   // 정점 편집(정점편집·삽입/삭제·힌트·정점 오버레이) 대상 id. "정확히 1개의 편집 가능 도형"일 때만 채워진다.
   // 다중 선택·읽기전용·잠금·숨김이면 비어 있어 정점 편집 바인딩이 붙지 않는다(하이라이트는 selectedIds 전체).
@@ -504,21 +505,35 @@ export function useOpenLayersEditorMap() {
   // 도형 위 불리언 연산 마커: 단일 폴리곤 선택 시 다른 폴리곤마다 병합(+)·겹치면 제거(-) 마커를 띄운다.
   // 선택/scene/모드가 바뀔 때마다 후보를 재도출해 ol/Overlay에 반영한다(위치의 팬·줌 추적은 OL이 담당).
   useEffect(() => {
+    const map = mapRef.current;
     const overlays = geometryOpOverlaysRef.current;
-    if (!overlays) {
+    if (!map || !overlays) {
       return;
     }
 
-    // 선택 모드가 아니면 마커를 모두 내린다.
+    // 칩을 반영하고, 칩이 떠 있는 후보의 OL 이름 라벨을 가린다(칩이 이름을 대신 보여줌 → 중복 방지).
+    // 칩이 새로 뜨거나 사라진 도형만 스타일을 다시 평가하게 무효화한다.
+    const applyChips = (handles: GeometryOpOverlayHandle[]) => {
+      setGeometryOpOverlays(handles);
+      const nextChipIds = new Set(handles.map((handle) => handle.featureId));
+      const prevChipIds = renderStateRef.current.geometryOpFeatureIds ?? new Set();
+      const changedIds = getChangedSelectionIds(prevChipIds, nextChipIds);
+      renderStateRef.current.geometryOpFeatureIds = nextChipIds;
+      if (changedIds.length > 0) {
+        invalidateFeatureStyles(map, changedIds);
+      }
+    };
+
+    // 선택 모드가 아니면 마커를 모두 내리고 라벨을 복구한다.
     if (!getMapInteractionActivation(activeMode).selection) {
       geometryOpTargetsRef.current = EMPTY_GEOMETRY_OP_TARGETS;
-      setGeometryOpOverlays(overlays.sync([]));
+      applyChips(overlays.sync([]));
       return;
     }
 
     const targets = deriveGeometryOpTargets(scene, new Set(selectedFeatureIds));
     geometryOpTargetsRef.current = targets;
-    setGeometryOpOverlays(overlays.sync(buildGeometryOpMarkerInputs(scene, targets)));
+    applyChips(overlays.sync(buildGeometryOpMarkerInputs(scene, targets)));
   }, [scene, selectedFeatureIds, activeMode]);
 
   return {

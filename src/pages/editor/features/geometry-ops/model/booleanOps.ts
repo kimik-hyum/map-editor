@@ -1,11 +1,14 @@
 import area from "@turf/area";
-import bbox from "@turf/bbox";
 import difference from "@turf/difference";
 import { feature as toFeature, featureCollection } from "@turf/helpers";
 import intersect from "@turf/intersect";
+import pointOnFeature from "@turf/point-on-feature";
 import union from "@turf/union";
 import type { Feature, MultiPolygon, Polygon } from "geojson";
-import type { PolygonalGeometry } from "@/pages/editor/types/editorTypes";
+import type {
+  EditorCoordinate,
+  PolygonalGeometry,
+} from "@/pages/editor/types/editorTypes";
 
 // React/OpenLayers를 모르는 순수 Turf 연산 모음입니다(단위 테스트 우선 대상).
 // 입력 geometry는 EPSG:4326(경도/위도)이라 Turf가 추가 투영 없이 그대로 다룹니다.
@@ -84,9 +87,15 @@ export function hasAreaOverlap(
   return overlapAreaSquareMeters(a, b) > minArea;
 }
 
-// 폴리곤의 상단 중앙 앵커 좌표(경도/위도)입니다. 마커를 이 점 위쪽에 띄웁니다.
-// bbox = [minX(서), minY(남), maxX(동), maxY(북)] → [가로 중앙, 북쪽 끝].
-export function polygonAnchorLonLat(geometry: PolygonalGeometry): [number, number] {
-  const [minX, , maxX, maxY] = bbox(toTurf(geometry));
-  return [(minX + maxX) / 2, maxY];
+// 폴리곤 내부 대표점(경도/위도)입니다. 마커 칩을 이 점에 (중앙 정렬로) 도형 "안쪽"에 둡니다.
+// 이웃 위에 얹히지 않고 그 도형 소속임이 분명해지도록, bbox 상단이 아니라 면 안의 점을 씁니다.
+// pointOnFeature는 결과가 항상 도형 위(폴리곤은 내부)임을 보장합니다(오목 도형 대비).
+// 잘못된 폴리곤이면 null(호출부에서 그 마커를 건너뜀) — 후보 도출 effect를 무너뜨리지 않기 위함.
+export function polygonInteriorLonLat(
+  geometry: PolygonalGeometry,
+): [number, number] | null {
+  return safeTurf<[number, number] | null>(() => {
+    const [lon, lat] = pointOnFeature(toTurf(geometry)).geometry.coordinates;
+    return [lon, lat] as EditorCoordinate;
+  }, null);
 }
