@@ -1,6 +1,6 @@
 import "ol/ol.css";
 import { MapCursorTooltip } from "@/shared/ui/MapCursorTooltip";
-import { GeometryOpMarkers } from "./features/geometry-ops";
+import { GeometryOpPanel } from "./features/geometry-ops";
 import { LayerPanel } from "./features/layers";
 import { useOpenLayersEditorMap } from "./features/map";
 import { useEditorMessaging } from "./messaging";
@@ -16,7 +16,7 @@ const EDIT_HINTS: Record<EditAffordanceKind, string> = {
 
 // 에디터 페이지는 화면 배치만 담당합니다. 지도 수명주기와 편집 인터랙션은 hook/controller가 관리합니다.
 export function EditorPage() {
-  const { mapElementRef, editAffordance, geometryOp } = useOpenLayersEditorMap();
+  const { mapElementRef, editAffordance } = useOpenLayersEditorMap();
   const isSceneReady = useEditorStore((state) => state.scene !== null);
   const editHint = editAffordance ? EDIT_HINTS[editAffordance] : null;
 
@@ -32,11 +32,7 @@ export function EditorPage() {
         aria-label="OSM map editor"
       />
       <MapCursorTooltip text={editHint} containerRef={mapElementRef} />
-      <GeometryOpMarkers
-        overlays={geometryOp.overlays}
-        onMerge={geometryOp.onMerge}
-        onSubtract={geometryOp.onSubtract}
-      />
+      {isSceneReady ? <GeometryOpPanel /> : null}
       {isSceneReady ? (
         <LayerPanel />
       ) : (

@@ -13,10 +13,7 @@ import {
   type GeoJsonGeometry,
   type PolygonalGeometry,
 } from "@/pages/editor/types/editorTypes";
-import {
-  buildGeometryOpMarkerInputs,
-  deriveGeometryOpTargets,
-} from "./geometryOpsModel";
+import { buildGeometryOpCandidates, deriveGeometryOpTargets } from "./geometryOpsModel";
 
 function square(x0: number, y0: number, x1: number, y1: number): PolygonalGeometry {
   return {
@@ -194,26 +191,31 @@ describe("deriveGeometryOpTargets", () => {
   });
 });
 
-describe("buildGeometryOpMarkerInputs", () => {
-  it("후보마다 앵커 좌표와 겹침 여부를 담은 입력을 만든다", () => {
+describe("buildGeometryOpCandidates", () => {
+  it("후보마다 이름과 겹침 여부를 담아 만든다", () => {
     const s = scene([
       layer("layer-a", [feature("a", square(0, 0, 2, 2))]),
       layer("layer-b", [feature("b", square(1, 1, 3, 3))]), // a와 겹침
       layer("layer-c", [feature("c", square(10, 10, 12, 12))]), // a와 떨어짐
     ]);
     const targets = deriveGeometryOpTargets(s, new Set(["a"]));
-    const inputs = buildGeometryOpMarkerInputs(s, targets);
+    const candidates = buildGeometryOpCandidates(s, targets);
 
-    expect(inputs.map((input) => input.featureId).sort()).toEqual(["b", "c"]);
-    const byId = new Map(inputs.map((input) => [input.featureId, input]));
+    expect(candidates.map((candidate) => candidate.featureId).sort()).toEqual([
+      "b",
+      "c",
+    ]);
+    const byId = new Map(
+      candidates.map((candidate) => [candidate.featureId, candidate]),
+    );
     expect(byId.get("b")?.canSubtract).toBe(true); // 겹침 → 제거 가능
     expect(byId.get("c")?.canSubtract).toBe(false); // 떨어짐 → 병합만
-    expect(byId.get("b")?.name).toBe("b"); // 이름을 칩에 함께 표시(칩 위치는 어댑터가 계산)
+    expect(byId.get("b")?.name).toBe("b"); // 이름을 패널에 표시(없으면 호출부가 id로 폴백)
   });
 
   it("후보가 없으면 빈 배열이다", () => {
     const s = scene([layer("layer-a", [feature("a", square(0, 0, 2, 2))])]);
     const targets = deriveGeometryOpTargets(s, new Set(["a"]));
-    expect(buildGeometryOpMarkerInputs(s, targets)).toEqual([]);
+    expect(buildGeometryOpCandidates(s, targets)).toEqual([]);
   });
 });

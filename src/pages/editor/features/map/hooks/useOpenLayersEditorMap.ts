@@ -5,7 +5,6 @@ import {
   attachEditAffordance,
   attachEditorSelection,
   attachFeatureTranslate,
-  attachGeometryOpOverlays,
   attachVertexDetail,
   attachVertexModify,
   createOpenLayersMap,
@@ -14,7 +13,6 @@ import {
   type EditAffordance,
   centerViewOnFeature,
   type EditorRenderState,
-  type GeometryOpOverlayHandle,
   invalidateFeatureStyles,
   type ProjectedVertex,
   projectSelectedVertices,
@@ -22,13 +20,6 @@ import {
   syncOpenLayersMapScene,
   syncVertexOverlay,
 } from "@/pages/editor/adapters/openlayers";
-import {
-  buildGeometryOpMarkerInputs,
-  deriveGeometryOpTargets,
-  type GeometryOpTargets,
-  subtractGeometry,
-  unionGeometries,
-} from "@/pages/editor/features/geometry-ops";
 import { getMapInteractionActivation } from "@/pages/editor/features/map/model/mapInteractionModel";
 import {
   deriveSelectionTargets,
@@ -37,70 +28,10 @@ import {
   resolveSelection,
 } from "@/pages/editor/features/selection";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
-import {
-  isPolygonalGeometry,
-  type EditorScene,
-  type GeoJsonGeometry,
-  type PolygonalGeometry,
-} from "@/pages/editor/types/editorTypes";
+import type { EditorScene } from "@/pages/editor/types/editorTypes";
 
 // 호버 시 커서로부터 이 픽셀 반경 안의 정점을 상세로 드러냅니다(편집 grab 허용보다 크게).
 const VERTEX_DETAIL_RADIUS_PX = 28;
-
-const EMPTY_GEOMETRY_OP_TARGETS: GeometryOpTargets = {
-  targetId: null,
-  mergeCandidateIds: [],
-  subtractCandidateIds: [],
-};
-
-// scene에서 피처의 폴리곤 geometry를 찾습니다(폴리곤이 아니면 null). 불리언 연산 입력 조회용.
-function getPolygonalGeometryFromScene(
-  scene: EditorScene | null,
-  featureId: string,
-): PolygonalGeometry | null {
-  if (!scene) {
-    return null;
-  }
-  for (const layer of scene.layers) {
-    for (const feature of layer.features) {
-      if (feature.id === featureId) {
-        const geometry = feature.feature.geometry as GeoJsonGeometry;
-        return isPolygonalGeometry(geometry) ? geometry : null;
-      }
-    }
-  }
-  return null;
-}
-
-// 병합(union): 두 폴리곤을 합친 결과로 target을 교체하고 other를 제거합니다(store 액션 호출).
-function applyMerge(targetId: string, otherId: string) {
-  const scene = useEditorStore.getState().scene as EditorScene | null;
-  const target = getPolygonalGeometryFromScene(scene, targetId);
-  const other = getPolygonalGeometryFromScene(scene, otherId);
-  if (!target || !other) {
-    return;
-  }
-  const result = unionGeometries(target, other);
-  if (result) {
-    useEditorStore.getState().mergeFeatures(targetId, otherId, result);
-  }
-}
-
-// 제거(difference): target에서 cutter와 겹친 부분을 뺍니다.
-// undefined = 연산 실패 → no-op(실패가 target 삭제로 둔갑하지 않게). null = 빈 결과 → store가 target 삭제.
-function applySubtract(targetId: string, cutterId: string) {
-  const scene = useEditorStore.getState().scene as EditorScene | null;
-  const target = getPolygonalGeometryFromScene(scene, targetId);
-  const cutter = getPolygonalGeometryFromScene(scene, cutterId);
-  if (!target || !cutter) {
-    return;
-  }
-  const result = subtractGeometry(target, cutter);
-  if (result === undefined) {
-    return;
-  }
-  useEditorStore.getState().subtractFeature(targetId, result);
-}
 
 export function useOpenLayersEditorMap() {
   const mapElementRef = useRef<HTMLElement | null>(null);
@@ -115,7 +46,6 @@ export function useOpenLayersEditorMap() {
   const renderStateRef = useRef<EditorRenderState>({
     selectedIds: new Set<string>(),
     hoveredId: null,
-    geometryOpFeatureIds: new Set<string>(),
   });
   // 정점 편집(정점편집·삽입/삭제·힌트·정점 오버레이) 대상 id. "정확히 1개의 편집 가능 도형"일 때만 채워진다.
   // 다중 선택·읽기전용·잠금·숨김이면 비어 있어 정점 편집 바인딩이 붙지 않는다(하이라이트는 selectedIds 전체).
@@ -134,12 +64,6 @@ export function useOpenLayersEditorMap() {
   const detailRef = useRef<ReturnType<typeof attachVertexDetail> | null>(null);
   // 외곽선 클릭으로 정점을 추가한 직후 짧은 시간 동안 따라오는 selection 단일클릭을 무시한다(만료 시각, ms).
   const suppressSelectUntilRef = useRef(0);
-  // 불리언 연산 후보(병합/제거 대상). 마커 클릭 시점에 최신 target을 읽도록 ref로도 둔다.
-  const geometryOpTargetsRef = useRef<GeometryOpTargets>(EMPTY_GEOMETRY_OP_TARGETS);
-  // 후보 도형 위 ol/Overlay 마커 핸들. OL이 팬/줌 위치 추적을 맡는다.
-  const geometryOpOverlaysRef = useRef<ReturnType<
-    typeof attachGeometryOpOverlays
-  > | null>(null);
 
   const scene = useEditorStore((state) => state.scene);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
@@ -149,25 +73,6 @@ export function useOpenLayersEditorMap() {
 
   // 커서 위치 기준 편집 동작(정점 위=삭제, 외곽선=추가, 그 외=없음). 툴팁 분기에 사용.
   const [editAffordance, setEditAffordance] = useState<EditAffordance>(null);
-  // 도형 위 불리언 연산 마커의 ol/Overlay 핸들(EditorPage가 portal 렌더).
-  // 선택 도형을 뺀 후보마다 +(병합), 겹치면 -(제거). 위치 추적은 OL이 담당.
-  const [geometryOpOverlays, setGeometryOpOverlays] = useState<
-    GeometryOpOverlayHandle[]
-  >([]);
-
-  // 마커 클릭 핸들러: 선택 도형(target)과 클릭한 후보(otherId) 사이의 연산을 바로 적용한다.
-  const handleGeometryOpMerge = (otherId: string) => {
-    const targetId = geometryOpTargetsRef.current.targetId;
-    if (targetId) {
-      applyMerge(targetId, otherId);
-    }
-  };
-  const handleGeometryOpSubtract = (cutterId: string) => {
-    const targetId = geometryOpTargetsRef.current.targetId;
-    if (targetId) {
-      applySubtract(targetId, cutterId);
-    }
-  };
 
   useEffect(() => {
     if (!mapElementRef.current || mapRef.current) {
@@ -184,9 +89,6 @@ export function useOpenLayersEditorMap() {
     const detailLayer = createVertexDetailOverlayLayer();
     map.addLayer(detailLayer);
     detailLayerRef.current = detailLayer;
-
-    // 후보 도형 위 병합/제거 마커는 ol/Overlay로 지도 좌표에 고정한다(OL이 팬/줌 위치 추적).
-    geometryOpOverlaysRef.current = attachGeometryOpOverlays(map);
 
     const selection = attachEditorSelection(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
@@ -302,7 +204,6 @@ export function useOpenLayersEditorMap() {
       translate.detach();
       modify.detach();
       affordance.detach();
-      geometryOpOverlaysRef.current?.detach();
       unByKey(moveEndKey);
       map.setTarget(undefined);
       mapRef.current = null;
@@ -313,7 +214,6 @@ export function useOpenLayersEditorMap() {
       selectionRef.current = null;
       affordanceRef.current = null;
       detailRef.current = null;
-      geometryOpOverlaysRef.current = null;
     };
   }, []);
 
@@ -507,47 +407,5 @@ export function useOpenLayersEditorMap() {
     }
   }, [activeMode]);
 
-  // 도형 위 불리언 연산 마커: 단일 폴리곤 선택 시 다른 폴리곤마다 병합(+)·겹치면 제거(-) 마커를 띄운다.
-  // 선택/scene/모드가 바뀔 때마다 후보를 재도출해 ol/Overlay에 반영한다(위치의 팬·줌 추적은 OL이 담당).
-  useEffect(() => {
-    const map = mapRef.current;
-    const overlays = geometryOpOverlaysRef.current;
-    if (!map || !overlays) {
-      return;
-    }
-
-    // 칩을 반영하고, 칩이 떠 있는 후보의 OL 이름 라벨을 가린다(칩이 이름을 대신 보여줌 → 중복 방지).
-    // 칩이 새로 뜨거나 사라진 도형만 스타일을 다시 평가하게 무효화한다.
-    const applyChips = (handles: GeometryOpOverlayHandle[]) => {
-      setGeometryOpOverlays(handles);
-      const nextChipIds = new Set(handles.map((handle) => handle.featureId));
-      const prevChipIds = renderStateRef.current.geometryOpFeatureIds ?? new Set();
-      const changedIds = getChangedSelectionIds(prevChipIds, nextChipIds);
-      renderStateRef.current.geometryOpFeatureIds = nextChipIds;
-      if (changedIds.length > 0) {
-        invalidateFeatureStyles(map, changedIds);
-      }
-    };
-
-    // 선택 모드가 아니면 마커를 모두 내리고 라벨을 복구한다.
-    if (!getMapInteractionActivation(activeMode).selection) {
-      geometryOpTargetsRef.current = EMPTY_GEOMETRY_OP_TARGETS;
-      applyChips(overlays.sync([]));
-      return;
-    }
-
-    const targets = deriveGeometryOpTargets(scene, new Set(selectedFeatureIds));
-    geometryOpTargetsRef.current = targets;
-    applyChips(overlays.sync(buildGeometryOpMarkerInputs(scene, targets)));
-  }, [scene, selectedFeatureIds, activeMode]);
-
-  return {
-    mapElementRef,
-    editAffordance,
-    geometryOp: {
-      overlays: geometryOpOverlays,
-      onMerge: handleGeometryOpMerge,
-      onSubtract: handleGeometryOpSubtract,
-    },
-  };
+  return { mapElementRef, editAffordance };
 }

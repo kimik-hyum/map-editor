@@ -8,12 +8,9 @@ import { createOpenLayersGeometry } from "./createOpenLayersGeometry";
 import { createOpenLayersStyle } from "./createOpenLayersStyle";
 
 // 선택/호버 같은 렌더 상태입니다. store(scene 밖)에서 오므로 어댑터가 보유하고 스타일 함수가 참조합니다.
-// geometryOpFeatureIds: 불리언 연산 칩(이름+버튼)이 떠 있는 후보 도형. 칩이 이름을 보여주므로
-// 중복을 막기 위해 그 도형의 OL 이름 라벨은 가립니다.
 export type EditorRenderState = {
   selectedIds: ReadonlySet<string>;
   hoveredId: string | null;
-  geometryOpFeatureIds?: ReadonlySet<string>;
 };
 
 // 에디터 도형 하나를 OpenLayers Feature로 변환하고 렌더링 style을 연결합니다.
@@ -44,7 +41,6 @@ export function createOpenLayersFeature(
     createOpenLayersStyle(feature, layer, {
       selected: renderState?.selectedIds.has(feature.id) ?? false,
       hovered: renderState?.hoveredId === feature.id,
-      labelHidden: renderState?.geometryOpFeatureIds?.has(feature.id) ?? false,
     }),
   );
 
