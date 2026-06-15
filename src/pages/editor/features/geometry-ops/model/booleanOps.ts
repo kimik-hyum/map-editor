@@ -76,7 +76,7 @@ export function overlapAreaSquareMeters(
 
 // 제거(빼기) 버튼은 "실제 면적 겹침"이 있을 때만 의미가 있습니다.
 // 변끼리 닿기만 하면 면적이 0이므로, 작은 임계값으로 부동소수 슬리버를 거릅니다.
-export const MIN_OVERLAP_AREA_SQUARE_METERS = 1e-6;
+const MIN_OVERLAP_AREA_SQUARE_METERS = 1e-6;
 
 export function hasAreaOverlap(
   a: PolygonalGeometry,

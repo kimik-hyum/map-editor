@@ -10,7 +10,7 @@ import { forEachEditorContentLayer } from "./editorContentLayers";
 // 내부 입력 계약이라 export하지 않습니다(sync 인자 타입으로만 사용).
 type GeometryOpOverlayInput = {
   featureId: string;
-  name?: string;
+  name: string;
   canSubtract: boolean;
 };
 
@@ -18,7 +18,7 @@ type GeometryOpOverlayInput = {
 export type GeometryOpOverlayHandle = {
   featureId: string;
   element: HTMLElement;
-  name?: string;
+  name: string;
   canSubtract: boolean;
 };
 

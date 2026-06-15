@@ -85,7 +85,7 @@ export function deriveGeometryOpTargets(
 // 식별자가 사라지지 않게 합니다(이름 행은 항상 채워짐 → 이름 없는 도형이 후보가 돼도
 // "feature-4" 같은 식별자가 남는다). 칩 화면 위치(내부 대표점)는 ol/Overlay 어댑터가
 // OL geometry에서 직접 계산하므로 여기서는 좌표를 주지 않습니다.
-export type GeometryOpMarkerInput = {
+type GeometryOpMarkerInput = {
   featureId: string;
   name: string;
   canSubtract: boolean;

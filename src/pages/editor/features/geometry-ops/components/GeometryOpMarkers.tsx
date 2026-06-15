@@ -5,7 +5,7 @@ import { GeometryOpMarker } from "./GeometryOpMarker";
 type GeometryOpOverlayHandle = {
   featureId: string;
   element: HTMLElement;
-  name?: string;
+  name: string;
   canSubtract: boolean;
 };
 
