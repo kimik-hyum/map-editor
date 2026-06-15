@@ -19,9 +19,13 @@ export function GeometryOpMarker({
   onSubtract,
 }: GeometryOpMarkerProps) {
   return (
-    <div className="flex max-w-[180px] items-center gap-1 rounded-full bg-white/95 py-0.5 pl-2 pr-0.5 shadow-lg ring-1 ring-slate-200">
+    <div
+      className={`flex max-w-[180px] items-center gap-1 overflow-hidden rounded-full bg-white/95 py-0.5 shadow-lg ring-1 ring-slate-200 ${
+        name ? "pl-2 pr-0.5" : "p-0.5"
+      }`}
+    >
       {name ? (
-        <span className="truncate text-[11px] font-bold leading-none text-slate-700">
+        <span className="min-w-0 flex-1 truncate text-[11px] font-bold leading-none text-slate-700">
           {name}
         </span>
       ) : null}

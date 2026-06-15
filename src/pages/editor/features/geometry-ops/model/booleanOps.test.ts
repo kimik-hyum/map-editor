@@ -3,7 +3,6 @@ import type { PolygonalGeometry } from "@/pages/editor/types/editorTypes";
 import {
   hasAreaOverlap,
   overlapAreaSquareMeters,
-  polygonInteriorLonLat,
   subtractGeometry,
   unionGeometries,
 } from "./booleanOps";
@@ -75,18 +74,6 @@ describe("overlapAreaSquareMeters / hasAreaOverlap", () => {
   it("변끼리 닿기만 하면 겹침으로 보지 않는다(면적 0)", () => {
     expect(overlapAreaSquareMeters(A, EDGE_TOUCH)).toBe(0);
     expect(hasAreaOverlap(A, EDGE_TOUCH)).toBe(false);
-  });
-});
-
-describe("polygonInteriorLonLat", () => {
-  it("도형 내부의 점을 반환한다(이웃 침범 방지를 위해 면 안쪽)", () => {
-    const point = polygonInteriorLonLat(square(0, 0, 2, 4));
-    expect(point).not.toBeNull();
-    const [x, y] = point ?? [Number.NaN, Number.NaN];
-    expect(x).toBeGreaterThan(0);
-    expect(x).toBeLessThan(2);
-    expect(y).toBeGreaterThan(0);
-    expect(y).toBeLessThan(4);
   });
 });
 

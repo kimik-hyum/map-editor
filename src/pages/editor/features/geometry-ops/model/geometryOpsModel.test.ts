@@ -208,13 +208,7 @@ describe("buildGeometryOpMarkerInputs", () => {
     const byId = new Map(inputs.map((input) => [input.featureId, input]));
     expect(byId.get("b")?.canSubtract).toBe(true); // 겹침 → 제거 가능
     expect(byId.get("c")?.canSubtract).toBe(false); // 떨어짐 → 병합만
-    expect(byId.get("b")?.name).toBe("b"); // 이름을 칩에 함께 표시
-    // 앵커는 도형 내부(이웃 침범 방지). square(1,1,3,3) 내부.
-    const bLonLat = byId.get("b")?.lonLat ?? [0, 0];
-    expect(bLonLat[0]).toBeGreaterThan(1);
-    expect(bLonLat[0]).toBeLessThan(3);
-    expect(bLonLat[1]).toBeGreaterThan(1);
-    expect(bLonLat[1]).toBeLessThan(3);
+    expect(byId.get("b")?.name).toBe("b"); // 이름을 칩에 함께 표시(칩 위치는 어댑터가 계산)
   });
 
   it("후보가 없으면 빈 배열이다", () => {

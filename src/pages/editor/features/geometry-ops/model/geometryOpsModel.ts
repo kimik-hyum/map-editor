@@ -7,7 +7,7 @@ import {
   type GeoJsonGeometry,
   type PolygonalGeometry,
 } from "@/pages/editor/types/editorTypes";
-import { hasAreaOverlap, polygonInteriorLonLat } from "./booleanOps";
+import { hasAreaOverlap } from "./booleanOps";
 
 // 선택한 도형(target) 기준으로 병합/제거 가능한 상대 후보를 도출합니다.
 // - target은 "정확히 1개 선택"이고 편집 가능(보임+편집가능+잠금해제)한 폴리곤일 때만 채워집니다.
@@ -80,17 +80,14 @@ export function deriveGeometryOpTargets(
   return { targetId: target.id, mergeCandidateIds, subtractCandidateIds };
 }
 
-// 후보 폴리곤마다 화면 마커 입력(내부 앵커 경위도 + 이름 + 제거 가능 여부)을 만듭니다.
-// name은 칩에 함께 표시합니다(없으면 칩은 +/- 버튼만). 좌표만 주고 픽셀 변환·추적은
-// ol/Overlay 어댑터에 맡깁니다(팬·줌 자동 추적).
+// 후보 폴리곤마다 화면 마커 입력(이름 + 제거 가능 여부)을 만듭니다.
+// name은 칩에 함께 표시합니다(없으면 칩은 +/- 버튼만 — 의도된 동작). 칩의 화면 위치(내부
+// 대표점)는 ol/Overlay 어댑터가 OL geometry에서 직접 계산하므로 여기서는 좌표를 주지 않습니다.
 export type GeometryOpMarkerInput = {
   featureId: string;
-  lonLat: [number, number];
   name?: string;
   canSubtract: boolean;
 };
-
-type CandidatePolygon = { geometry: PolygonalGeometry; name?: string };
 
 export function buildGeometryOpMarkerInputs(
   scene: DeepReadonly<EditorScene> | null,
@@ -100,33 +97,16 @@ export function buildGeometryOpMarkerInputs(
     return [];
   }
   const subtractable = new Set(targets.subtractCandidateIds);
-  const candidateById = new Map<string, CandidatePolygon>();
+  const nameById = new Map<string, string | undefined>();
   for (const layer of scene.layers) {
     for (const feature of layer.features) {
-      const geometry = feature.feature.geometry as GeoJsonGeometry;
-      if (isPolygonalGeometry(geometry)) {
-        candidateById.set(feature.id, { geometry, name: feature.name });
-      }
+      nameById.set(feature.id, feature.name);
     }
   }
 
-  const inputs: GeometryOpMarkerInput[] = [];
-  for (const featureId of targets.mergeCandidateIds) {
-    const candidate = candidateById.get(featureId);
-    if (!candidate) {
-      continue;
-    }
-    const lonLat = polygonInteriorLonLat(candidate.geometry);
-    if (!lonLat) {
-      // 내부점을 못 구한 잘못된 폴리곤은 마커를 건너뛴다(연산 자체는 여전히 가능).
-      continue;
-    }
-    inputs.push({
-      featureId,
-      lonLat,
-      name: candidate.name,
-      canSubtract: subtractable.has(featureId),
-    });
-  }
-  return inputs;
+  return targets.mergeCandidateIds.map((featureId) => ({
+    featureId,
+    name: nameById.get(featureId),
+    canSubtract: subtractable.has(featureId),
+  }));
 }
