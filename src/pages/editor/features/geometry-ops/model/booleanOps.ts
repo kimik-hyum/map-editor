@@ -1,4 +1,5 @@
 import area from "@turf/area";
+import bbox from "@turf/bbox";
 import difference from "@turf/difference";
 import { feature as toFeature, featureCollection } from "@turf/helpers";
 import intersect from "@turf/intersect";
@@ -84,4 +85,20 @@ export function hasAreaOverlap(
   minArea: number = MIN_OVERLAP_AREA_SQUARE_METERS,
 ): boolean {
   return overlapAreaSquareMeters(a, b) > minArea;
+}
+
+// 바운딩 박스 [minX(서), minY(남), maxX(동), maxY(북)] — 경위도.
+export type BBox2D = [number, number, number, number];
+
+// 폴리곤의 바운딩 박스를 구합니다(겹침 탐지의 "싼" 1차 필터용).
+export function geometryBbox(geometry: PolygonalGeometry): BBox2D {
+  const [minX, minY, maxX, maxY] = bbox(toTurf(geometry));
+  return [minX, minY, maxX, maxY];
+}
+
+// 두 bbox가 겹치는지(broad-phase). 한 축이라도 분리되면 false.
+// 1차 필터라 "포함"이 안전: 경계가 닿기만 해도 통과시키고, 실제 면적 겹침은 narrow-phase
+// (hasAreaOverlap)에서 정확히 가린다. 절대 참 겹침을 잘못 버리면 안 되므로 ≤(포함) 비교.
+export function bboxesOverlap(a: BBox2D, b: BBox2D): boolean {
+  return a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3];
 }

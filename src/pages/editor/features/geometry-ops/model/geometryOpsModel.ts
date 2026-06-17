@@ -7,7 +7,7 @@ import {
   type GeoJsonGeometry,
   type PolygonalGeometry,
 } from "@/pages/editor/types/editorTypes";
-import { hasAreaOverlap } from "./booleanOps";
+import { bboxesOverlap, geometryBbox, hasAreaOverlap } from "./booleanOps";
 
 // 선택한 도형(target) 기준으로 병합/제거 가능한 상대 후보를 도출합니다.
 // - target은 "정확히 1개 선택"이고 편집 가능(보임+편집가능+잠금해제)한 폴리곤일 때만 채워집니다.
@@ -65,6 +65,10 @@ export function deriveGeometryOpTargets(
     return EMPTY;
   }
 
+  // broad-phase: target의 bbox를 한 번 구해두고, 후보 bbox와 박스부터 비교한다.
+  // 박스가 안 겹치는 후보는 무거운 면적 교차(hasAreaOverlap = Turf intersect+area)를 건너뛴다.
+  // → 경계처럼 폴리곤이 많아도 실제로 가까운 소수에만 정밀 검사가 돈다(narrow-phase).
+  const targetBbox = geometryBbox(target.geometry);
   const mergeCandidateIds: string[] = [];
   const subtractCandidateIds: string[] = [];
   for (const candidate of polygons) {
@@ -72,7 +76,10 @@ export function deriveGeometryOpTargets(
       continue;
     }
     mergeCandidateIds.push(candidate.id);
-    if (hasAreaOverlap(target.geometry, candidate.geometry)) {
+    if (
+      bboxesOverlap(targetBbox, geometryBbox(candidate.geometry)) &&
+      hasAreaOverlap(target.geometry, candidate.geometry)
+    ) {
       subtractCandidateIds.push(candidate.id);
     }
   }
