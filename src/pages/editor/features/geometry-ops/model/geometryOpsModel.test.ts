@@ -158,6 +158,26 @@ describe("deriveGeometryOpTargets", () => {
     expect(deriveGeometryOpTargets(s, new Set(["missing"])).targetId).toBeNull();
   });
 
+  it("visibleFeatureIds(화면 안 집합)를 주면 그 밖의 후보는 제외된다", () => {
+    const s = scene([
+      layer("layer-a", [feature("a", square(0, 0, 2, 2))]),
+      layer("layer-b", [feature("b", square(1, 1, 3, 3))]), // a와 겹침(화면 안)
+      layer("layer-c", [feature("c", square(1, 1, 3, 3))]), // a와 겹침이지만 화면 밖
+    ]);
+    // a, b만 화면 안 → c는 겹쳐도 후보에서 빠진다.
+    const result = deriveGeometryOpTargets(s, new Set(["a"]), new Set(["a", "b"]));
+    expect(result.mergeCandidateIds).toEqual(["b"]);
+    expect(result.subtractCandidateIds).toEqual(["b"]);
+  });
+
+  it("visibleFeatureIds 생략 시 viewport 제한 없이 전체에서 후보를 찾는다", () => {
+    const s = scene([
+      layer("layer-a", [feature("a", square(0, 0, 2, 2))]),
+      layer("layer-b", [feature("b", square(1, 1, 3, 3))]),
+    ]);
+    expect(deriveGeometryOpTargets(s, new Set(["a"])).mergeCandidateIds).toEqual(["b"]);
+  });
+
   it("도형별 숨김(feature.view=Hidden)은 후보에서 제외된다", () => {
     const hidden: EditorFeature = {
       ...feature("hidden", square(1, 1, 3, 3)),
