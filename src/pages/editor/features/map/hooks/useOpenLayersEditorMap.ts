@@ -15,6 +15,7 @@ import {
   centerViewOnFeature,
   type EditorRenderState,
   type GeometryOpOverlayHandle,
+  getViewportFeatureIds,
   invalidateFeatureStyles,
   type ProjectedVertex,
   projectSelectedVertices,
@@ -154,6 +155,8 @@ export function useOpenLayersEditorMap() {
   const [geometryOpOverlays, setGeometryOpOverlays] = useState<
     GeometryOpOverlayHandle[]
   >([]);
+  // 팬/줌으로 화면 범위가 바뀔 때마다 증가시켜, 병합/제거 후보를 "화면 안"으로 다시 한정한다.
+  const [viewportTick, setViewportTick] = useState(0);
 
   // 마커 클릭 핸들러: 선택 도형(target)과 클릭한 후보(otherId) 사이의 연산을 바로 적용한다.
   const handleGeometryOpMerge = (otherId: string) => {
@@ -296,6 +299,11 @@ export function useOpenLayersEditorMap() {
       );
     });
 
+    // 팬/줌이 끝나면 화면 범위가 바뀌므로 병합/제거 후보 effect를 다시 돌린다(화면 안 한정 갱신).
+    const viewportMoveEndKey = map.on("moveend", () => {
+      setViewportTick((tick) => tick + 1);
+    });
+
     return () => {
       selection.detach();
       detail.detach();
@@ -304,6 +312,7 @@ export function useOpenLayersEditorMap() {
       affordance.detach();
       geometryOpOverlaysRef.current?.detach();
       unByKey(moveEndKey);
+      unByKey(viewportMoveEndKey);
       map.setTarget(undefined);
       mapRef.current = null;
       vertexLayerRef.current = null;
@@ -509,6 +518,7 @@ export function useOpenLayersEditorMap() {
 
   // 도형 위 불리언 연산 마커: 단일 폴리곤 선택 시 다른 폴리곤마다 병합(+)·겹치면 제거(-) 마커를 띄운다.
   // 선택/scene/모드가 바뀔 때마다 후보를 재도출해 ol/Overlay에 반영한다(위치의 팬·줌 추적은 OL이 담당).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: viewportTick은 의도적 재실행 트리거다 — effect는 getViewportFeatureIds(map)로 실시간 화면 범위를 읽어 본문에서 tick을 직접 참조하지 않지만, 팬/줌(moveend)마다 후보를 다시 화면 안으로 한정하려면 deps에 있어야 한다.
   useEffect(() => {
     const map = mapRef.current;
     const overlays = geometryOpOverlaysRef.current;
@@ -536,10 +546,16 @@ export function useOpenLayersEditorMap() {
       return;
     }
 
-    const targets = deriveGeometryOpTargets(scene, new Set(selectedFeatureIds));
+    // 후보를 "화면 안" 피처로 한정한다(수천 개 로드돼도 보이는 것만 비교/마커 대상).
+    const targets = deriveGeometryOpTargets(
+      scene,
+      new Set(selectedFeatureIds),
+      getViewportFeatureIds(map),
+    );
     geometryOpTargetsRef.current = targets;
     applyChips(overlays.sync(buildGeometryOpMarkerInputs(scene, targets)));
-  }, [scene, selectedFeatureIds, activeMode]);
+    // viewportTick: 팬/줌으로 화면이 바뀌면 후보를 다시 도출한다.
+  }, [scene, selectedFeatureIds, activeMode, viewportTick]);
 
   return {
     mapElementRef,
