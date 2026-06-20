@@ -15,6 +15,9 @@ import { bboxesOverlap, geometryBbox, hasAreaOverlap } from "./booleanOps";
 // - 제거 후보: 그중 target과 실제 면적이 겹치는 것만(제거 버튼은 이게 있을 때만 노출).
 // - visibleFeatureIds를 주면 그 집합(보통 "화면 안" 피처)으로 후보를 한정합니다 — 칩/마커는
 //   화면에 보여야 클릭 가능하므로, 수천 개가 로드돼도 화면 밖은 비교 대상에서 뺍니다.
+//   같은 기준을 target에도 적용합니다: 선택 도형이 화면 밖이면 아무 칩도 띄우지 않습니다.
+//   (후보만 걸러내면 target이 화면 밖인데 다른 폴리곤 위에 칩이 떠 "눈앞 도형 기준"으로
+//   오해할 수 있어, "칩이 보이는 동안 target도 현재 화면 안"이라는 기대를 지킵니다.)
 //   생략(undefined)하면 viewport 제한 없이 scene 전체에서 후보를 찾습니다(테스트·비지도 호출).
 export type GeometryOpTargets = {
   targetId: string | null;
@@ -66,6 +69,13 @@ export function deriveGeometryOpTargets(
   }
 
   if (!target) {
+    return EMPTY;
+  }
+
+  // viewport 제한(target): 선택 도형 자체가 화면 밖이면 칩을 전혀 띄우지 않는다.
+  // 후보만 거르면 target이 화면 밖인데 다른 폴리곤 위에 칩이 떠 "눈앞 도형 기준"으로
+  // 오해하게 된다 — 후보와 같은 집합 기준으로 target도 막아 화면 맥락을 일치시킨다.
+  if (visibleFeatureIds && !visibleFeatureIds.has(target.id)) {
     return EMPTY;
   }
 

@@ -170,6 +170,18 @@ describe("deriveGeometryOpTargets", () => {
     expect(result.subtractCandidateIds).toEqual(["b"]);
   });
 
+  it("선택한 target이 화면 밖이면(visibleFeatureIds에 없음) 비어 있다", () => {
+    const s = scene([
+      layer("layer-a", [feature("a", square(0, 0, 2, 2))]), // 선택했지만 화면 밖
+      layer("layer-b", [feature("b", square(1, 1, 3, 3))]), // a와 겹침(화면 안)
+    ]);
+    // 화면 안 집합에 target("a")이 없다 → 후보가 화면 안이어도 칩을 띄우지 않는다.
+    const result = deriveGeometryOpTargets(s, new Set(["a"]), new Set(["b"]));
+    expect(result.targetId).toBeNull();
+    expect(result.mergeCandidateIds).toEqual([]);
+    expect(result.subtractCandidateIds).toEqual([]);
+  });
+
   it("visibleFeatureIds 생략 시 viewport 제한 없이 전체에서 후보를 찾는다", () => {
     const s = scene([
       layer("layer-a", [feature("a", square(0, 0, 2, 2))]),
