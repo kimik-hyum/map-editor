@@ -71,7 +71,11 @@ function layerBehaviorFor(locked: boolean): EditorLayerBehavior {
   };
 }
 
-function normalizeFeature(input: EditorFeatureInput, featureId: string): EditorFeature {
+function normalizeFeature(
+  input: EditorFeatureInput,
+  featureId: string,
+  lifecycle: FeatureLifecycle,
+): EditorFeature {
   const geometry = closeGeometryRings(input.geometry);
   const properties =
     input.properties ?? (input.name !== undefined ? { label: input.name } : undefined);
@@ -83,7 +87,7 @@ function normalizeFeature(input: EditorFeatureInput, featureId: string): EditorF
     feature: { type: "Feature", id: featureId, geometry, properties },
     state: {
       selection: SelectionState.None,
-      lifecycle: FeatureLifecycle.Clean,
+      lifecycle,
       validation: ValidationState.Valid,
       issues: [],
     },
@@ -96,12 +100,16 @@ function normalizeFeature(input: EditorFeatureInput, featureId: string): EditorF
   return feature;
 }
 
-// 도형 입력 하나를 "그 도형만 담는 내부 레이어"로 만듭니다.
+// 도형 입력 하나를 "그 도형만 담는 내부 레이어"로 만듭니다(1레이어 = 1도형).
 // 표시/잠금은 레이어 단위 값으로 옮겨 기존 렌더·게이팅 파이프라인을 그대로 씁니다.
-function toFeatureLayer(input: EditorFeatureInput, index: number): EditorLayer {
-  const featureId = input.id ?? `feature-${index}`;
+// id·쌓임 값·lifecycle을 호출부가 정합니다: INIT은 index 기반(=Clean), 붙여넣기는 고유 id·최상단(=Created).
+export function createFeatureLayer(
+  input: EditorFeatureInput,
+  options: { featureId: string; zIndex: number; lifecycle: FeatureLifecycle },
+): EditorLayer {
+  const { featureId, zIndex, lifecycle } = options;
   const locked = input.locked ?? false;
-  const feature = normalizeFeature(input, featureId);
+  const feature = normalizeFeature(input, featureId, lifecycle);
 
   return {
     id: `layer-${featureId}`,
@@ -113,13 +121,23 @@ function toFeatureLayer(input: EditorFeatureInput, index: number): EditorLayer {
       visibility:
         input.visible === false ? VisibilityState.Hidden : VisibilityState.Visible,
       opacity: 1,
-      // 배열 순서 = 그리는 순서(뒤가 위). 재정렬 여지를 위해 10 간격.
-      zIndex: (index + 1) * 10,
+      zIndex,
       labelVisible: true,
     },
     behavior: layerBehaviorFor(locked),
     features: [feature],
   };
+}
+
+// INIT 입력의 도형 하나를 내부 레이어로 펼칩니다.
+// 배열 순서 = 그리는 순서(뒤가 위)이라 쌓임 값을 10 간격으로 두고, lifecycle은 Clean(원본).
+function toFeatureLayer(input: EditorFeatureInput, index: number): EditorLayer {
+  return createFeatureLayer(input, {
+    featureId: input.id ?? `feature-${index}`,
+    // 재정렬 여지를 위해 10 간격.
+    zIndex: (index + 1) * 10,
+    lifecycle: FeatureLifecycle.Clean,
+  });
 }
 
 export function normalizeSceneInput(input: EditorSceneInput): EditorScene {
@@ -131,6 +149,65 @@ export function normalizeSceneInput(input: EditorSceneInput): EditorScene {
       ? { center: input.viewport.center, zoom: input.viewport.zoom }
       : undefined,
     layers: input.features.map(toFeatureLayer),
+  };
+}
+
+// 기존 scene과 충돌하지 않는 새 feature/layer id를 만듭니다(feature/layer 두 네임스페이스 모두 확인).
+// findDuplicateIds가 거르는 충돌(명시 id 끼리·자동 생성과의 충돌)을 애초에 만들지 않도록 합니다.
+function makeUniqueFeatureId(
+  usedFeatureIds: Set<string>,
+  usedLayerIds: Set<string>,
+): string {
+  let counter = usedFeatureIds.size;
+  let featureId = `feature-${counter}`;
+  while (usedFeatureIds.has(featureId) || usedLayerIds.has(`layer-${featureId}`)) {
+    counter += 1;
+    featureId = `feature-${counter}`;
+  }
+  usedFeatureIds.add(featureId);
+  usedLayerIds.add(`layer-${featureId}`);
+  return featureId;
+}
+
+// 도형 입력들을 scene 맨 위(스택 top)에 새 도형으로 추가합니다(붙여넣기·그리기 공용 프리미티브).
+// - id는 입력값을 무시하고 항상 새로 생성합니다(충돌 방지). 입력의 명시 id는 쓰지 않습니다.
+// - 새 도형은 FeatureLifecycle.Created로 두고, 쌓임 값은 현재 최댓값 위로 10 간격씩 올립니다.
+// - 추가된 feature id 목록을 함께 반환해 호출부가 선택을 새 도형으로 옮길 수 있게 합니다.
+// 빈 입력이면 원본 scene 참조와 빈 id 목록을 그대로 반환합니다(no-op).
+export function addFeaturesToScene(
+  scene: EditorScene,
+  inputs: ReadonlyArray<EditorFeatureInput>,
+): { scene: EditorScene; addedFeatureIds: string[] } {
+  if (inputs.length === 0) {
+    return { scene, addedFeatureIds: [] };
+  }
+
+  const usedFeatureIds = new Set<string>();
+  const usedLayerIds = new Set<string>();
+  let topZIndex = 0;
+  for (const layer of scene.layers) {
+    usedLayerIds.add(layer.id);
+    topZIndex = Math.max(topZIndex, layer.view.zIndex);
+    for (const feature of layer.features) {
+      usedFeatureIds.add(feature.id);
+    }
+  }
+
+  const addedFeatureIds: string[] = [];
+  const newLayers = inputs.map((input) => {
+    const featureId = makeUniqueFeatureId(usedFeatureIds, usedLayerIds);
+    addedFeatureIds.push(featureId);
+    topZIndex += 10;
+    return createFeatureLayer(input, {
+      featureId,
+      zIndex: topZIndex,
+      lifecycle: FeatureLifecycle.Created,
+    });
+  });
+
+  return {
+    scene: { ...scene, layers: [...scene.layers, ...newLayers] },
+    addedFeatureIds,
   };
 }
 

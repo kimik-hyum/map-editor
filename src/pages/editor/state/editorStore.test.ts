@@ -10,6 +10,7 @@ import {
   ValidationState,
   VisibilityState,
   type DeepReadonly,
+  type EditorPolygonInputGeometry,
   type EditorScene,
   type GeoJsonGeometry,
 } from "../types/editorTypes";
@@ -249,6 +250,57 @@ describe("editorStore - 편집 히스토리", () => {
   });
 
   // reconcileSelection(사라진 피처 선택 정리)은 delete/create 액션(#11·#12)이 생기면 테스트를 추가한다.
+});
+
+describe("editorStore - 도형 추가(붙여넣기)", () => {
+  // 붙여넣기는 폴리곤 입력을 받는다. 테스트 helper의 GEOMETRY_B(Polygon)를 입력 도형으로 쓴다.
+  const inputGeometry = GEOMETRY_B as EditorPolygonInputGeometry;
+
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_A));
+  });
+
+  it("새 도형을 추가하고 past 스냅샷을 쌓으며 dirty가 된다", () => {
+    useEditorStore.getState().addFeatures([{ geometry: inputGeometry }]);
+
+    const state = useEditorStore.getState();
+    expect(state.scene?.layers).toHaveLength(2);
+    expect(state.past).toHaveLength(1);
+    expect(state.dirty).toBe(true);
+  });
+
+  it("추가된 도형을 곧바로 선택 상태로 만든다", () => {
+    useEditorStore.getState().addFeatures([{ geometry: inputGeometry }]);
+
+    const state = useEditorStore.getState();
+    const addedId = state.scene?.layers[1]?.features[0]?.id;
+    expect(state.selectedFeatureIds).toEqual([addedId]);
+  });
+
+  it("추가된 도형은 Created lifecycle이다", () => {
+    useEditorStore.getState().addFeatures([{ geometry: inputGeometry }]);
+
+    const added = useEditorStore.getState().scene?.layers[1]?.features[0];
+    expect(added?.state.lifecycle).toBe(FeatureLifecycle.Created);
+  });
+
+  it("undo 한 번이면 추가가 함께 취소된다", () => {
+    useEditorStore.getState().addFeatures([{ geometry: inputGeometry }]);
+    useEditorStore.getState().undo();
+
+    const state = useEditorStore.getState();
+    expect(state.scene?.layers).toHaveLength(1);
+    expect(state.dirty).toBe(false);
+  });
+
+  it("빈 입력은 아무것도 바꾸지 않는다(no-op)", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().addFeatures([]);
+
+    expect(useEditorStore.getState().scene).toBe(before);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+  });
 });
 
 describe("editorStore - 스냅샷 불변성(타입)", () => {

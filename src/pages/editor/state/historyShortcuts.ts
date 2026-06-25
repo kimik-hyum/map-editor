@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useEditorStore } from "./editorStore";
+import { isTextEntryTarget } from "./isTextEntryTarget";
 
 type ShortcutEventLike = {
   key: string;
@@ -8,19 +9,6 @@ type ShortcutEventLike = {
   shiftKey: boolean;
   target: EventTarget | null;
 };
-
-// 텍스트 입력 중에는 되돌리기 단축키를 가로채지 않습니다.
-function isTextEntryTarget(target: EventTarget | null): boolean {
-  if (typeof HTMLElement === "undefined" || !(target instanceof HTMLElement)) {
-    return false;
-  }
-
-  return (
-    target.tagName === "INPUT" ||
-    target.tagName === "TEXTAREA" ||
-    target.isContentEditable
-  );
-}
 
 // 키 입력을 되돌리기/다시하기 의도로 해석하는 순수 함수입니다(테스트 용이).
 // 그리기 도중 마지막 점 취소(OpenLayers Draw `removeLastPoint`) 라우팅은 후속(#12·#46)에서 추가합니다.
