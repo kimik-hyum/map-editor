@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  EditabilityState,
   FeatureLifecycle,
   GeometryKind,
+  LayerRole,
+  LockState,
   SelectionState,
   ValidationState,
+  VisibilityState,
   type EditorFeature,
+  type EditorLayer,
+  type EditorScene,
 } from "../../../types/editorTypes";
 import {
+  collectClipboardInputs,
   EDITOR_CLIPBOARD_KIND,
   featureToClipboardInput,
   parseClipboardPayload,
@@ -74,6 +81,84 @@ describe("clipboard 직렬화/역직렬화", () => {
     const text = serializeClipboardPayload([featureToClipboardInput(sampleFeature())]);
 
     expect(JSON.parse(text).kind).toBe(EDITOR_CLIPBOARD_KIND);
+  });
+});
+
+function featureLayer(id: string, name: string, zIndex: number): EditorLayer {
+  return {
+    id: `layer-${id}`,
+    name,
+    roles: [LayerRole.Editable],
+    geometryKinds: [GeometryKind.Polygon],
+    view: {
+      visibility: VisibilityState.Visible,
+      opacity: 1,
+      zIndex,
+      labelVisible: true,
+    },
+    behavior: {
+      lock: LockState.Unlocked,
+      editability: EditabilityState.Editable,
+      selectable: true,
+      deletable: true,
+      draggable: true,
+    },
+    features: [
+      {
+        id,
+        name,
+        geometryKind: GeometryKind.Polygon,
+        feature: {
+          type: "Feature",
+          id,
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [0, 0],
+              ],
+            ],
+          },
+          properties: {},
+        },
+        state: {
+          selection: SelectionState.None,
+          lifecycle: FeatureLifecycle.Clean,
+          validation: ValidationState.Valid,
+          issues: [],
+        },
+      },
+    ],
+  };
+}
+
+describe("collectClipboardInputs - 시각 스택 순서", () => {
+  // 배열 순서와 zIndex 순서를 일부러 어긋나게 둔다: 배열은 [위(z20), 아래(z10)]지만
+  // 시각 스택 아래→위는 [아래, 위]. 패널 재정렬(zIndex만 변경) 후 상황을 재현한다.
+  function stackScene(): EditorScene {
+    return {
+      version: 1,
+      layers: [featureLayer("top", "위", 20), featureLayer("bottom", "아래", 10)],
+    };
+  }
+
+  it("배열 순서가 아니라 zIndex 오름차순(아래→위)으로 모은다", () => {
+    const inputs = collectClipboardInputs(stackScene(), ["top", "bottom"]);
+
+    expect(inputs.map((input) => input.name)).toEqual(["아래", "위"]);
+  });
+
+  it("선택된 도형만 모은다", () => {
+    const inputs = collectClipboardInputs(stackScene(), ["top"]);
+
+    expect(inputs.map((input) => input.name)).toEqual(["위"]);
+  });
+
+  it("선택이 없으면 빈 배열", () => {
+    expect(collectClipboardInputs(stackScene(), [])).toEqual([]);
   });
 });
 

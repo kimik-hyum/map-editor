@@ -1,9 +1,8 @@
 import { useEffect } from "react";
 import { useEditorStore } from "../../../state/editorStore";
 import { isTextEntryTarget } from "../../../state/isTextEntryTarget";
-import type { EditorFeatureInput } from "../../../types/editorTypes";
 import {
-  featureToClipboardInput,
+  collectClipboardInputs,
   parseClipboardPayload,
   serializeClipboardPayload,
 } from "../model/clipboardPayload";
@@ -27,16 +26,8 @@ export function useEditorClipboard(): void {
         return;
       }
 
-      // scene 순서(스택)대로 모아 붙여넣을 때 상대 순서를 보존한다.
-      const selected = new Set(selectedFeatureIds);
-      const inputs: EditorFeatureInput[] = [];
-      for (const layer of scene.layers) {
-        for (const feature of layer.features) {
-          if (selected.has(feature.id)) {
-            inputs.push(featureToClipboardInput(feature));
-          }
-        }
-      }
+      // 시각 스택(zIndex) 순서로 모아 붙여넣을 때 상대 위·아래 관계를 보존한다(배열 순서가 아님).
+      const inputs = collectClipboardInputs(scene, selectedFeatureIds);
       if (inputs.length === 0) {
         return;
       }

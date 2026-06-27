@@ -5,6 +5,7 @@ import type {
   EditorFeature,
   EditorFeatureInput,
   EditorPolygonInputGeometry,
+  EditorScene,
   GeoJsonProperties,
 } from "../../../types/editorTypes";
 
@@ -41,6 +42,36 @@ export function featureToClipboardInput(
   }
 
   return input;
+}
+
+// 선택된 도형들을 "시각 스택 아래→위(zIndex 오름차순)" 순서로 클립보드 입력으로 모읍니다.
+// scene.layers 배열 순서는 패널 재정렬(zIndex만 변경, 배열 순서 불변) 후 시각 순서와 어긋나므로
+// 배열 순서로 모으면 안 됩니다. 시각 스택과 같은 규칙(zIndex 기준, 동률은 배열 순서)으로 정렬합니다.
+// addFeaturesToScene는 입력 순서대로 zIndex를 올려 부여하므로, 아래→위로 넘기면 원래 위·아래 관계가 보존됩니다.
+export function collectClipboardInputs(
+  scene: DeepReadonly<EditorScene>,
+  selectedFeatureIds: readonly string[],
+): EditorFeatureInput[] {
+  const selected = new Set(selectedFeatureIds);
+  const picked: Array<{
+    zIndex: number;
+    order: number;
+    feature: DeepReadonly<EditorFeature>;
+  }> = [];
+
+  scene.layers.forEach((layer, layerIndex) => {
+    for (const feature of layer.features) {
+      if (selected.has(feature.id)) {
+        picked.push({ zIndex: layer.view.zIndex, order: layerIndex, feature });
+      }
+    }
+  });
+
+  picked.sort((a, b) =>
+    a.zIndex === b.zIndex ? a.order - b.order : a.zIndex - b.zIndex,
+  );
+
+  return picked.map((entry) => featureToClipboardInput(entry.feature));
 }
 
 // 도형 입력들을 클립보드 텍스트(JSON)로 직렬화합니다.
