@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   EditabilityState,
+  FeatureLifecycle,
   GeometryKind,
   LayerRole,
   LockState,
@@ -11,7 +12,11 @@ import type {
   EditorPolygonInputGeometry,
   EditorSceneInput,
 } from "../types/editorTypes";
-import { normalizeSceneInput } from "./normalizeSceneInput";
+import {
+  addFeaturesToScene,
+  findDuplicateIds,
+  normalizeSceneInput,
+} from "./normalizeSceneInput";
 
 // 열린 폴리곤(닫지 않은 ring)을 기본으로 반환합니다(normalizer가 닫는지 확인하기 위함).
 function polygon(closed = false): EditorPolygonInputGeometry {
@@ -131,5 +136,57 @@ describe("normalizeSceneInput", () => {
     expect(feature.style?.themeToken).toBe("editable");
     expect(layer.view.visibility).toBe(VisibilityState.Hidden);
     expect(layer.name).toBe("가");
+  });
+});
+
+describe("addFeaturesToScene", () => {
+  it("빈 입력이면 원본 scene 참조와 빈 id 목록을 반환한다(no-op)", () => {
+    const scene = normalizeSceneInput(sceneWith([{ geometry: polygon() }]));
+    const result = addFeaturesToScene(scene, []);
+
+    expect(result.scene).toBe(scene);
+    expect(result.addedFeatureIds).toEqual([]);
+  });
+
+  it("새 도형을 스택 맨 위(최상단 쌓임 값)에 추가하고 추가된 id를 돌려준다", () => {
+    const scene = normalizeSceneInput(sceneWith([{ geometry: polygon() }]));
+    const result = addFeaturesToScene(scene, [{ geometry: polygon() }]);
+
+    expect(result.scene.layers).toHaveLength(2);
+    expect(result.addedFeatureIds).toHaveLength(1);
+    const addedLayer = result.scene.layers[1];
+    expect(addedLayer.features[0].id).toBe(result.addedFeatureIds[0]);
+    expect(addedLayer.view.zIndex).toBeGreaterThan(result.scene.layers[0].view.zIndex);
+  });
+
+  it("기존 id와 충돌하지 않는 새 id를 만든다", () => {
+    const scene = normalizeSceneInput(
+      sceneWith([{ geometry: polygon() }, { geometry: polygon() }]),
+    );
+    const result = addFeaturesToScene(scene, [{ geometry: polygon() }]);
+
+    expect(["feature-0", "feature-1"]).not.toContain(result.addedFeatureIds[0]);
+    expect(findDuplicateIds(result.scene)).toEqual([]);
+  });
+
+  it("추가된 도형은 Created lifecycle이다", () => {
+    const scene = normalizeSceneInput(sceneWith([{ geometry: polygon() }]));
+    const result = addFeaturesToScene(scene, [{ geometry: polygon() }]);
+
+    expect(result.scene.layers[1].features[0].state.lifecycle).toBe(
+      FeatureLifecycle.Created,
+    );
+  });
+
+  it("여러 도형을 한 번에 서로 다른 id로 추가한다", () => {
+    const scene = normalizeSceneInput(sceneWith([{ geometry: polygon() }]));
+    const result = addFeaturesToScene(scene, [
+      { geometry: polygon() },
+      { geometry: polygon() },
+    ]);
+
+    expect(result.addedFeatureIds).toHaveLength(2);
+    expect(new Set(result.addedFeatureIds).size).toBe(2);
+    expect(findDuplicateIds(result.scene)).toEqual([]);
   });
 });

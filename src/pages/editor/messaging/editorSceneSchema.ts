@@ -32,7 +32,8 @@ const themeTokenSchema = z.enum(
   Object.keys(editorDefaultTheme.polygon) as [string, ...string[]],
 );
 
-const featureInputSchema = z.object({
+// INIT 입력의 도형 하나를 검증하는 스키마. 클립보드 붙여넣기도 같은 규칙으로 검증하도록 export 합니다.
+export const featureInputSchema = z.object({
   geometry: geometrySchema,
   id: z.string().optional(),
   name: z.string().optional(),

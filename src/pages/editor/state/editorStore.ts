@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { addFeaturesToScene } from "../messaging/normalizeSceneInput";
 import {
   BoundaryKind,
   EditabilityState,
@@ -11,6 +12,7 @@ import {
   VisibilityState,
   type DeepReadonly,
   type DrawShape,
+  type EditorFeatureInput,
   type EditorScene,
   type EditorFeatureViewState,
   type EditorLayerViewState,
@@ -78,6 +80,7 @@ type EditorStoreActions = {
   ) => void;
   setLayerLocked: (layerId: string, locked: boolean) => void;
   updateFeatureView: (featureId: string, view: Partial<EditorFeatureViewState>) => void;
+  addFeatures: (inputs: ReadonlyArray<EditorFeatureInput>) => void;
   updateFeatureGeometry: (featureId: string, geometry: GeoJsonGeometry) => void;
   updateFeaturesGeometry: (
     updates: ReadonlyArray<{ featureId: string; geometry: GeoJsonGeometry }>,
@@ -680,6 +683,35 @@ export const useEditorStore = create<EditorStore>((set) => {
         }
 
         return { scene: next, dirty: next !== state.baselineScene };
+      }),
+    // 붙여넣기·그리기로 새 도형을 추가합니다(undo 1단계). 추가된 도형을 선택 상태로 만들어
+    // 곧바로 이동/편집할 수 있게 합니다(commitSceneEdit는 선택을 못 바꿔 별도 set으로 작성).
+    // 빈 입력이면 아무것도 하지 않습니다.
+    addFeatures: (inputs) =>
+      set((state) => {
+        if (!state.scene || inputs.length === 0) {
+          return {};
+        }
+
+        const { scene: next, addedFeatureIds } = addFeaturesToScene(
+          state.scene as EditorScene,
+          inputs,
+        );
+        if (next === state.scene) {
+          return {};
+        }
+
+        const past = [...state.past, state.scene];
+        return {
+          scene: next,
+          past:
+            past.length > HISTORY_LIMIT
+              ? past.slice(past.length - HISTORY_LIMIT)
+              : past,
+          future: [],
+          selectedFeatureIds: addedFeatureIds,
+          dirty: next !== state.baselineScene,
+        };
       }),
     // geometry 변경은 편집이므로 히스토리에 스냅샷을 남깁니다.
     updateFeatureGeometry: (featureId, geometry) =>
