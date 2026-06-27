@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { PolygonalGeometry } from "@/pages/editor/types/editorTypes";
 import {
+  bboxesOverlap,
+  geometryBbox,
   hasAreaOverlap,
   overlapAreaSquareMeters,
   subtractGeometry,
@@ -92,6 +94,29 @@ describe("overlapAreaSquareMeters / hasAreaOverlap", () => {
   it("변끼리 닿기만 하면 겹침으로 보지 않는다(면적 0)", () => {
     expect(overlapAreaSquareMeters(A, EDGE_TOUCH)).toBe(0);
     expect(hasAreaOverlap(A, EDGE_TOUCH)).toBe(false);
+  });
+});
+
+describe("geometryBbox / bboxesOverlap (broad-phase 1차 필터)", () => {
+  it("geometryBbox는 [minX, minY, maxX, maxY]를 반환한다", () => {
+    expect(geometryBbox(square(0, 0, 2, 4))).toEqual([0, 0, 2, 4]);
+  });
+
+  it("박스가 겹치면 true, 떨어지면 false", () => {
+    expect(bboxesOverlap(geometryBbox(A), geometryBbox(OVERLAP))).toBe(true);
+    expect(bboxesOverlap(geometryBbox(A), geometryBbox(DISJOINT))).toBe(false);
+  });
+
+  it("변만 닿는 경우는 1차 필터에서 통과시킨다(포함 비교) — 정밀 판정은 narrow-phase가 한다", () => {
+    // bbox는 겹침(통과)이지만 실제 면적 겹침은 0 → hasAreaOverlap이 최종적으로 거른다.
+    expect(bboxesOverlap(geometryBbox(A), geometryBbox(EDGE_TOUCH))).toBe(true);
+    expect(hasAreaOverlap(A, EDGE_TOUCH)).toBe(false);
+  });
+
+  it("1차 필터에서 버려지는 후보는 실제 면적 겹침도 없다(거짓 컬링 방지 확인)", () => {
+    // 박스가 안 겹치면(떨어짐) 실제로도 면적 겹침이 없어야 broad-phase가 안전하다.
+    expect(bboxesOverlap(geometryBbox(A), geometryBbox(DISJOINT))).toBe(false);
+    expect(hasAreaOverlap(A, DISJOINT)).toBe(false);
   });
 });
 
