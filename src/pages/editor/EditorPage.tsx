@@ -1,5 +1,6 @@
 import "ol/ol.css";
 import { MapCursorTooltip } from "@/shared/ui/MapCursorTooltip";
+import { useEditorClipboard } from "./features/clipboard";
 import { GeometryOpMarkers } from "./features/geometry-ops";
 import { LayerPanel } from "./features/layers";
 import { useOpenLayersEditorMap } from "./features/map";
@@ -23,6 +24,8 @@ export function EditorPage() {
   useEditorMessaging();
   // Cmd/Ctrl+Z 되돌리기 · +Shift 다시하기. (그리기 중 마지막 점 취소 라우팅은 후속 #12·#46)
   useEditorHistoryShortcuts();
+  // Cmd/Ctrl+C 복사 · Cmd/Ctrl+V 붙여넣기. 시스템 클립보드라 다른 에디터 창과도 공유된다(#76).
+  useEditorClipboard();
 
   return (
     <main className="relative min-h-0 min-w-0">
