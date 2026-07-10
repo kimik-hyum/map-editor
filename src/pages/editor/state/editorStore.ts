@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { addFeaturesToScene } from "../messaging/normalizeSceneInput";
 import {
-  BoundaryKind,
   EditabilityState,
   EditorMode,
   FeatureLifecycle,
@@ -24,7 +23,7 @@ import {
 const DEFAULT_EDITOR_MODE = EditorMode.Select;
 
 // 경계 도구의 기본 경계 종류입니다.
-const DEFAULT_BOUNDARY_KIND = BoundaryKind.AdminDong;
+const DEFAULT_BOUNDARY_KIND = "adminDong";
 
 // 그리기 도구의 기본 도형입니다.
 const DEFAULT_DRAW_SHAPE: DrawShape = GeometryKind.Polygon;
@@ -55,7 +54,7 @@ type EditorStoreState = {
   hoveredFeatureId: string | null;
   featureFocusRequest: FeatureFocusRequest | null;
   activeMode: EditorMode;
-  activeBoundaryKind: BoundaryKind;
+  activeBoundaryKind: string | null;
   activeDrawShape: DrawShape;
   dirty: boolean;
 };
@@ -72,7 +71,7 @@ type EditorStoreActions = {
   requestFeatureFocus: (featureId: string) => void;
   consumeFeatureFocusRequest: (requestId: number) => void;
   setActiveMode: (mode: EditorMode) => void;
-  setActiveBoundaryKind: (kind: BoundaryKind) => void;
+  setActiveBoundaryKind: (kind: string | null) => void;
   setActiveDrawShape: (shape: DrawShape) => void;
   updateLayerView: (layerId: string, view: Partial<EditorLayerViewState>) => void;
   updateLayerZIndexes: (
@@ -218,6 +217,7 @@ function setLayerLockedInScene(
 }
 
 // 대상 피처가 없거나 동일 geometry이면 원본 scene 참조를 그대로 반환합니다(no-op).
+// geometryKind는 geometry에서만 파생하므로, 모든 geometry 교체 경로에서 함께 갱신합니다.
 function updateFeatureGeometryInScene(
   scene: EditorScene,
   featureId: string,
@@ -240,6 +240,7 @@ function updateFeatureGeometryInScene(
       changed = true;
       return {
         ...feature,
+        geometryKind: geometryKindFromGeometry(geometry),
         feature: {
           ...feature.feature,
           geometry,
@@ -254,7 +255,17 @@ function updateFeatureGeometryInScene(
       };
     });
 
-    return layerChanged ? { ...layer, features } : layer;
+    if (!layerChanged) {
+      return layer;
+    }
+
+    return {
+      ...layer,
+      geometryKinds: Array.from(
+        new Set(features.map((feature) => feature.geometryKind)),
+      ),
+      features,
+    };
   });
 
   return changed ? { ...scene, layers } : scene;
@@ -291,6 +302,7 @@ function updateFeaturesGeometryInScene(
       changed = true;
       return {
         ...feature,
+        geometryKind: geometryKindFromGeometry(geometry),
         feature: {
           ...feature.feature,
           geometry,
@@ -305,7 +317,17 @@ function updateFeaturesGeometryInScene(
       };
     });
 
-    return layerChanged ? { ...layer, features } : layer;
+    if (!layerChanged) {
+      return layer;
+    }
+
+    return {
+      ...layer,
+      geometryKinds: Array.from(
+        new Set(features.map((feature) => feature.geometryKind)),
+      ),
+      features,
+    };
   });
 
   return changed ? { ...scene, layers } : scene;

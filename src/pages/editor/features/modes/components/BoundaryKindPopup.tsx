@@ -1,6 +1,10 @@
 import type { RefObject } from "react";
+import { useRegionKinds } from "@/pages/editor/features/regions";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
-import { boundaryKindOptions } from "../model/boundaryKindModel";
+import {
+  createBoundaryKindOptions,
+  fallbackBoundaryKindOptions,
+} from "../model/boundaryKindModel";
 import { ToolOptionPopup } from "./ToolOptionPopup";
 
 type BoundaryKindPopupProps = {
@@ -18,16 +22,29 @@ export function BoundaryKindPopup({
 }: BoundaryKindPopupProps) {
   const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
   const setActiveBoundaryKind = useEditorStore((state) => state.setActiveBoundaryKind);
+  const { data: kinds, isError, isLoading } = useRegionKinds();
+  const options = kinds
+    ? createBoundaryKindOptions(kinds)
+    : isError
+      ? fallbackBoundaryKindOptions
+      : [];
 
   return (
     <ToolOptionPopup
-      activeId={activeBoundaryKind}
+      activeId={activeBoundaryKind ?? ""}
       anchor={anchor}
       onOpenChange={onOpenChange}
       onSelect={setActiveBoundaryKind}
       open={open}
-      options={boundaryKindOptions}
+      options={options}
       title="경계 종류"
+      notice={
+        isLoading
+          ? "종류 불러오는 중…"
+          : isError
+            ? "종류를 불러오지 못해 기본 종류를 표시합니다."
+            : undefined
+      }
     />
   );
 }

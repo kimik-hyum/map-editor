@@ -55,7 +55,7 @@ maps-editor의 경계(Boundary) 도구가 시군구·행정동·법정동·우�
 
 **글로벌 식별:** 한 행의 위치 소속은 `(country, subdivision_code)` 쌍으로 표현한다 — ISO 3166 구조(`country` = 3166-1, `subdivision_code` = 1차 행정구역/adm1)와 동일하다. "시도"는 이 글로벌 모델의 한국 사례(`KR` + `'11'`)이며, 미국 주·일본 도도부현 등도 같은 컬럼에 들어간다.
 
-**인덱스:** `gist(geom)`, `(country, kind)`, `(country, kind, code)`, `(country, subdivision_code, kind)`, **부분 unique** `(country, subdivision_code, kind, code) WHERE is_current`
+**인덱스:** `gist(geom)`, `(country, kind)`, `(country, kind, code)`, `(country, subdivision_code, kind)`, 현재행 최적화용 **부분 인덱스** `gist(geom) WHERE is_current`, `(country, kind) WHERE is_current`, **부분 unique** `(country, subdivision_code, kind, code) WHERE is_current`
 **제약:** `(country, kind)` → `region_kind(country, kind)` 복합 FK, `char_length(country)=2`, `ST_IsValid(geom)`
 
 #### 버전 관리 · 시도별(adm1) 증분 적재
@@ -94,7 +94,7 @@ commit;
 - 두 테이블 모두 RLS 활성화. `region_kind`만 공개 읽기 정책을 둔다(메뉴 구성용).
 - `region_boundary`는 **직접 SELECT를 회수**해 `/rest/v1/region_boundary` 직접 조회로 bbox/페이로드 제한을 우회하지 못하게 한다. 접근은 RPC로만.
 - 두 테이블 모두 `anon`/`authenticated`의 쓰기 권한(INSERT/UPDATE/DELETE/TRUNCATE)을 **회수**. 쓰기·적재는 `service_role`(관리자)만.
-- RPC 2종은 `SECURITY DEFINER` + `search_path` 고정으로, 잠긴 `region_boundary`를 대신 읽어 결과만 돌려준다. 실행 권한은 `anon`/`authenticated`에만 부여(`public` 회수).
+- RPC는 `SECURITY DEFINER` + `search_path` 고정으로, 잠긴 `region_boundary`를 대신 읽어 결과만 돌려준다. 실행 권한은 `anon`/`authenticated`에만 부여(`public` 회수).
 
 ---
 
@@ -114,7 +114,8 @@ PostgREST 경유: `POST /rest/v1/rpc/<함수명>` (body는 JSON, 키 = 파라미
 | `zoom`                                     | numeric | 현재 줌. 소수 가능 — 서버가 `floor` 처리                                          |
 | `country`                                  | text    | 기본 `'KR'`                                                                       |
 | `kind`                                     | text    | 사용자가 고른 종류(detail tier에서만 사용). 기본 `null`                           |
-| `max_features`                             | integer | 안전 상한. 기본 `3000` (초과분은 잘림 → 단순화/축소 신호)                         |
+| `max_features`                             | integer | 안전 상한. 기본 `3000` (초과분은 잘리고 `truncated=true`)                         |
+| `tolerance`                                | numeric | 단순화 허용오차(도). `null`(기본)=줌 티어 자동, `0`=원본 강제, `>0`=수동          |
 
 **tier 결정 로직**
 
@@ -140,6 +141,8 @@ floor(zoom) ≥ (선택 kind의 min_zoom)  →  선택한 kind 반환 (detail)
   "country": "KR",
   "kind": "adminDong",
   "level": 2,
+  "tolerance": 0.00017,
+  "truncated": false,
   "features": [
     {
       "type": "Feature",
@@ -159,15 +162,39 @@ floor(zoom) ≥ (선택 kind의 min_zoom)  →  선택한 kind 반환 (detail)
 }
 ```
 
-- 데이터가 없거나 화면에 걸치는 경계가 없으면 `features: []`로 정상 응답한다. 응답의 `kind`/`level`로 "지금 무엇을 보여주는지"를 UI가 판별·표시한다.
-- 공간 필터는 **bbox 겹침(`&&`)** 이다(정확 교차 아님). 화면 조회엔 충분하며 빠르다. 좌표는 `ST_AsGeoJSON` **소수 6자리(≈0.1m)** 로 잘라 페이로드를 줄인다.
+- 데이터가 없거나 화면에 걸치는 경계가 없으면 `features: []`로 정상 응답한다. 응답의 `kind`/`level`/`tolerance`로 "지금 무엇을 어떤 해상도로 보여주는지"를 UI가 판별한다.
+- `max_features`보다 후보가 많으면 `features`는 상한까지만 내려가고 `truncated: true`가 된다. 클라이언트는 줌인/범위 축소 신호로 쓴다.
+- 공간 필터는 **bbox 겹침(`&&`)** 이다(정확 교차 아님). 화면 조회엔 충분하며 빠르다.
 
-### `region_by_code` — 단건 원본 조회 (편집 채택용)
+**표시용 즉석 단순화 (티어 양자화)**
 
-표시는 가볍게 받되, 사용자가 특정 경계를 **편집 대상으로 채택**할 때 그 폴리곤만 다시 받는다.
+응답 좌표는 서버가 `ST_SimplifyPreserveTopology`로 **조회 시점에 단순화**해 내려준다(별도 단순화본 저장 없음 — 원본 단일 저장). 허용오차는 줌 밴드당 고정값(티어)이라 캐시 친화적이고, 해당 줌의 반픽셀 수준이라 시각 손실이 없다:
+
+| 줌     | tolerance(도) | 좌표 자릿수 |
+| ------ | ------------- | ----------- |
+| z ≤ 11 | 0.00034       | 5           |
+| z 12   | 0.00017       | 5           |
+| z 13   | 0.000086      | 5           |
+| z 14   | 0.000043      | 5           |
+| z ≥ 15 | 0.00002       | 5           |
+
+자동 모드는 항상 표시용 단순화본을 내려준다. 원본 표시가 정말 필요한 진단/수동 호출만 `tolerance=0`을 쓴다. 편집 정밀도는 아래 `region_by_id`(항상 원본)로 보장한다.
+
+### `region_by_id` — 표시 row 기준 원본 조회 (편집 채택용)
+
+표시는 단순화본으로 받되, **+(병합/추가)·−(빼기) 같은 편집 연산 시** 사용자가 보고 클릭한 `Feature.id`를 이 RPC로 다시 받아 **항상 원본 해상도**로 수행한다(단순화는 표시 전용 — 편집 정밀도 무손실).
+
+**파라미터:** `boundary_id`
+**반환:** 해당 `region_boundary.id` 행을 GeoJSON **Feature**로(구조는 위 feature와 동일, 항상 원본·6자리). 없으면 `null`.
+
+`id` 기반이라 다국가/다지역 코드 충돌을 피하고, 월별 스왑 중에도 사용자가 화면에서 본 row와 편집 연산 대상이 일치한다. 이 RPC는 `is_current`로 필터링하지 않는다.
+
+### `region_by_code` — code 기반 원본 조회 (외부/편의용)
 
 **파라미터:** `country`, `kind`, `code`
-**반환:** `is_current` 행 중 `base_date` 최신 1개를 GeoJSON **Feature**로(구조는 위 feature와 동일). 없으면 `null`.
+**반환:** `is_current` 행 중 `base_date` 최신 1개를 GeoJSON **Feature**로(구조는 위 feature와 동일, 항상 원본·6자리). 없으면 `null`.
+
+편집 채택 경로는 `region_by_id`를 사용한다. `region_by_code`는 외부 조회·운영 확인용으로 유지하며, 다국가 확장 시 `subdivision_code` 파라미터를 추가할 수 있다.
 
 ---
 
@@ -175,9 +202,11 @@ floor(zoom) ≥ (선택 kind의 min_zoom)  →  선택한 kind 반환 (detail)
 
 - 좌표계: 응답은 4326 GeoJSON → OpenLayers에서 `3857`로 표시할 때만 reprojection. 저장/편집은 4326 그대로.
 - 호출: `@supabase/supabase-js`의 `.rpc('regions_by_view', { … })` 또는 anon 키를 헤더에 실은 raw `fetch`. 비동기 상태는 기존 TanStack Query로 래핑. **`region_boundary` 테이블은 직접 조회 불가** — 반드시 RPC 사용. `region_kind`는 직접 읽기 가능.
-- 줌: 소수 줌을 그대로 보내도 된다(서버 `floor`).
+- 줌: 소수 줌을 그대로 보내도 된다(서버 `floor`). 클라이언트는 요청 bbox를 **해당 줌 타일 폭 격자로 스냅**해 보낸다 — 작은 팬으로는 재요청이 없고, 사용자 간 요청이 동일 키로 수렴해 이후 HTTP/서버 캐시 도입 시 그대로 캐시 키가 된다.
+- 편집 연산: `regions_by_view`의 표시 geometry는 절대 연산에 쓰지 않는다. `Feature.id`로 `region_by_id`를 호출해 원본 geometry를 받은 뒤 union/subtract를 수행한다.
+- 잘림: 응답의 `truncated=true`는 현재 bbox에서 상한까지만 받은 상태다. 우편번호처럼 밀도가 높은 kind에서 줌인/범위 축소 UI 신호로 사용한다.
 - 종류 메뉴: `region_kind`에서 `selectable=true`행을 `sort_order` 순으로 받아 경계 도구 팝업을 구성하면, 국가별 kind가 데이터로 정의된다. 저줌에서 RPC가 돌려주는 **비선택 kind(`sigungu` 등)는 "표시 전용"** 으로 다뤄야 한다(사용자가 고르는 종류가 아님).
-- 단순화: 현재는 (정밀도 6자리) 원본 해상도 제공. "시군구 전국 뷰"처럼 무거운 coarse tier가 느리거나 `max_features`에 걸릴 경우에만 `ST_SimplifyPreserveTopology`를 추가한다(성급한 최적화 회피).
+- 스케일 로드맵: 트래픽 증가 시 티어별 단순화 결과를 Materialized View로 사전계산(적재 후 `REFRESH` 1줄) → 필요하면 GET+`Cache-Control`(함수가 `STABLE`이라 GET 허용)로 HTTP 캐시 → 대규모는 벡터타일(`ST_AsMVT`). 티어 양자화·bbox 스냅이 이 단계들의 캐시 키 전제를 이미 충족한다.
 
 ---
 
@@ -185,9 +214,9 @@ floor(zoom) ≥ (선택 kind의 min_zoom)  →  선택한 kind 반환 (detail)
 
 - [x] PostGIS 활성화, `region_kind`/`region_boundary` 테이블·인덱스·RLS 생성
 - [x] KR 종류 카탈로그 시드
-- [x] `regions_by_view`, `region_by_code` RPC + tier 로직 검증(빈 데이터 기준)
-- [x] 스키마 하드닝: `is_current` 버전 모델·부분 unique, 유효성/형식 CHECK, `level` 제거, **RPC 전용 접근(SECURITY DEFINER)**, numeric 줌+floor, coarse tie-break, `max_features` 상한, 좌표 정밀도 6
+- [x] `regions_by_view`, `region_by_id`, `region_by_code` RPC + tier 로직 검증
+- [x] 스키마 하드닝: `is_current` 버전 모델·부분 unique, current 부분 인덱스, 유효성/형식 CHECK, `level` 제거, **RPC 전용 접근(SECURITY DEFINER)**, numeric 줌+floor, coarse tie-break, `max_features` 상한+`truncated`, 좌표 정밀도 5/6
 - [x] `subdivision_code`(adm1) 추가 — 시도별 증분 적재 스코프 + 글로벌 계층/필터
-- [ ] 서울(`subdivision_code='11'`) 경계 데이터 적재: 시군구/행정동/법정동/우편번호 (5179 → 4326, `ST_MakeValid`·`ST_Multi`)
-- [ ] maps-editor 측 Supabase 클라이언트 연동 및 경계 도구 결선(비선택 `sigungu` 표시 처리 포함)
+- [x] 서울(`subdivision_code='11'`) 경계 데이터 적재: 시군구/행정동/법정동/우편번호 (5179 → 4326, `ST_MakeValid`·`ST_Multi`)
+- [x] maps-editor 측 RPC 연동 및 경계 도구 결선 — 서버 카탈로그 메뉴, bbox 스냅·TanStack Query 캐시, 비선택 `sigungu` 표시, `truncated` 줌인 안내, 원본 기반 복사 병합/제거
 - [ ] 시도별 증분 적재 운영(다운로드 → staging 검증 → 버전 스왑) + (필요 시) coarse tier 단순화

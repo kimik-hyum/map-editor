@@ -4,10 +4,15 @@ import { useEditorClipboard } from "./features/clipboard";
 import { GeometryOpMarkers } from "./features/geometry-ops";
 import { LayerPanel } from "./features/layers";
 import { useOpenLayersEditorMap } from "./features/map";
+import {
+  RegionsPanel,
+  useRegionBoundaries,
+  useRegionBoundaryOps,
+} from "./features/regions";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
 import { useEditorHistoryShortcuts } from "./state/historyShortcuts";
-import { EditAffordanceKind } from "./types/editorTypes";
+import { EditAffordanceKind, EditorMode } from "./types/editorTypes";
 
 // 커서 위치의 편집 동작별 힌트 문구.
 const EDIT_HINTS: Record<EditAffordanceKind, string> = {
@@ -17,9 +22,27 @@ const EDIT_HINTS: Record<EditAffordanceKind, string> = {
 
 // 에디터 페이지는 화면 배치만 담당합니다. 지도 수명주기와 편집 인터랙션은 hook/controller가 관리합니다.
 export function EditorPage() {
-  const { mapElementRef, editAffordance, geometryOp } = useOpenLayersEditorMap();
+  const { mapElementRef, map, editAffordance, geometryOp } = useOpenLayersEditorMap();
   const isSceneReady = useEditorStore((state) => state.scene !== null);
+  const activeMode = useEditorStore((state) => state.activeMode);
+  const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
+  const setActiveBoundaryKind = useEditorStore((state) => state.setActiveBoundaryKind);
   const editHint = editAffordance ? EDIT_HINTS[editAffordance] : null;
+
+  // 좌측 rail의 경계 도구가 활성일 때만, 거기서 고른 종류(행정동/법정동/우편번호)의
+  // 경계를 현재 줌·화면으로 받아 그린다. 다른 모드로 바꾸면 비운다.
+  const boundaryKind = activeMode === EditorMode.Boundary ? activeBoundaryKind : null;
+  const { layer: regionLayer, status: regionStatus } = useRegionBoundaries(
+    map,
+    boundaryKind,
+  );
+  // 경계 구역마다 +(추가/병합)·−(겹친 부분 빼기) 칩. 호버한 경계에만 노출.
+  const regionOps = useRegionBoundaryOps({
+    map,
+    layer: regionLayer,
+    enabled: boundaryKind !== null && isSceneReady,
+    scopeKey: boundaryKind,
+  });
 
   useEditorMessaging();
   // Cmd/Ctrl+Z 되돌리기 · +Shift 다시하기. (그리기 중 마지막 점 취소 라우팅은 후속 #12·#46)
@@ -40,6 +63,19 @@ export function EditorPage() {
         onMerge={geometryOp.onMerge}
         onSubtract={geometryOp.onSubtract}
       />
+      <GeometryOpMarkers
+        overlays={regionOps.overlays}
+        onMerge={regionOps.onMerge}
+        onSubtract={regionOps.onSubtract}
+      />
+      {activeMode === EditorMode.Boundary ? (
+        <RegionsPanel
+          activeKind={boundaryKind}
+          onSelect={setActiveBoundaryKind}
+          operationError={regionOps.error}
+          status={regionStatus}
+        />
+      ) : null}
       {isSceneReady ? (
         <LayerPanel />
       ) : (

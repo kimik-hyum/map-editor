@@ -1,5 +1,12 @@
 # Project Decisions
 
+## 규칙 문서의 단일 출처
+
+- 이 파일(`AGENTS.MD`)을 저장소 전역 작업 규칙과 프로젝트 결정의 단일 출처로 사용한다.
+- 루트 `CLAUDE.md`는 이 파일을 불러오기 위한 호환 래퍼로만 유지하며, 별도의 프로젝트 규칙을 중복 작성하지 않는다.
+- 하위 도메인의 추가 규칙은 해당 디렉터리의 `AGENTS.MD`에 두고, 같은 위치의 `CLAUDE.md`는 그 파일을 불러오는 역할만 맡는다.
+- 규칙이 충돌하면 더 가까운 디렉터리의 `AGENTS.MD`를 우선하되, 전역 Git·머지 규칙은 루트 `AGENTS.MD`를 따른다.
+
 - App base: Vite + React + TypeScript.
 - Routing: React Router (`react-router`) in declarative SPA mode.
 - Async state: TanStack Query (`@tanstack/react-query`) with root provider in `src/app/AppProviders.tsx`.
@@ -27,8 +34,9 @@
 - Formatting: `prettier`.
 - Linting: `@biomejs/biome`.
 - Map/editor: `ol`.
-- Geometry utilities: `@turf/area`, `@turf/length`, `@turf/bbox`, `@turf/helpers`.
+- Geometry utilities: `@turf/area`, `@turf/length`, `@turf/bbox`, `@turf/helpers`, `@turf/intersect`, `@turf/union`, `@turf/difference`.
 - Drag and drop: `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/modifiers` (패널 스택 재정렬용).
+- UI primitives: `@base-ui/react`, `lucide-react`, `react-rnd`.
 - Git hooks: `husky`.
 
 ## Component Rules

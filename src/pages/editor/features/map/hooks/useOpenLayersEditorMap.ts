@@ -142,6 +142,9 @@ export function useOpenLayersEditorMap() {
     typeof attachGeometryOpOverlays
   > | null>(null);
 
+  // 생성된 OL Map 인스턴스를 외부(예: 경계 레이어)에서 쓸 수 있게 노출한다.
+  const [map, setMap] = useState<OpenLayersMap | null>(null);
+
   const scene = useEditorStore((state) => state.scene);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
   const hoveredFeatureId = useEditorStore((state) => state.hoveredFeatureId);
@@ -179,6 +182,7 @@ export function useOpenLayersEditorMap() {
 
     const map = createOpenLayersMap({ target: mapElementRef.current });
     mapRef.current = map;
+    setMap(map);
 
     const vertexLayer = createVertexOverlayLayer();
     map.addLayer(vertexLayer);
@@ -315,6 +319,7 @@ export function useOpenLayersEditorMap() {
       unByKey(viewportMoveEndKey);
       map.setTarget(undefined);
       mapRef.current = null;
+      setMap(null);
       vertexLayerRef.current = null;
       detailLayerRef.current = null;
       modifyRef.current = null;
@@ -559,6 +564,7 @@ export function useOpenLayersEditorMap() {
 
   return {
     mapElementRef,
+    map,
     editAffordance,
     geometryOp: {
       overlays: geometryOpOverlays,
