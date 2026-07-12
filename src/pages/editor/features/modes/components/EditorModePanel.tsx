@@ -4,7 +4,10 @@ import type { LucideIcon } from "lucide-react";
 import { type RefObject, useRef, useState } from "react";
 import { MovingHighlight, MovingHighlightItem } from "@/shared/ui/MovingHighlight";
 import { cn } from "@/shared/utils/cn";
-import { useRegionKinds } from "@/pages/editor/features/regions";
+import {
+  type RegionBoundaryStatus,
+  useRegionKinds,
+} from "@/pages/editor/features/regions";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import { EditorMode } from "@/pages/editor/types/editorTypes";
 import {
@@ -18,7 +21,15 @@ import { DrawShapePopup } from "./DrawShapePopup";
 
 // 좌측 도구 rail입니다. 활성 도구(EditorMode)가 맵 클릭의 의미를 결정합니다(기본: 선택).
 // 그리기·경계 도구는 버튼 옆에 하위 옵션 팝업을 띄우고, 선택된 옵션을 버튼 아이콘·이름에 반영합니다.
-export function EditorModePanel() {
+type EditorModePanelProps = {
+  boundaryStatus: RegionBoundaryStatus;
+  boundaryOperationError: string | null;
+};
+
+export function EditorModePanel({
+  boundaryStatus,
+  boundaryOperationError,
+}: EditorModePanelProps) {
   const activeMode = useEditorStore((state) => state.activeMode);
   const setActiveMode = useEditorStore((state) => state.setActiveMode);
   const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
@@ -119,7 +130,9 @@ export function EditorModePanel() {
 
       <BoundaryKindPopup
         anchor={boundaryAnchorRef}
+        boundaryStatus={boundaryStatus}
         onOpenChange={setBoundaryPopupOpen}
+        operationError={boundaryOperationError}
         open={boundaryPopupOpen && activeMode === EditorMode.Boundary}
       />
       <DrawShapePopup

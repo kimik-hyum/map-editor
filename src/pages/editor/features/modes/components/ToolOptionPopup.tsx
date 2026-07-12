@@ -1,6 +1,6 @@
 import { Popover } from "@base-ui/react/popover";
 import { type LucideIcon, X } from "lucide-react";
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { MovingHighlight, MovingHighlightItem } from "@/shared/ui/MovingHighlight";
 import { cn } from "@/shared/utils/cn";
 
@@ -21,6 +21,7 @@ type ToolOptionPopupProps<T extends string> = {
   onOpenChange: (open: boolean) => void;
   anchor: RefObject<HTMLButtonElement | null>;
   notice?: string;
+  footer?: ReactNode;
 };
 
 // 도구(rail) 옆에 붙는 하위 옵션 선택 팝업입니다. 경계 종류·그리기 도형 등에 공용으로 씁니다.
@@ -34,6 +35,7 @@ export function ToolOptionPopup<T extends string>({
   onOpenChange,
   anchor,
   notice,
+  footer,
 }: ToolOptionPopupProps<T>) {
   return (
     <Popover.Root open={open} onOpenChange={onOpenChange}>
@@ -110,6 +112,9 @@ export function ToolOptionPopup<T extends string>({
               <p className="px-2 pb-1 pt-2 text-[11px] font-semibold text-slate-400">
                 {notice}
               </p>
+            ) : null}
+            {footer ? (
+              <div className="mt-1 border-t border-line px-2 pb-1 pt-2">{footer}</div>
             ) : null}
           </Popover.Popup>
         </Popover.Positioner>
