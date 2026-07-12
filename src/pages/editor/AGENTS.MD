@@ -12,3 +12,7 @@
 - 실제 postMessage 연동 전 임시 주입 코드는 `temp/` 아래에 두고 store나 adapter에서 직접 fixture를 import하지 않는다.
 - OpenLayers 변환과 생성 로직은 `adapters/openlayers/`에 두고 `EditorPage`에는 배치와 연결 책임만 남긴다.
 - 기능 구현은 OpenLayers 객체에 직접 종속된 상태와 에디터 도메인 상태를 분리해서 작성한다.
+
+## 상세 구조 가이드
+
+@ARCHITECTURE.md

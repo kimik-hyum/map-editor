@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  BoundaryKind,
   EditabilityState,
   FeatureLifecycle,
   GeometryKind,
@@ -22,20 +21,20 @@ describe("editorStore - 경계 종류", () => {
   });
 
   it("기본 경계 종류는 행정동이다", () => {
-    expect(useEditorStore.getState().activeBoundaryKind).toBe(BoundaryKind.AdminDong);
+    expect(useEditorStore.getState().activeBoundaryKind).toBe("adminDong");
   });
 
   it("setActiveBoundaryKind로 경계 종류를 바꾼다", () => {
-    useEditorStore.getState().setActiveBoundaryKind(BoundaryKind.PostalCode);
+    useEditorStore.getState().setActiveBoundaryKind("postalCode");
 
-    expect(useEditorStore.getState().activeBoundaryKind).toBe(BoundaryKind.PostalCode);
+    expect(useEditorStore.getState().activeBoundaryKind).toBe("postalCode");
   });
 
   it("resetScene은 경계 종류를 기본값으로 되돌린다", () => {
-    useEditorStore.getState().setActiveBoundaryKind(BoundaryKind.LegalDong);
+    useEditorStore.getState().setActiveBoundaryKind("legalDong");
     useEditorStore.getState().resetScene();
 
-    expect(useEditorStore.getState().activeBoundaryKind).toBe(BoundaryKind.AdminDong);
+    expect(useEditorStore.getState().activeBoundaryKind).toBe("adminDong");
   });
 });
 
@@ -626,6 +625,16 @@ describe("editorStore - 병합/제거", () => {
     expect(useEditorStore.getState().scene?.layers[0]?.geometryKinds).toEqual([
       "multiPolygon",
     ]);
+  });
+
+  it("외부 경계처럼 geometry만 교체해도 MultiPolygon 종류 메타데이터를 함께 갱신한다", () => {
+    useEditorStore.getState().updateFeatureGeometry("feature-1", MULTI_POLYGON);
+
+    expect(geometryKindOf("feature-1")).toBe("multiPolygon");
+    expect(useEditorStore.getState().scene?.layers[0]?.geometryKinds).toEqual([
+      "multiPolygon",
+    ]);
+    expect(useEditorStore.getState().past).toHaveLength(1);
   });
 
   it("병합 후 undo 한 번이면 other 피처와 레이어가 함께 복원된다", () => {

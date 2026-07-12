@@ -10,6 +10,11 @@ export default defineConfig({
   },
   webServer: {
     command: "npm run dev -- --host 127.0.0.1 --port 4174",
+    env: {
+      ...process.env,
+      VITE_SUPABASE_URL: "http://127.0.0.1:4174/region-api",
+      VITE_SUPABASE_ANON_KEY: "test-publishable-key",
+    },
     reuseExistingServer: !process.env.CI,
     url: "http://127.0.0.1:4174",
   },

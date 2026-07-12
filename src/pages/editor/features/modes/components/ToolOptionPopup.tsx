@@ -20,6 +20,7 @@ type ToolOptionPopupProps<T extends string> = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   anchor: RefObject<HTMLButtonElement | null>;
+  notice?: string;
 };
 
 // 도구(rail) 옆에 붙는 하위 옵션 선택 팝업입니다. 경계 종류·그리기 도형 등에 공용으로 씁니다.
@@ -32,6 +33,7 @@ export function ToolOptionPopup<T extends string>({
   open,
   onOpenChange,
   anchor,
+  notice,
 }: ToolOptionPopupProps<T>) {
   return (
     <Popover.Root open={open} onOpenChange={onOpenChange}>
@@ -104,6 +106,11 @@ export function ToolOptionPopup<T extends string>({
                 );
               })}
             </MovingHighlight>
+            {notice ? (
+              <p className="px-2 pb-1 pt-2 text-[11px] font-semibold text-slate-400">
+                {notice}
+              </p>
+            ) : null}
           </Popover.Popup>
         </Popover.Positioner>
       </Popover.Portal>

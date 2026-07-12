@@ -4,9 +4,13 @@ import type { LucideIcon } from "lucide-react";
 import { type RefObject, useRef, useState } from "react";
 import { MovingHighlight, MovingHighlightItem } from "@/shared/ui/MovingHighlight";
 import { cn } from "@/shared/utils/cn";
+import { useRegionKinds } from "@/pages/editor/features/regions";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import { EditorMode } from "@/pages/editor/types/editorTypes";
-import { boundaryKindOptions } from "../model/boundaryKindModel";
+import {
+  createBoundaryKindOptions,
+  fallbackBoundaryKindOptions,
+} from "../model/boundaryKindModel";
 import { drawShapeOptions } from "../model/drawShapeModel";
 import { editorModeOptions } from "../model/editorModeModel";
 import { BoundaryKindPopup } from "./BoundaryKindPopup";
@@ -19,6 +23,10 @@ export function EditorModePanel() {
   const setActiveMode = useEditorStore((state) => state.setActiveMode);
   const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
   const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
+  const { data: regionKinds } = useRegionKinds();
+  const boundaryKindOptions = regionKinds
+    ? createBoundaryKindOptions(regionKinds)
+    : fallbackBoundaryKindOptions;
 
   const activeBoundaryOption = boundaryKindOptions.find(
     (option) => option.id === activeBoundaryKind,
