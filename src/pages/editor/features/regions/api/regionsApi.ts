@@ -92,11 +92,14 @@ export async function fetchRegionKinds(
   signal?: AbortSignal,
 ): Promise<RegionKind[]> {
   const { url: baseUrl, headers } = getSupabaseConfig();
-  const requestUrl =
-    `${baseUrl}/rest/v1/region_kind` +
-    `?country=eq.${country}` +
-    `&select=kind,label,level,min_zoom,sort_order,selectable&order=sort_order`;
-  const res = await fetch(requestUrl, { headers, signal });
+  const requestUrl = new URL(`${baseUrl.replace(/\/$/, "")}/rest/v1/region_kind`);
+  requestUrl.searchParams.set("country", `eq.${country}`);
+  requestUrl.searchParams.set(
+    "select",
+    "kind,label,level,min_zoom,sort_order,selectable",
+  );
+  requestUrl.searchParams.set("order", "sort_order");
+  const res = await fetch(requestUrl.toString(), { headers, signal });
   if (!res.ok) {
     throw new Error(`region_kind 조회 실패: ${res.status}`);
   }

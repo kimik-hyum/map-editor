@@ -19,8 +19,8 @@ const VALID_FEATURE = {
   properties: { name: "테스트 구역" },
 };
 
-async function loadApi() {
-  vi.stubEnv("VITE_SUPABASE_URL", "https://regions.test");
+async function loadApi(baseUrl = "https://regions.test") {
+  vi.stubEnv("VITE_SUPABASE_URL", baseUrl);
   vi.stubEnv("VITE_SUPABASE_ANON_KEY", "test-publishable-key");
   return import("./regionsApi");
 }
@@ -68,9 +68,26 @@ describe("regionsApi", () => {
       expect.not.stringContaining("selectable=is.true"),
       expect.objectContaining({ signal: undefined }),
     );
-    expect(fetchMock.mock.calls[0]?.[0]).toContain(
-      "select=kind,label,level,min_zoom,sort_order,selectable",
+    const requestUrl = new URL(String(fetchMock.mock.calls[0]?.[0]));
+    expect(requestUrl.searchParams.get("country")).toBe("eq.KR");
+    expect(requestUrl.searchParams.get("select")).toBe(
+      "kind,label,level,min_zoom,sort_order,selectable",
     );
+    expect(requestUrl.searchParams.get("order")).toBe("sort_order");
+  });
+
+  it("국가값을 다른 query parameter와 섞이지 않게 인코딩한다", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([])));
+    vi.stubGlobal("fetch", fetchMock);
+    const { fetchRegionKinds } = await loadApi("https://regions.test/region-api/");
+
+    await fetchRegionKinds("K&R");
+
+    const requestUrl = String(fetchMock.mock.calls[0]?.[0]);
+    expect(requestUrl).toContain("country=eq.K%26R");
+    const parsedUrl = new URL(requestUrl);
+    expect(parsedUrl.pathname).toBe("/region-api/rest/v1/region_kind");
+    expect(parsedUrl.searchParams.get("country")).toBe("eq.K&R");
   });
 
   it("regions_by_view의 polygonal GeoJSON 응답만 통과시킨다", async () => {

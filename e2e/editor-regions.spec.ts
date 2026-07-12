@@ -22,12 +22,16 @@ const REGION_FEATURE = {
 
 async function installRegionApiMock(
   context: BrowserContext,
-  options: { fullResolutionDelayMs?: number } = {},
+  options: { catalogError?: boolean; fullResolutionDelayMs?: number } = {},
 ) {
   await context.route("**/region-api/rest/v1/**", async (route) => {
     const url = route.request().url();
 
     if (url.includes("/region_kind?")) {
+      if (options.catalogError) {
+        await route.fulfill({ status: 503, json: { message: "catalog unavailable" } });
+        return;
+      }
       await route.fulfill({
         json: [
           {
@@ -97,6 +101,26 @@ async function openEditorViaDemo(page: Page): Promise<Page> {
   await expect(editorPage.getByText("권역 A")).toBeVisible();
   return editorPage;
 }
+
+test("카탈로그 조회 실패 때 팝업과 패널 모두 기본 종류를 제공한다", async ({
+  context,
+  page,
+}) => {
+  await installRegionApiMock(context, { catalogError: true });
+  const editorPage = await openEditorViaDemo(page);
+
+  await editorPage.getByRole("button", { name: "행정동 경계" }).click();
+
+  await expect(
+    editorPage.getByText("종류를 불러오지 못해 기본 종류를 표시합니다."),
+  ).toHaveCount(2);
+  await expect(
+    editorPage.getByRole("button", { name: "법정동", exact: true }),
+  ).toBeVisible();
+  await expect(
+    editorPage.getByRole("button", { name: "우편번호", exact: true }),
+  ).toBeVisible();
+});
 
 test("서버 경계 카탈로그와 조회 상태를 경계 도구에 표시한다", async ({
   context,

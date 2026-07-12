@@ -23,9 +23,10 @@ export function BoundaryKindPopup({
   const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
   const setActiveBoundaryKind = useEditorStore((state) => state.setActiveBoundaryKind);
   const { data: kinds, isError, isLoading } = useRegionKinds();
+  const usingFallback = !kinds && isError;
   const options = kinds
     ? createBoundaryKindOptions(kinds)
-    : isError
+    : usingFallback
       ? fallbackBoundaryKindOptions
       : [];
 
@@ -42,7 +43,9 @@ export function BoundaryKindPopup({
         isLoading
           ? "종류 불러오는 중…"
           : isError
-            ? "종류를 불러오지 못해 기본 종류를 표시합니다."
+            ? usingFallback
+              ? "종류를 불러오지 못해 기본 종류를 표시합니다."
+              : "종류를 갱신하지 못해 기존 목록을 표시합니다."
             : undefined
       }
     />

@@ -7,6 +7,7 @@ import {
   type SnappedRegionView,
 } from "@/pages/editor/adapters/openlayers";
 import { fetchRegionsByView } from "../api/regionsApi";
+import { REGION_BOUNDARY_CACHE_MS } from "../model/regionQueryPolicy";
 
 // 경계 레이어의 현재 상태(사이드 패널 표시용).
 export type RegionBoundaryStatus = {
@@ -20,8 +21,6 @@ export type RegionBoundaryStatus = {
 
 // 경계는 월 1회 갱신되는 정적 데이터라 세션 내 재방문(같은 화면·같은 종류 복귀)은
 // 네트워크 없이 캐시로 그립니다.
-const BOUNDARY_CACHE_MS = 30 * 60_000;
-
 function sameView(a: SnappedRegionView, b: SnappedRegionView): boolean {
   return (
     a.zoom === b.zoom &&
@@ -84,8 +83,8 @@ export function useRegionBoundaries(
       );
     },
     enabled: map !== null && activeKind !== null && view !== null,
-    staleTime: BOUNDARY_CACHE_MS,
-    gcTime: BOUNDARY_CACHE_MS,
+    staleTime: REGION_BOUNDARY_CACHE_MS,
+    gcTime: REGION_BOUNDARY_CACHE_MS,
     // kind 변경 때는 stale 경계를 비우고, 같은 kind의 pan/zoom 중에만 깜빡임을 줄입니다.
     placeholderData: (previousData, previousQuery) =>
       previousQuery?.queryKey[2] === activeKind ? previousData : undefined,

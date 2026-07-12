@@ -30,7 +30,7 @@ function interiorCoordinateOf(geometry: Polygon | MultiPolygon): Coordinate | nu
 
   const points = geometry.getInteriorPoints().getCoordinates();
   const widest = points.reduce<number[] | null>(
-    (best, point) => ((point[2] ?? 0) > (best?.[2] ?? 0) ? point : best),
+    (best, point) => (best === null || (point[2] ?? 0) > (best[2] ?? 0) ? point : best),
     null,
   );
   return widest ? widest.slice(0, 2) : null;

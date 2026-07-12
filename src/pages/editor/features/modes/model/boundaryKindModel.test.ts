@@ -5,7 +5,7 @@ import {
 } from "./boundaryKindModel";
 
 describe("createBoundaryKindOptions", () => {
-  it("서버 카탈로그의 kind·label·순서를 그대로 메뉴로 만든다", () => {
+  it("서버 카탈로그의 kind·label을 sort_order 순서로 메뉴로 만든다", () => {
     const options = createBoundaryKindOptions([
       {
         kind: "sigungu",
@@ -33,14 +33,14 @@ describe("createBoundaryKindOptions", () => {
       },
     ]);
 
-    expect(options.map((option) => option.id)).toEqual(["custom", "adminDong"]);
+    expect(options.map((option) => option.id)).toEqual(["adminDong", "custom"]);
     expect(options.map((option) => option.label)).toEqual([
-      "사용자 경계",
       "행정동 서버 라벨",
+      "사용자 경계",
     ]);
     expect(options.map((option) => option.description)).toEqual([
-      "z15부터 표시",
       "z12부터 표시",
+      "z15부터 표시",
     ]);
   });
 

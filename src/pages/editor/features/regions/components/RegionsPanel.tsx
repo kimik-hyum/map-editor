@@ -1,6 +1,10 @@
 import { FloatingPanel } from "@/pages/editor/components/FloatingPanel";
 import type { RegionBoundaryStatus } from "../hooks/useRegionBoundaries";
 import { useRegionKinds } from "../hooks/useRegionKinds";
+import {
+  fallbackRegionKinds,
+  selectSelectableRegionKinds,
+} from "../model/regionKindModel";
 import { RegionKindButton } from "./RegionKindButton";
 
 type RegionsPanelProps = {
@@ -19,10 +23,15 @@ export function RegionsPanel({
   operationError,
 }: RegionsPanelProps) {
   const { data: kinds, isLoading, isError } = useRegionKinds();
+  const usingFallback = !kinds && isError;
+  const availableKinds = kinds ?? (usingFallback ? fallbackRegionKinds : []);
+  const selectableKinds = selectSelectableRegionKinds(availableKinds);
 
   // 서버가 실제로 내려준 종류의 표시 라벨(줌 아웃 시 시군구가 올 수 있음).
   const returnedLabel =
-    kinds?.find((kind) => kind.kind === status.kind)?.label ?? status.kind ?? "-";
+    availableKinds.find((kind) => kind.kind === status.kind)?.label ??
+    status.kind ??
+    "-";
 
   return (
     <FloatingPanel
@@ -37,18 +46,20 @@ export function RegionsPanel({
           <p className="px-1 py-2 text-xs text-slate-400">종류 불러오는 중…</p>
         ) : null}
         {isError ? (
-          <p className="px-1 py-2 text-xs font-semibold text-red-600">종류 로드 실패</p>
+          <p className="px-1 py-2 text-xs font-semibold text-amber-600">
+            {usingFallback
+              ? "종류를 불러오지 못해 기본 종류를 표시합니다."
+              : "종류를 갱신하지 못해 기존 목록을 표시합니다."}
+          </p>
         ) : null}
-        {kinds
-          ?.filter((kind) => kind.selectable)
-          .map((kind) => (
-            <RegionKindButton
-              key={kind.kind}
-              label={kind.label}
-              active={activeKind === kind.kind}
-              onClick={() => onSelect(activeKind === kind.kind ? null : kind.kind)}
-            />
-          ))}
+        {selectableKinds.map((kind) => (
+          <RegionKindButton
+            key={kind.kind}
+            label={kind.label}
+            active={activeKind === kind.kind}
+            onClick={() => onSelect(activeKind === kind.kind ? null : kind.kind)}
+          />
+        ))}
       </div>
 
       <div className="mt-3 border-t border-line pt-2 text-xs text-slate-500">

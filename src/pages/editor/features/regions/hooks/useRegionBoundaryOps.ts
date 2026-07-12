@@ -20,6 +20,7 @@ import {
 } from "@/pages/editor/types/editorTypes";
 import type OpenLayersMap from "ol/Map";
 import { fetchRegionById } from "../api/regionsApi";
+import { REGION_BOUNDARY_CACHE_MS } from "../model/regionQueryPolicy";
 
 type RegionOpHandle = {
   featureId: string;
@@ -74,8 +75,6 @@ function polygonGeomFromScene(
   return null;
 }
 
-const FULL_RES_CACHE_MS = 30 * 60_000;
-
 async function fullResBoundaryGeom(
   queryClient: QueryClient,
   boundaryId: string | number,
@@ -83,8 +82,8 @@ async function fullResBoundaryGeom(
   const full = await queryClient.fetchQuery({
     queryKey: ["region-full", String(boundaryId)],
     queryFn: ({ signal }) => fetchRegionById(boundaryId, signal),
-    staleTime: FULL_RES_CACHE_MS,
-    gcTime: FULL_RES_CACHE_MS,
+    staleTime: REGION_BOUNDARY_CACHE_MS,
+    gcTime: REGION_BOUNDARY_CACHE_MS,
   });
   const geometry = full?.geometry as GeoJsonGeometry | undefined;
   if (!geometry || !isPolygonalGeometry(geometry)) {

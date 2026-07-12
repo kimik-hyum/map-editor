@@ -29,7 +29,7 @@ flowchart LR
   Adapters --> OpenLayers["OpenLayers Map"]
 ```
 
-현재 구조의 핵심 장점은 원격 경계 데이터와 편집 scene이 섞이지 않고, OpenLayers 객체도 store 밖에 머문다는 점이다. 확장 시 부담이 되는 지점은 `useOpenLayersEditorMap`에 여러 상호작용 조율이 집중되고, region query key·로딩·fallback 정책이 여러 소비처에 나뉘어 있다는 점이다.
+현재 구조의 핵심 장점은 원격 경계 데이터와 편집 scene이 섞이지 않고, OpenLayers 객체도 store 밖에 머문다는 점이다. 카탈로그 fallback·정렬은 `regions/model`의 공용 정책을 사용한다. 확장 시 부담이 되는 지점은 `useOpenLayersEditorMap`에 여러 상호작용 조율이 집중되고, region query key·로딩 정책이 여러 소비처에 나뉘어 있다는 점이다.
 
 ### 목표 구조(코드에는 아직 미적용)
 
