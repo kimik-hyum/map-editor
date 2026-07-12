@@ -4,11 +4,8 @@ import { useEditorClipboard } from "./features/clipboard";
 import { GeometryOpMarkers } from "./features/geometry-ops";
 import { LayerPanel } from "./features/layers";
 import { useOpenLayersEditorMap } from "./features/map";
-import {
-  RegionsPanel,
-  useRegionBoundaries,
-  useRegionBoundaryOps,
-} from "./features/regions";
+import { EditorModePanel } from "./features/modes";
+import { useRegionBoundaries, useRegionBoundaryOps } from "./features/regions";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
 import { useEditorHistoryShortcuts } from "./state/historyShortcuts";
@@ -26,7 +23,6 @@ export function EditorPage() {
   const isSceneReady = useEditorStore((state) => state.scene !== null);
   const activeMode = useEditorStore((state) => state.activeMode);
   const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
-  const setActiveBoundaryKind = useEditorStore((state) => state.setActiveBoundaryKind);
   const editHint = editAffordance ? EDIT_HINTS[editAffordance] : null;
 
   // 좌측 rail의 경계 도구가 활성일 때만, 거기서 고른 종류(행정동/법정동/우편번호)의
@@ -51,43 +47,43 @@ export function EditorPage() {
   useEditorClipboard();
 
   return (
-    <main className="relative min-h-0 min-w-0">
-      <section
-        ref={mapElementRef}
-        className="h-screen w-full"
-        aria-label="OSM map editor"
-      />
-      <MapCursorTooltip text={editHint} containerRef={mapElementRef} />
-      <GeometryOpMarkers
-        overlays={geometryOp.overlays}
-        onMerge={geometryOp.onMerge}
-        onSubtract={geometryOp.onSubtract}
-      />
-      <GeometryOpMarkers
-        overlays={regionOps.overlays}
-        onMerge={regionOps.onMerge}
-        onSubtract={regionOps.onSubtract}
-      />
-      {activeMode === EditorMode.Boundary ? (
-        <RegionsPanel
-          activeKind={boundaryKind}
-          onSelect={setActiveBoundaryKind}
-          operationError={regionOps.error}
-          status={regionStatus}
+    <div className="grid h-screen grid-cols-[88px_minmax(0,1fr)] overflow-hidden">
+      <aside className="min-w-0 border-r border-line bg-white" aria-label="편집 도구">
+        <EditorModePanel
+          boundaryOperationError={regionOps.error}
+          boundaryStatus={regionStatus}
         />
-      ) : null}
-      {isSceneReady ? (
-        <LayerPanel />
-      ) : (
-        <div
-          className="pointer-events-none absolute inset-0 flex items-center justify-center"
-          aria-live="polite"
-        >
-          <p className="rounded-lg bg-white/90 px-4 py-2 text-sm font-bold text-ink-soft shadow">
-            호스트(부모 창)에서 데이터를 기다리는 중…
-          </p>
-        </div>
-      )}
-    </main>
+      </aside>
+      <main className="relative min-h-0 min-w-0">
+        <section
+          ref={mapElementRef}
+          className="h-screen w-full"
+          aria-label="OSM map editor"
+        />
+        <MapCursorTooltip text={editHint} containerRef={mapElementRef} />
+        <GeometryOpMarkers
+          overlays={geometryOp.overlays}
+          onMerge={geometryOp.onMerge}
+          onSubtract={geometryOp.onSubtract}
+        />
+        <GeometryOpMarkers
+          overlays={regionOps.overlays}
+          onMerge={regionOps.onMerge}
+          onSubtract={regionOps.onSubtract}
+        />
+        {isSceneReady ? (
+          <LayerPanel />
+        ) : (
+          <div
+            className="pointer-events-none absolute inset-0 flex items-center justify-center"
+            aria-live="polite"
+          >
+            <p className="rounded-lg bg-white/90 px-4 py-2 text-sm font-bold text-ink-soft shadow">
+              호스트(부모 창)에서 데이터를 기다리는 중…
+            </p>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }

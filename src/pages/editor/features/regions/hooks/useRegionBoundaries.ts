@@ -9,7 +9,7 @@ import {
 import { fetchRegionsByView } from "../api/regionsApi";
 import { REGION_BOUNDARY_CACHE_MS } from "../model/regionQueryPolicy";
 
-// 경계 레이어의 현재 상태(사이드 패널 표시용).
+// 경계 레이어의 현재 상태(사이드메뉴 경계 도구 표시용).
 export type RegionBoundaryStatus = {
   loading: boolean;
   // 서버가 실제로 내려준 종류(줌이 멀면 선택과 달리 'sigungu'가 올 수 있음).

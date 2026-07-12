@@ -127,7 +127,7 @@ async function hoverMapUntilVisible(
   }).toPass({ timeout: 10_000, intervals: [100, 250, 500] });
 }
 
-test("카탈로그 조회 실패 때 팝업과 패널 모두 기본 종류를 제공한다", async ({
+test("카탈로그 조회 실패 때 사이드메뉴가 기본 경계 종류를 제공한다", async ({
   context,
   page,
 }) => {
@@ -138,12 +138,18 @@ test("카탈로그 조회 실패 때 팝업과 패널 모두 기본 종류를 �
 
   await expect(
     editorPage.getByText("종류를 불러오지 못해 기본 종류를 표시합니다."),
-  ).toHaveCount(2);
+  ).toHaveCount(1);
   await expect(
-    editorPage.getByRole("button", { name: "법정동", exact: true }),
+    editorPage.getByRole("button", { name: "법정동 법정 구역 단위", exact: true }),
   ).toBeVisible();
   await expect(
-    editorPage.getByRole("button", { name: "우편번호", exact: true }),
+    editorPage.getByRole("button", { name: "우편번호 우편번호 권역", exact: true }),
+  ).toBeVisible();
+  await expect(editorPage.getByRole("region", { name: "경계 보기" })).toHaveCount(0);
+
+  await editorPage.getByRole("button", { name: "경계 숨기기" }).click();
+  await expect(
+    editorPage.getByText("경계 종류를 선택하면 화면에 표시됩니다."),
   ).toBeVisible();
 });
 
