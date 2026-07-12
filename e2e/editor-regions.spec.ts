@@ -188,27 +188,6 @@ test("준비된 scene에서 경계 +는 원본 geometry를 새 편집 피처로 
   await expect(editorPage.getByRole("button", { name: "도형 숨기기" })).toHaveCount(9);
 });
 
-test("hover 칩의 제거 가능 여부는 현재 scene 잠금 상태를 즉시 반영한다", async ({
-  context,
-  page,
-}) => {
-  await installRegionApiMock(context);
-  const editorPage = await openEditorViaDemo(page);
-
-  await editorPage.getByRole("button", { name: "권역 C 선택" }).click();
-  await editorPage.getByRole("button", { name: "행정동 경계" }).click();
-  await expect(editorPage.getByText("현재 화면:")).toBeVisible();
-
-  const map = editorPage.getByLabel("OSM map editor");
-  const subtractButton = editorPage.getByRole("button", {
-    name: "테스트 경계 겹친 부분 제거",
-  });
-  await hoverMapUntilVisible(editorPage, map, subtractButton);
-
-  await editorPage.getByRole("button", { name: "권역 C 잠금" }).click();
-  await expect(subtractButton).toHaveCount(0);
-});
-
 test("원본 조회 중 새 INIT이 오면 이전 경계 연산 결과를 버린다", async ({
   context,
   page,

@@ -153,6 +153,28 @@ describe("deriveGeometryOpTargets", () => {
     expect(result.subtractCandidateIds).toEqual(["d"]);
   });
 
+  it("선택한 target이 잠기면 편집 대상에서 즉시 제외된다", () => {
+    const unlockedScene = scene([
+      layer("layer-a", [feature("a", square(0, 0, 2, 2))]),
+      layer("layer-b", [feature("b", square(1, 1, 3, 3))]),
+    ]);
+    const lockedScene = scene([
+      layer("layer-a", [feature("a", square(0, 0, 2, 2))], LOCKED_OVERRIDE),
+      layer("layer-b", [feature("b", square(1, 1, 3, 3))]),
+    ]);
+
+    expect(deriveGeometryOpTargets(unlockedScene, new Set(["a"]))).toEqual({
+      targetId: "a",
+      mergeCandidateIds: ["b"],
+      subtractCandidateIds: ["b"],
+    });
+    expect(deriveGeometryOpTargets(lockedScene, new Set(["a"]))).toEqual({
+      targetId: null,
+      mergeCandidateIds: [],
+      subtractCandidateIds: [],
+    });
+  });
+
   it("scene에 없는 id를 선택하면 비어 있다", () => {
     const s = scene([layer("layer-a", [feature("a", square(0, 0, 2, 2))])]);
     expect(deriveGeometryOpTargets(s, new Set(["missing"])).targetId).toBeNull();
