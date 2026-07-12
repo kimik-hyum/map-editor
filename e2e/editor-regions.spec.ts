@@ -1,4 +1,10 @@
-import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type BrowserContext,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 
 const REGION_FEATURE = {
   type: "Feature",
@@ -102,6 +108,25 @@ async function openEditorViaDemo(page: Page): Promise<Page> {
   return editorPage;
 }
 
+async function hoverMapUntilVisible(
+  page: Page,
+  map: Locator,
+  target: Locator,
+  position = { x: 620, y: 360 },
+) {
+  const mapBox = await map.boundingBox();
+  if (!mapBox) {
+    throw new Error("지도 영역을 찾을 수 없습니다.");
+  }
+
+  await expect(async () => {
+    // 레이어 sync 전에 단발 hover가 지나가도 pointermove를 다시 발생시켜 준비 완료를 기다립니다.
+    await page.mouse.move(mapBox.x + 8, mapBox.y + 8);
+    await map.hover({ position });
+    await expect(target).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 10_000, intervals: [100, 250, 500] });
+}
+
 test("카탈로그 조회 실패 때 팝업과 패널 모두 기본 종류를 제공한다", async ({
   context,
   page,
@@ -154,12 +179,10 @@ test("준비된 scene에서 경계 +는 원본 geometry를 새 편집 피처로 
   await expect(editorPage.getByText("현재 화면:")).toBeVisible();
 
   const map = editorPage.getByLabel("OSM map editor");
-  await map.hover({ position: { x: 620, y: 360 } });
-
   const mergeButton = editorPage.getByRole("button", {
     name: "테스트 경계 병합",
   });
-  await expect(mergeButton).toBeVisible();
+  await hoverMapUntilVisible(editorPage, map, mergeButton);
   await mergeButton.click();
 
   await expect(editorPage.getByRole("button", { name: "도형 숨기기" })).toHaveCount(9);
@@ -177,15 +200,13 @@ test("hover 칩의 제거 가능 여부는 현재 scene 잠금 상태를 즉시 
   await expect(editorPage.getByText("현재 화면:")).toBeVisible();
 
   const map = editorPage.getByLabel("OSM map editor");
-  await map.hover({ position: { x: 620, y: 360 } });
-  await expect(
-    editorPage.getByRole("button", { name: "테스트 경계 겹친 부분 제거" }),
-  ).toBeVisible();
+  const subtractButton = editorPage.getByRole("button", {
+    name: "테스트 경계 겹친 부분 제거",
+  });
+  await hoverMapUntilVisible(editorPage, map, subtractButton);
 
   await editorPage.getByRole("button", { name: "권역 C 잠금" }).click();
-  await expect(
-    editorPage.getByRole("button", { name: "테스트 경계 겹친 부분 제거" }),
-  ).toHaveCount(0);
+  await expect(subtractButton).toHaveCount(0);
 });
 
 test("원본 조회 중 새 INIT이 오면 이전 경계 연산 결과를 버린다", async ({
@@ -197,8 +218,10 @@ test("원본 조회 중 새 INIT이 오면 이전 경계 연산 결과를 버린
 
   await editorPage.getByRole("button", { name: "행정동 경계" }).click();
   await expect(editorPage.getByText("현재 화면:")).toBeVisible();
-  await editorPage.getByLabel("OSM map editor").hover({ position: { x: 620, y: 360 } });
-  await editorPage.getByRole("button", { name: "테스트 경계 병합" }).click();
+  const map = editorPage.getByLabel("OSM map editor");
+  const mergeButton = editorPage.getByRole("button", { name: "테스트 경계 병합" });
+  await hoverMapUntilVisible(editorPage, map, mergeButton);
+  await mergeButton.click();
 
   await page.evaluate(() => {
     window.open("", "map-editor-child")?.postMessage(
