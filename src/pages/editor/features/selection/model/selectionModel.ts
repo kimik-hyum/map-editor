@@ -62,7 +62,7 @@ export function resolveSelection(
 // 선택으로부터 두 편집 대상 집합을 한 번의 scene 순회로 도출합니다.
 // - vertexEditTargetIds: 정점편집·삽입/삭제·편집 힌트·정점 오버레이용.
 //   "정확히 1개"가 선택됐고 그 도형이 편집 가능(보임+편집가능+잠금해제)일 때만 그 id.
-// - translateTargetIds: 몸통 드래그 이동용. 선택된 것 중 편집 가능한 도형 "전부"(다중 허용).
+// - translateTargetIds: Cmd/Ctrl+몸통 드래그 이동용. 선택된 것 중 편집 가능한 도형 "전부"(다중 허용).
 // → 다중 선택은 하이라이트 + 몸통 이동까지 허용하되, 정점 단위 편집은 1개일 때만 붙습니다.
 //   읽기 전용·숨김·잠금 도형은 두 집합 모두에서 빠집니다.
 export type SelectionTargets = {

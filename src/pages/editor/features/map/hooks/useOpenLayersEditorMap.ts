@@ -121,13 +121,13 @@ export function useOpenLayersEditorMap() {
   // 정점 편집(정점편집·삽입/삭제·힌트·정점 오버레이) 대상 id. "정확히 1개의 편집 가능 도형"일 때만 채워진다.
   // 다중 선택·읽기전용·잠금·숨김이면 비어 있어 정점 편집 바인딩이 붙지 않는다(하이라이트는 selectedIds 전체).
   const vertexEditTargetIdsRef = useRef<Set<string>>(new Set());
-  // 몸통 드래그 이동 대상 id. 선택된 것 중 편집 가능(보임+편집가능+잠금해제)인 도형 "전부"(다중 이동 허용).
+  // Cmd/Ctrl+몸통 드래그 이동 대상 id. 선택된 것 중 편집 가능(보임+편집가능+잠금해제)인 도형 "전부"(다중 이동 허용).
   const translateTargetIdsRef = useRef<Set<string>>(new Set());
   // 현재 편집 대상 도형의 전체 투영 정점. 호버 상세에서 커서 반경 질의에 사용합니다.
   const selectedVerticesRef = useRef<ProjectedVertex[]>([]);
   // 정점 편집(Modify) 핸들. 선택 변경/씬 재빌드 때 선택 도형으로 재바인딩합니다.
   const modifyRef = useRef<ReturnType<typeof attachVertexModify> | null>(null);
-  // 몸통 드래그 이동(Translate) 핸들. Modify보다 먼저 등록해 정점 히트는 Modify가 가져간다.
+  // Cmd/Ctrl+몸통 드래그 이동(Translate) 핸들. Modify보다 먼저 등록해 정점 히트는 Modify가 가져간다.
   const translateRef = useRef<ReturnType<typeof attachFeatureTranslate> | null>(null);
   // 선택/affordance/상세 핸들. 모드 전환 시 setActive로 켜고 끈다.
   const selectionRef = useRef<ReturnType<typeof attachEditorSelection> | null>(null);
@@ -221,7 +221,7 @@ export function useOpenLayersEditorMap() {
       radiusPx: VERTEX_DETAIL_RADIUS_PX,
     });
 
-    // 몸통 드래그 = 도형 통째 이동. Modify보다 "먼저" 추가해야 정점/외곽선은 Modify가 우선 잡는다.
+    // Cmd/Ctrl+몸통 드래그 = 도형 통째 이동. Modify보다 "먼저" 추가해야 정점/외곽선은 Modify가 우선 잡는다.
     const translate = attachFeatureTranslate(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
       onDragStart: () => {

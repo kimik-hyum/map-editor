@@ -19,7 +19,7 @@ export const editorModeOptions: EditorModeOption[] = [
   {
     id: EditorMode.Select,
     label: "선택",
-    description: "도형 선택 · 정점 편집(더블클릭)",
+    description: "도형 선택 · Cmd/Ctrl+드래그로 이동 · 정점 편집(더블클릭)",
     icon: MousePointer2,
   },
   {

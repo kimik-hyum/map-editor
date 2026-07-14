@@ -1,5 +1,6 @@
 import Collection from "ol/Collection";
 import type Feature from "ol/Feature";
+import { primaryAction } from "ol/events/condition";
 import type { EventsKey } from "ol/events";
 import type Geometry from "ol/geom/Geometry";
 import Translate, { type TranslateEvent } from "ol/interaction/Translate";
@@ -25,8 +26,27 @@ type FeatureTranslateOptions = {
   onDragEnd: () => void;
 };
 
-// 선택된 도형의 "몸통"을 드래그해 통째로 이동합니다(정점 근처는 Modify가 우선).
+export type FeatureTranslateModifierState = {
+  metaKey: boolean;
+  ctrlKey: boolean;
+  altKey: boolean;
+  shiftKey: boolean;
+};
+
+// 선택 토글과 같은 Cmd(macOS)/Ctrl(기타)를 이동 보조키로 사용합니다.
+// Shift는 범위 선택, Alt는 복제 같은 후속 제스처를 위해 조합에서 제외합니다.
+export function isFeatureTranslateModifierActive({
+  metaKey,
+  ctrlKey,
+  altKey,
+  shiftKey,
+}: FeatureTranslateModifierState): boolean {
+  return (metaKey || ctrlKey) && !altKey && !shiftKey;
+}
+
+// Cmd/Ctrl을 누른 채 선택된 도형의 "몸통"을 드래그해 통째로 이동합니다(정점 근처는 Modify가 우선).
 // - Modify보다 먼저 등록해 정점/외곽선 히트는 Modify가, 내부 몸통은 이동이 잡는다.
+// - 보조키가 없으면 interaction이 비활성이라 같은 드래그를 기본 지도 이동이 처리한다.
 // - 드래그 중에는 OL 피처가 실시간으로 움직이고, 끝(translateend)에만 store에 커밋한다.
 // 반환: { sync(선택 id 재바인딩), setActive(모드별 활성 토글), detach() }.
 export function attachFeatureTranslate(
@@ -39,6 +59,9 @@ export function attachFeatureTranslate(
   const originals = new Map<string, Geometry>();
   // 이번 제스처에서 실제 이동이 시작됐는지(클릭만으로는 켜지지 않음).
   let dragSignaled = false;
+  // 모드 활성화와 보조키 상태를 분리합니다. Select 모드여도 보조키가 없으면 Translate는 꺼져 있습니다.
+  let modeActive = false;
+  let modifierActive = false;
 
   // Translate는 드래그가 없어도 누름/뗌만으로 start/end를 발생시키므로,
   // 시작 시점에는 스냅샷만 만들고 핸들 숨김 등은 실제 이동(translating)에서 알린다.
@@ -94,7 +117,7 @@ export function attachFeatureTranslate(
   let movingKey: EventsKey;
   let endKey: EventsKey;
   const buildTranslate = () => {
-    const instance = new Translate({ features });
+    const instance = new Translate({ features, condition: primaryAction });
     startKey = instance.on("translatestart", handleTranslateStart);
     movingKey = instance.on("translating", handleTranslating);
     endKey = instance.on("translateend", handleTranslateEnd);
@@ -102,6 +125,7 @@ export function attachFeatureTranslate(
   };
 
   let translate = buildTranslate();
+  translate.setActive(false);
   map.addInteraction(translate);
 
   const recreateTranslate = () => {
@@ -110,8 +134,51 @@ export function attachFeatureTranslate(
     unByKey(endKey);
     map.removeInteraction(translate);
     translate = buildTranslate();
+    translate.setActive(modeActive && modifierActive);
     map.addInteraction(translate);
   };
+
+  const applyActiveState = () => {
+    const next = modeActive && modifierActive;
+    if (!next && originals.size > 0) {
+      const shouldRestoreOverlays = dragSignaled && modeActive;
+      features.forEach((feature) => {
+        const id = feature.getId();
+        const original = typeof id === "string" ? originals.get(id) : undefined;
+        if (original) {
+          feature.setGeometry(original.clone());
+        }
+      });
+      recreateTranslate();
+      if (shouldRestoreOverlays) {
+        options.onDragEnd();
+      }
+    }
+    originals.clear();
+    dragSignaled = false;
+    translate.setActive(next);
+  };
+
+  const handleModifierChange = (event: KeyboardEvent) => {
+    const next = isFeatureTranslateModifierActive(event);
+    if (modifierActive === next) {
+      return;
+    }
+    modifierActive = next;
+    applyActiveState();
+  };
+
+  const handleWindowBlur = () => {
+    if (!modifierActive) {
+      return;
+    }
+    modifierActive = false;
+    applyActiveState();
+  };
+
+  window.addEventListener("keydown", handleModifierChange);
+  window.addEventListener("keyup", handleModifierChange);
+  window.addEventListener("blur", handleWindowBlur);
 
   // 선택된 도형의 OL 피처를 이동 컬렉션에 다시 바인딩(scene 재빌드 후에도 호출).
   // 잠긴/읽기 전용 도형은 이동 대상에서 제외한다(잠금 = 변경 금지).
@@ -138,24 +205,16 @@ export function attachFeatureTranslate(
     });
   };
 
-  // 모드 전환 등으로 비활성화될 때: 진행 중 이동은 원본으로 되돌리고 커밋하지 않는다.
+  // 모드 전환으로 비활성화되거나 보조키를 놓을 때: 진행 중 이동은 원본으로 되돌리고 커밋하지 않는다.
   const setActive = (next: boolean) => {
-    if (!next && originals.size > 0) {
-      features.forEach((feature) => {
-        const id = feature.getId();
-        const original = typeof id === "string" ? originals.get(id) : undefined;
-        if (original) {
-          feature.setGeometry(original.clone());
-        }
-      });
-      recreateTranslate();
-    }
-    originals.clear();
-    dragSignaled = false;
-    translate.setActive(next);
+    modeActive = next;
+    applyActiveState();
   };
 
   const detach = () => {
+    window.removeEventListener("keydown", handleModifierChange);
+    window.removeEventListener("keyup", handleModifierChange);
+    window.removeEventListener("blur", handleWindowBlur);
     unByKey(startKey);
     unByKey(movingKey);
     unByKey(endKey);
