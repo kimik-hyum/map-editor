@@ -1,15 +1,16 @@
 import "ol/ol.css";
 import { MapCursorTooltip } from "@/shared/ui/MapCursorTooltip";
 import { useEditorClipboard } from "./features/clipboard";
+import { DrawFinishButton, useDrawTool } from "./features/draw";
 import { GeometryOpMarkers } from "./features/geometry-ops";
 import { LayerPanel } from "./features/layers";
 import { useOpenLayersEditorMap } from "./features/map";
-import { EditorModePanel } from "./features/modes";
+import { EditorModePanel, getToolActivation } from "./features/modes";
 import { useRegionBoundaries, useRegionBoundaryOps } from "./features/regions";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
 import { useEditorHistoryShortcuts } from "./state/historyShortcuts";
-import { EditAffordanceKind, EditorMode } from "./types/editorTypes";
+import { EditAffordanceKind } from "./types/editorTypes";
 
 // 커서 위치의 편집 동작별 힌트 문구.
 const EDIT_HINTS: Record<EditAffordanceKind, string> = {
@@ -20,14 +21,17 @@ const EDIT_HINTS: Record<EditAffordanceKind, string> = {
 // 에디터 페이지는 화면 배치만 담당합니다. 지도 수명주기와 편집 인터랙션은 hook/controller가 관리합니다.
 export function EditorPage() {
   const { mapElementRef, map, editAffordance, geometryOp } = useOpenLayersEditorMap();
+  const drawTool = useDrawTool(map);
   const isSceneReady = useEditorStore((state) => state.scene !== null);
   const activeMode = useEditorStore((state) => state.activeMode);
   const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
-  const editHint = editAffordance ? EDIT_HINTS[editAffordance] : null;
+  const activation = getToolActivation(activeMode);
+  const cursorHint =
+    drawTool.hint ?? (editAffordance ? EDIT_HINTS[editAffordance] : null);
 
   // 좌측 rail의 경계 도구가 활성일 때만, 거기서 고른 종류(행정동/법정동/우편번호)의
   // 경계를 현재 줌·화면으로 받아 그린다. 다른 모드로 바꾸면 비운다.
-  const boundaryKind = activeMode === EditorMode.Boundary ? activeBoundaryKind : null;
+  const boundaryKind = activation.boundary ? activeBoundaryKind : null;
   const { layer: regionLayer, status: regionStatus } = useRegionBoundaries(
     map,
     boundaryKind,
@@ -41,8 +45,11 @@ export function EditorPage() {
   });
 
   useEditorMessaging();
-  // Cmd/Ctrl+Z 되돌리기 · +Shift 다시하기. (그리기 중 마지막 점 취소 라우팅은 후속 #12·#46)
-  useEditorHistoryShortcuts();
+  // 그리기 중에는 정점 로컬 history를, sketch가 없으면 전역 scene history를 사용합니다.
+  useEditorHistoryShortcuts({
+    onUndoInProgress: drawTool.undoVertex,
+    onRedoInProgress: drawTool.redoVertex,
+  });
   // Cmd/Ctrl+C 복사 · Cmd/Ctrl+V 붙여넣기. 시스템 클립보드라 다른 에디터 창과도 공유된다(#76).
   useEditorClipboard();
 
@@ -60,7 +67,13 @@ export function EditorPage() {
           className="h-screen w-full"
           aria-label="OSM map editor"
         />
-        <MapCursorTooltip text={editHint} containerRef={mapElementRef} />
+        <MapCursorTooltip text={cursorHint} containerRef={mapElementRef} />
+        <DrawFinishButton
+          enabled={drawTool.canFinish}
+          onFinish={drawTool.finish}
+          vertexCount={drawTool.vertexCount}
+          visible={drawTool.showPathFinish}
+        />
         <GeometryOpMarkers
           overlays={geometryOp.overlays}
           onMerge={geometryOp.onMerge}

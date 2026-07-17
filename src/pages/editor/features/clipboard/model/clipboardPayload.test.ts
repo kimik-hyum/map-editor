@@ -187,13 +187,15 @@ describe("parseClipboardPayload 거부", () => {
     expect(parseClipboardPayload(text)).toBeNull();
   });
 
-  it("지원하지 않는 geometry(Point)는 null", () => {
+  it("Point geometry도 클립보드 입력으로 허용한다", () => {
     const text = JSON.stringify({
       kind: EDITOR_CLIPBOARD_KIND,
       version: 1,
       features: [{ geometry: { type: "Point", coordinates: [0, 0] } }],
     });
 
-    expect(parseClipboardPayload(text)).toBeNull();
+    expect(parseClipboardPayload(text)).toEqual([
+      { geometry: { type: "Point", coordinates: [0, 0] } },
+    ]);
   });
 });

@@ -4,8 +4,8 @@ import type {
   DeepReadonly,
   EditorFeature,
   EditorFeatureInput,
-  EditorPolygonInputGeometry,
   EditorScene,
+  GeoJsonGeometry,
   GeoJsonProperties,
 } from "../../../types/editorTypes";
 
@@ -28,7 +28,7 @@ export function featureToClipboardInput(
 ): EditorFeatureInput {
   const input: EditorFeatureInput = {
     // store의 scene은 깊은 readonly다. 직렬화 직전이라 입력 도형으로 취급해도 안전하다.
-    geometry: feature.feature.geometry as unknown as EditorPolygonInputGeometry,
+    geometry: feature.feature.geometry as unknown as GeoJsonGeometry,
   };
 
   if (feature.name !== undefined) {

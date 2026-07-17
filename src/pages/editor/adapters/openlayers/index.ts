@@ -1,6 +1,7 @@
 export * from "./attachEditAffordance";
 export * from "./attachEditorSelection";
 export * from "./attachFeatureTranslate";
+export * from "./attachFeatureDraw";
 export * from "./attachGeometryOpOverlays";
 export * from "./attachRegionBoundaryHover";
 export * from "./attachRegionBoundaryLayer";
@@ -20,5 +21,6 @@ export * from "./getViewportFeatureIds";
 export * from "./centerViewOnFeature";
 export * from "./geometryDistance";
 export * from "./invalidateFeatureStyles";
+export * from "./olGeometryToEditorGeometry";
 export * from "./readVertexViewInfo";
 export * from "./syncOpenLayersMapScene";

@@ -1,4 +1,4 @@
-import { Fill, Stroke, Style, Text } from "ol/style";
+import { Circle as CircleStyle, Fill, Stroke, Style, Text } from "ol/style";
 import { resolvePolygonStyle } from "@/pages/editor/theme/editorStyleResolver";
 import { editorDefaultTheme } from "@/pages/editor/theme/editorTheme";
 import type { EditorFeature, EditorLayer } from "@/pages/editor/types/editorTypes";
@@ -46,6 +46,9 @@ export function createOpenLayersStyle(
   const base = resolvePolygonStyle(feature, layer);
   const labelStyle = editorDefaultTheme.label;
   const emphasisTheme = editorDefaultTheme.emphasis;
+  const geometryType = feature.feature.geometry.type;
+  const isPoint = geometryType === "Point" || geometryType === "MultiPoint";
+  const isPath = geometryType === "LineString" || geometryType === "MultiLineString";
 
   let fillColor = base.fillColor;
   let strokeWidth = base.strokeWidth;
@@ -64,13 +67,24 @@ export function createOpenLayersStyle(
   }
 
   const mainStyle = new Style({
-    fill: new Fill({
-      color: fillColor,
-    }),
-    stroke: new Stroke({
-      color: base.strokeColor,
-      width: strokeWidth,
-    }),
+    fill: isPath || isPoint ? undefined : new Fill({ color: fillColor }),
+    stroke: isPoint
+      ? undefined
+      : new Stroke({
+          color: base.strokeColor,
+          width: strokeWidth,
+        }),
+    image: isPoint
+      ? new CircleStyle({
+          radius:
+            editorDefaultTheme.pointMarker.radius +
+            (emphasis.selected
+              ? editorDefaultTheme.pointMarker.selectedRadiusDelta
+              : 0),
+          fill: new Fill({ color: fillColor }),
+          stroke: new Stroke({ color: base.strokeColor, width: strokeWidth }),
+        })
+      : undefined,
     text:
       layer.view.labelVisible && !emphasis.labelHidden
         ? new Text({
@@ -101,12 +115,21 @@ export function createOpenLayersStyle(
   }
 
   // 본 선 아래에 깔리는 반투명 글로우(halo). 같은 색 도형이 겹쳐도 선택을 구분해 준다.
-  const haloStyle = new Style({
-    stroke: new Stroke({
-      color: emphasisTheme.selected.haloColor,
-      width: strokeWidth + emphasisTheme.selected.haloWidthDelta,
-    }),
-  });
+  const haloStyle = isPoint
+    ? new Style({
+        image: new CircleStyle({
+          radius:
+            editorDefaultTheme.pointMarker.radius +
+            emphasisTheme.selected.haloWidthDelta / 2,
+          fill: new Fill({ color: emphasisTheme.selected.haloColor }),
+        }),
+      })
+    : new Style({
+        stroke: new Stroke({
+          color: emphasisTheme.selected.haloColor,
+          width: strokeWidth + emphasisTheme.selected.haloWidthDelta,
+        }),
+      });
 
   return [haloStyle, mainStyle];
 }

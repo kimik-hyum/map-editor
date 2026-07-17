@@ -73,6 +73,11 @@ export const editorDefaultTheme = {
     strokeColor: "#4f46e5",
     strokeWidth: 2,
   },
+  // Point/MultiPoint 피처의 기본 원형 마커입니다. 색상은 폴리곤과 같은 의미 토큰을 사용합니다.
+  pointMarker: {
+    radius: 7,
+    selectedRadiusDelta: 1,
+  },
   label: {
     backgroundColor: "rgba(255, 255, 255, 0.82)",
     borderColor: "rgba(15, 23, 42, 0.2)",

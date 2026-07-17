@@ -10,8 +10,13 @@ type ShortcutEventLike = {
   target: EventTarget | null;
 };
 
+type HistoryShortcutOptions = {
+  // 진행 중인 도구가 정점 등 자기 로컬 history를 소비했으면 true를 반환합니다.
+  onUndoInProgress?: () => boolean;
+  onRedoInProgress?: () => boolean;
+};
+
 // 키 입력을 되돌리기/다시하기 의도로 해석하는 순수 함수입니다(테스트 용이).
-// 그리기 도중 마지막 점 취소(OpenLayers Draw `removeLastPoint`) 라우팅은 후속(#12·#46)에서 추가합니다.
 export function resolveHistoryShortcut(
   event: ShortcutEventLike,
 ): "undo" | "redo" | null {
@@ -37,8 +42,8 @@ export function resolveHistoryShortcut(
   return null;
 }
 
-// Cmd/Ctrl+Z = 되돌리기, +Shift(또는 Ctrl+Y) = 다시하기. 에디터 페이지에서 호출합니다.
-export function useEditorHistoryShortcuts(): void {
+// 진행 중 도구의 로컬 history가 전역 scene history보다 우선합니다.
+export function useEditorHistoryShortcuts(options: HistoryShortcutOptions = {}): void {
   const undo = useEditorStore((state) => state.undo);
   const redo = useEditorStore((state) => state.redo);
 
@@ -51,13 +56,17 @@ export function useEditorHistoryShortcuts(): void {
 
       event.preventDefault();
       if (intent === "undo") {
-        undo();
+        if (!options.onUndoInProgress?.()) {
+          undo();
+        }
       } else {
-        redo();
+        if (!options.onRedoInProgress?.()) {
+          redo();
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [undo, redo]);
+  }, [options.onRedoInProgress, options.onUndoInProgress, undo, redo]);
 }

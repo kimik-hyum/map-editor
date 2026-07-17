@@ -15,9 +15,24 @@ import { findDuplicateIds, normalizeSceneInput } from "./normalizeSceneInput";
 
 const coordinateSchema = z.tuple([z.number(), z.number()]);
 
-// 현재 에디터는 폴리곤 계열만 렌더합니다. path/point 렌더가 열리면 여기에 추가합니다.
-// (입력 허용 범위 = 실제 지원 범위를 일치시켜 "통과하지만 안 보이는" 상황을 막습니다.)
+// 입력 허용 범위를 실제 렌더링 범위와 맞춰 "통과하지만 안 보이는" geometry를 막습니다.
 const geometrySchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("Point"),
+    coordinates: coordinateSchema,
+  }),
+  z.object({
+    type: z.literal("MultiPoint"),
+    coordinates: z.array(coordinateSchema),
+  }),
+  z.object({
+    type: z.literal("LineString"),
+    coordinates: z.array(coordinateSchema),
+  }),
+  z.object({
+    type: z.literal("MultiLineString"),
+    coordinates: z.array(z.array(coordinateSchema)),
+  }),
   z.object({
     type: z.literal("Polygon"),
     coordinates: z.array(z.array(coordinateSchema)),

@@ -103,8 +103,8 @@ describe("parseInitMessage", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("폴리곤이 아닌 geometry는 거부한다(현재 렌더 미지원)", () => {
-    const result = parseInitMessage({
+  it("Path와 Point geometry를 허용하고 종류를 파생한다", () => {
+    const lineResult = parseInitMessage({
       type: EditorMessageType.Init,
       sessionId: "s",
       scene: {
@@ -122,7 +122,31 @@ describe("parseInitMessage", () => {
         ],
       },
     });
-    expect(result.ok).toBe(false);
+    expect(lineResult.ok).toBe(true);
+    if (lineResult.ok) {
+      expect(lineResult.message.scene.layers[0].features[0].geometryKind).toBe(
+        GeometryKind.Path,
+      );
+    }
+
+    const pointResult = parseInitMessage({
+      type: EditorMessageType.Init,
+      sessionId: "s",
+      scene: {
+        version: 2,
+        features: [
+          {
+            geometry: { type: "Point", coordinates: [126.9, 37.5] },
+          },
+        ],
+      },
+    });
+    expect(pointResult.ok).toBe(true);
+    if (pointResult.ok) {
+      expect(pointResult.message.scene.layers[0].features[0].geometryKind).toBe(
+        GeometryKind.Point,
+      );
+    }
   });
 
   it("중복된 도형 id는 거부한다", () => {

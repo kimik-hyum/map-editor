@@ -1,7 +1,7 @@
 # 에디터 도구·인터랙션 모델
 
 정리일: 2026-05-31
-갱신: 2026-07-12 — 선택 도형 이동을 Cmd/Ctrl+드래그로 제한하고 일반 드래그는 지도 이동으로 확정.
+갱신: 2026-07-17 — 폴리곤·패스·마커 Draw와 정점 로컬 history 구현 상태 반영.
 
 좌측 도구(rail)와 하위 옵션, 선택/편집 인터랙션의 현재 합의·구현 상태를 코드 기준으로 정리한 참조 문서다.
 설계 논의의 원본 메모는 이슈 #35이며, 이 문서는 거기서 결정된 모델을 구현 기준으로 다듬어 체크인한 스냅샷이다.
@@ -35,6 +35,11 @@
 - 도형마다 인터랙션이 다르지만(다중 클릭 vs 원클릭) "추가"라는 개념으로 묶이므로 한 도구의 하위 옵션으로 둔다.
 - OpenLayers `Draw`는 생성 시점에 타입(Polygon/LineString/Point)을 정해야 하므로, 도형은 그리기 전에 미리 고른다.
 - 생성된 피처의 lifecycle은 `Created`.
+- **마커**는 한 번 클릭하면 즉시 완성한다.
+- **패스**는 정점을 여러 개 찍고 지도 하단의 `패스 완료` 버튼을 눌러 완성한다. 더블클릭으로는 끝나지 않는다.
+- **폴리곤**은 서로 다른 정점 3개 이상을 찍은 뒤 시작점을 다시 클릭해야 완성한다. 마지막 정점 재클릭은 완료로 보지 않는다.
+- 그리는 중 `Cmd/Ctrl+Z`와 redo는 정점 단위 로컬 history를 사용한다. 완성 시에만 scene에 새 레이어를 추가하고 전역 history 한 단계로 커밋한다.
+- `ESC`는 진행 중 sketch만 취소하며 scene과 전역 history를 변경하지 않는다.
 
 ## 4. 경계
 
@@ -47,7 +52,7 @@
 ## 5. 마커 & 반경
 
 - **마커 = 1급 Point 피처**: 씬에 저장되고 host로 전달된다. 그리기-마커로 추가한다. (#41)
-- 현재 OpenLayers adapter는 Polygon/MultiPolygon만 변환하므로 Point/Path 렌더링은 #41에서 추가한다.
+- OpenLayers adapter와 입력 스키마는 Point/Path를 포함한 GeoJSON geometry를 변환·렌더링한다.
 - **반경**: 선택 폴리곤 + 선택 마커(기준점) 기준으로 원형 커팅한다. 폴리곤과 마커가 겹치지 않으면 무효. 원 안쪽 유지(clip)와 바깥 제거(difference) 중 어느 의미인지는 미정. (#40)
 
 ## 6. UI 패턴
@@ -63,6 +68,7 @@
 - `activeBoundaryKind`: `region_kind.kind` 문자열 또는 `null`(표시 끔). 기본은 `adminDong`이며, enum으로 고정하지 않는다.
 - `selectedFeatureIds`, `hoveredFeatureId`, `activeLayerId`, `dirty`
 - (계획) `interaction`, `editingFeatureId`
+- 진행 중 Draw sketch와 정점 undo/redo는 adapter 로컬 상태로 관리한다. 완성 geometry만 store에 커밋한다.
 - 원칙: OpenLayers 객체는 store에 넣지 않는다(adapter의 ref/cache로 관리).
 
 ## 8. 병합/제거 모델 (도형 불리언)
@@ -91,10 +97,13 @@
 
 ## 9. 구현 현황
 
-완료(메인 반영):
+완료(현재 브랜치 포함):
 
 - 4도구 rail, 그리기·경계 하위 옵션 팝업, 공용 `ToolOptionPopup`, `MovingHighlight` 인디케이터
 - 도구 버튼 라벨 규칙(옵션 + 도구 의미), 팝업 z-index/닫기 버튼/선택 유지
+- Point/Path 입력·렌더링 기반과 폴리곤·패스·마커 직접 그리기
+- 정점 로컬 undo/redo, ESC 취소, 패스 완료 버튼, 폴리곤 시작점 닫기
+- 완성 도형별 새 레이어 생성과 전역 undo 한 단계 커밋
 
 진행/대기:
 
@@ -102,8 +111,6 @@
 
 후속(이슈):
 
-- #41 마커 1급 Point + Point/Path 렌더링 (기반)
-- #12 그리기 실제 동작(도형별 Draw)
 - #40 반경 도구
 - #10 · #11 선택·정점 편집 + 인터랙션 상태기계
 - #13 경계 카탈로그 연동(외부 데이터, §4) — RPC 표시·복사 병합은 연결됐다. 시도별 증분 적재 운영과 일반 readonly operand 정책은 후속이다.

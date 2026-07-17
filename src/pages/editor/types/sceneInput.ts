@@ -1,19 +1,22 @@
-import type { EditorCoordinate } from "./geometry";
+import type { EditorCoordinate, GeoJsonGeometry } from "./geometry";
 import type { EditorPolygonThemeToken } from "../theme/editorTheme";
 
 // 호스트가 postMessage로 보내는 "최소 입력" 형식(v2)입니다.
 // 레이어 단계 없이 도형 목록만 보냅니다 — 에디터가 받아서 도형 하나당 내부 레이어 하나로
 // 펼쳐 쌓습니다(1레이어 = 1도형). 그룹/순서 설계는 호스트 몫이 아닙니다.
 // 원칙: 필수는 geometry 하나. 나머지는 선택이며 미입력 시 에디터가 기본값/파생값을 채웁니다.
-// 입력 범위는 "현재 에디터가 실제로 그릴 수 있는 것"과 일치시킵니다(지금은 폴리곤 계열만).
+// 입력 범위는 에디터가 렌더링·편집할 수 있는 GeoJSON geometry 전체와 일치시킵니다.
 
+export type EditorFeatureInputGeometry = GeoJsonGeometry;
+
+// 폴리곤 연산처럼 면 도형만 받는 소비처를 위한 호환 좁은 타입입니다.
 export type EditorPolygonInputGeometry =
   | { type: "Polygon"; coordinates: EditorCoordinate[][] }
   | { type: "MultiPolygon"; coordinates: EditorCoordinate[][][] };
 
 export type EditorFeatureInput = {
   // 유일한 필수 값. id/name 등은 생략하면 에디터가 채웁니다.
-  geometry: EditorPolygonInputGeometry;
+  geometry: EditorFeatureInputGeometry;
   id?: string;
   name?: string;
   // 잠금 = 읽기 전용 = 참고용. 기본 false(편집 가능).
