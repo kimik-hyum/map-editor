@@ -73,10 +73,15 @@ export const editorDefaultTheme = {
     strokeColor: "#4f46e5",
     strokeWidth: 2,
   },
-  // Point/MultiPoint 피처의 기본 원형 마커입니다. 색상은 폴리곤과 같은 의미 토큰을 사용합니다.
+  // Point/MultiPoint 피처의 Lucide MapPin 기반 지도 마커입니다.
+  // 핀 끝이 실제 좌표를 가리키며, 이름 라벨은 핀 위쪽에 분리합니다.
   pointMarker: {
-    radius: 7,
-    selectedRadiusDelta: 1,
+    width: 32,
+    selectedWidthDelta: 2,
+    strokeWidth: 2,
+    haloWidthDelta: 10,
+    haloStrokeWidth: 4,
+    labelOffsetY: -46,
   },
   label: {
     backgroundColor: "rgba(255, 255, 255, 0.82)",

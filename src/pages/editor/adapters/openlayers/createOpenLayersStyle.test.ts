@@ -1,4 +1,5 @@
 import { Style } from "ol/style";
+import Icon from "ol/style/Icon";
 import { describe, expect, it } from "vitest";
 import {
   EditabilityState,
@@ -146,7 +147,7 @@ describe("createOpenLayersStyle", () => {
     expect(style.getImage()).toBeNull();
   });
 
-  it("Point는 원형 image와 선택 halo로 렌더링한다", () => {
+  it("Point는 실제 핀 Icon과 선택용 핀 halo로 렌더링한다", () => {
     const feature = createFeature({
       geometryKind: GeometryKind.Point,
       feature: {
@@ -156,15 +157,35 @@ describe("createOpenLayersStyle", () => {
       },
     });
     const base = createOpenLayersStyle(feature, createLayer()) as Style;
-    expect(base.getImage()).toBeTruthy();
+    expect(base.getImage()).toBeInstanceOf(Icon);
+    expect((base.getImage() as Icon).getSrc()).toMatch(/^data:image\/svg\+xml/);
     expect(base.getStroke()).toBeNull();
 
     const selected = createOpenLayersStyle(feature, createLayer(), {
       selected: true,
     }) as Style[];
     expect(selected).toHaveLength(2);
-    expect(selected[0].getImage()).toBeTruthy();
-    expect(selected[1].getImage()).toBeTruthy();
+    expect(selected[0].getImage()).toBeInstanceOf(Icon);
+    expect(selected[1].getImage()).toBeInstanceOf(Icon);
+  });
+
+  it("Point 이름 라벨은 핀을 가리지 않도록 위쪽으로 띄운다", () => {
+    const feature = createFeature({
+      geometryKind: GeometryKind.Point,
+      feature: {
+        type: "Feature",
+        id: "point",
+        geometry: { type: "Point", coordinates: [126.9, 37.5] },
+      },
+    });
+    const layer = createLayer();
+    const labeledLayer: EditorLayer = {
+      ...layer,
+      view: { ...layer.view, labelVisible: true },
+    };
+
+    const style = createOpenLayersStyle(feature, labeledLayer) as Style;
+    expect(style.getText()?.getOffsetY()).toBeLessThan(-32);
   });
 });
 
