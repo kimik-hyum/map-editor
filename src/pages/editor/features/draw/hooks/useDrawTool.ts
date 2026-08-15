@@ -147,12 +147,14 @@ export function useDrawTool(map: OpenLayersMap | null) {
   const finish = useCallback(() => handleRef.current?.finish() ?? false, []);
   const undoVertex = useCallback(() => handleRef.current?.undoVertex() ?? false, []);
   const redoVertex = useCallback(() => handleRef.current?.redoVertex() ?? false, []);
+  const discardRedo = useCallback(() => handleRef.current?.discardRedo() ?? false, []);
 
   return {
     ...sketch,
     finish,
     undoVertex,
     redoVertex,
+    discardRedo,
     hint: getToolActivation(activeMode).draw
       ? resolveDrawHint(activeDrawShape, sketch.isDrawing)
       : null,

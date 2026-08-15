@@ -138,7 +138,7 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
       canFinish: drawing && canFinishDraw(shape, vertexCount),
       canUndo: drawing && shape !== GeometryKind.Point && vertexCount > 0,
       // 첫 정점 undo는 OpenLayers sketch를 종료하므로, drawing이 false여도
-      // redo 좌표가 있으면 로컬 redo가 전역 scene redo보다 우선해야 합니다.
+      // 바로 이어지는 redo로 복원할 수 있게 좌표를 보존합니다. 모드 전환이나 전역 undo에서는 폐기합니다.
       canRedo: shape !== GeometryKind.Point && redoCoordinates.length > 0,
     });
   };
@@ -160,6 +160,15 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
       redoCoordinates.length = 0;
     }
     emitState();
+  };
+
+  const discardRedo = () => {
+    if (redoCoordinates.length === 0) {
+      return false;
+    }
+    redoCoordinates.length = 0;
+    emitState();
+    return true;
   };
 
   const handleGeometryChange = () => {
@@ -260,6 +269,9 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
 
   const recreateDraw = (nextShape: DrawShape) => {
     abort();
+    // 첫 정점 undo로 sketch가 이미 끝난 경우 abort()는 no-op입니다.
+    // 이전 도형의 좌표가 새 Draw 타입으로 복구되지 않도록 redo 분기를 별도로 폐기합니다.
+    discardRedo();
     unbindDraw();
     map.removeInteraction(draw);
     shape = nextShape;
@@ -274,6 +286,8 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
     }
     if (!next) {
       abort();
+      // drawing=false인 첫 정점 undo 상태에서도 비활성 Draw에 redo가 남지 않게 합니다.
+      discardRedo();
     }
     active = next;
     draw.setActive(next);
@@ -312,7 +326,7 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
   };
 
   const redoVertex = () => {
-    if (shape === GeometryKind.Point) {
+    if (!active || shape === GeometryKind.Point) {
       return false;
     }
     const coordinate = redoCoordinates.pop();
@@ -333,5 +347,14 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
     map.removeInteraction(draw);
   };
 
-  return { setActive, setShape, finish, undoVertex, redoVertex, abort, detach };
+  return {
+    setActive,
+    setShape,
+    finish,
+    undoVertex,
+    redoVertex,
+    discardRedo,
+    abort,
+    detach,
+  };
 }

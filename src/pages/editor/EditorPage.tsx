@@ -49,6 +49,7 @@ export function EditorPage() {
   useEditorHistoryShortcuts({
     onUndoInProgress: drawTool.undoVertex,
     onRedoInProgress: drawTool.redoVertex,
+    onDiscardInProgressRedo: drawTool.discardRedo,
   });
   // Cmd/Ctrl+C 복사 · Cmd/Ctrl+V 붙여넣기. 시스템 클립보드라 다른 에디터 창과도 공유된다(#76).
   useEditorClipboard();

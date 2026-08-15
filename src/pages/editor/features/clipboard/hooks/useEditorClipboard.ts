@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { isConfirmationDialogOpen } from "@/shared/ui/confirmation-dialog";
 import { useEditorStore } from "../../../state/editorStore";
 import { isTextEntryTarget } from "../../../state/isTextEntryTarget";
 import {
@@ -17,7 +18,11 @@ export function useEditorClipboard(): void {
   useEffect(() => {
     const handleCopy = (event: ClipboardEvent) => {
       // 입력창에서의 복사는 가로채지 않는다.
-      if (isTextEntryTarget(event.target) || !event.clipboardData) {
+      if (
+        isConfirmationDialogOpen() ||
+        isTextEntryTarget(event.target) ||
+        !event.clipboardData
+      ) {
         return;
       }
 
@@ -39,7 +44,11 @@ export function useEditorClipboard(): void {
     };
 
     const handlePaste = (event: ClipboardEvent) => {
-      if (isTextEntryTarget(event.target) || !event.clipboardData) {
+      if (
+        isConfirmationDialogOpen() ||
+        isTextEntryTarget(event.target) ||
+        !event.clipboardData
+      ) {
         return;
       }
 

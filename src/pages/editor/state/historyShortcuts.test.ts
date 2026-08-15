@@ -33,4 +33,11 @@ describe("resolveHistoryShortcut", () => {
   it("다른 키는 무시한다", () => {
     expect(resolveHistoryShortcut({ ...base, key: "a", metaKey: true })).toBeNull();
   });
+
+  it("확인 모달이 열려 있으면 history 단축키를 무시한다", () => {
+    expect(resolveHistoryShortcut({ ...base, metaKey: true }, true)).toBeNull();
+    expect(
+      resolveHistoryShortcut({ ...base, metaKey: true, shiftKey: true }, true),
+    ).toBeNull();
+  });
 });

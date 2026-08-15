@@ -128,6 +128,8 @@ test("Path는 정점 로컬 undo/redo 후 완료 버튼으로 별도 레이어�
   await editorPage.keyboard.press(`${modifier}+z`);
   await expect(finishButton).toBeHidden();
   expect((await readEditorSnapshot(editorPage)).pastCount).toBe(before.pastCount);
+  // 전역 past가 비어 있을 때 추가 Undo를 눌러도 복구 가능한 로컬 redo는 유지합니다.
+  await editorPage.keyboard.press(`${modifier}+z`);
   await editorPage.keyboard.press(`${modifier}+Shift+z`);
   await expect(finishButton).toBeVisible();
   await expect(finishButton).toContainText("1점");
@@ -163,6 +165,77 @@ test("Path는 정점 로컬 undo/redo 후 완료 버튼으로 별도 레이어�
   await expect
     .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
     .toBe(before.layerCount);
+});
+
+test("첫 정점 undo의 로컬 redo는 Draw 모드나 도형을 벗어나면 폐기된다", async ({
+  page,
+}) => {
+  const editorPage = await openEditorViaDemo(page);
+  const before = await readEditorSnapshot(editorPage);
+  await activateDrawShape(editorPage, "패스");
+  const modifier = await platformModifier(editorPage);
+  const finishButton = editorPage.getByRole("button", { name: "패스 그리기 완료" });
+
+  await clickMapPoint(editorPage, 0.5, 0.25);
+  await editorPage.keyboard.press(`${modifier}+z`);
+  await expect(finishButton).toBeHidden();
+
+  await editorPage.getByRole("button", { name: "선택", exact: true }).click();
+  await editorPage.keyboard.press(`${modifier}+Shift+z`);
+  await editorPage.getByRole("button", { name: "패스 그리기" }).click();
+  await editorPage
+    .getByRole("dialog", { name: "추가할 도형" })
+    .getByRole("button", { name: "추가할 도형 닫기" })
+    .click();
+
+  await expect(finishButton).toBeHidden();
+  expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
+
+  // 도형을 바꾸는 경로에서도 이전 Path 좌표가 Polygon으로 복구되지 않습니다.
+  await clickMapPoint(editorPage, 0.5, 0.25);
+  await editorPage.keyboard.press(`${modifier}+z`);
+  await editorPage.getByRole("button", { name: "패스 그리기" }).click();
+  const popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  await popup.getByRole("button", { name: /^폴리곤/ }).click();
+  await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
+  await editorPage.keyboard.press(`${modifier}+Shift+z`);
+  await expect(finishButton).toBeHidden();
+  expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
+});
+
+test("전역 undo가 실행되면 로컬 redo 분기를 버리고 전역 redo 순서를 지킨다", async ({
+  page,
+}) => {
+  const editorPage = await openEditorViaDemo(page);
+  const before = await readEditorSnapshot(editorPage);
+  const modifier = await platformModifier(editorPage);
+
+  await activateDrawShape(editorPage, "마커");
+  await clickMapPoint(editorPage, 0.55, 0.3);
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
+    .toBe(before.layerCount + 1);
+
+  await editorPage.getByRole("button", { name: "마커 그리기" }).click();
+  const popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  await popup.getByRole("button", { name: /^패스/ }).click();
+  await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
+  const finishButton = editorPage.getByRole("button", { name: "패스 그리기 완료" });
+
+  await clickMapPoint(editorPage, 0.5, 0.25);
+  await editorPage.keyboard.press(`${modifier}+z`);
+  await expect(finishButton).toBeHidden();
+
+  await editorPage.keyboard.press(`${modifier}+z`);
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
+    .toBe(before.layerCount);
+
+  await editorPage.keyboard.press(`${modifier}+Shift+z`);
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
+    .toBe(before.layerCount + 1);
+  await expect(finishButton).toBeHidden();
 });
 
 test("Path는 완성 가능한 상태에서 Enter로 모달 없이 완성된다", async ({ page }) => {
@@ -243,6 +316,18 @@ test("ESC 확인 모달에서 계속 그리거나 Path sketch만 취소할 수 �
     dialog.getByText("지금까지 찍은 점 2개는 저장되지 않습니다."),
   ).toBeVisible();
   await expect(dialog.getByRole("button", { name: "계속 그리기" })).toBeFocused();
+
+  // 모달이 열린 동안에는 배경 sketch의 history를 변경하지 않습니다.
+  const modifier = await platformModifier(editorPage);
+  await editorPage.keyboard.press(`${modifier}+z`);
+  await editorPage.keyboard.press(`${modifier}+Shift+z`);
+  // alertdialog가 배경을 접근성 트리에서 숨기므로 DOM에서 직접 sketch 상태를 확인합니다.
+  await expect(
+    editorPage.locator('button[aria-label="패스 그리기 완료"]'),
+  ).toContainText("2점");
+  await expect(
+    dialog.getByText("지금까지 찍은 점 2개는 저장되지 않습니다."),
+  ).toBeVisible();
 
   // 모달의 ESC는 안전한 기본값인 '계속 그리기'로 닫힙니다.
   await editorPage.keyboard.press("Escape");
