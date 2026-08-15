@@ -111,3 +111,7 @@ export const confirmationDialogStore = new ConfirmationDialogStore();
 export function confirmDialog(options: ConfirmationDialogOptions): Promise<boolean> {
   return confirmationDialogStore.confirm(options);
 }
+
+export function isConfirmationDialogOpen(): boolean {
+  return confirmationDialogStore.getSnapshot().activeRequest !== null;
+}

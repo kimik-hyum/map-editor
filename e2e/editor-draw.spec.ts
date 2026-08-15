@@ -105,6 +105,8 @@ test("Path는 정점 로컬 undo/redo 후 완료 버튼으로 별도 레이어�
   await clickMapPoint(editorPage, 0.5, 0.25);
   const finishButton = editorPage.getByRole("button", { name: "패스 그리기 완료" });
   await expect(finishButton).toBeVisible();
+  await expect(finishButton).toHaveClass(/bg-emerald-600/);
+  await expect(finishButton.locator("svg")).toHaveClass(/lucide-flag-triangle-right/);
   await expect(finishButton).toBeDisabled();
   await expect(finishButton).toContainText("1점");
 
@@ -150,6 +152,25 @@ test("Path는 정점 로컬 undo/redo 후 완료 버튼으로 별도 레이어�
     .toBe(before.layerCount);
 });
 
+test("Path는 완성 가능한 상태에서 Enter로 모달 없이 완성된다", async ({ page }) => {
+  const editorPage = await openEditorViaDemo(page);
+  const before = await readEditorSnapshot(editorPage);
+  await activateDrawShape(editorPage, "패스");
+
+  await clickMapPoint(editorPage, 0.5, 0.25);
+  await clickMapPoint(editorPage, 0.6, 0.35);
+  await editorPage.keyboard.press("Enter");
+
+  await expect(editorPage.getByRole("alertdialog")).toHaveCount(0);
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
+    .toBe(before.layerCount + 1);
+
+  const completed = await readEditorSnapshot(editorPage);
+  expect(completed.lastFeature?.geometry.type).toBe("LineString");
+  expect(completed.pastCount).toBe(before.pastCount + 1);
+});
+
 test("폴리곤은 마지막 정점이 아니라 시작점을 클릭해야 별도 레이어로 완성된다", async ({
   page,
 }) => {
@@ -164,6 +185,11 @@ test("폴리곤은 마지막 정점이 아니라 시작점을 클릭해야 별�
   await editorPage.mouse.click(second.x, second.y);
   await editorPage.mouse.click(third.x, third.y);
 
+  expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
+
+  // 폴리곤은 Enter 완료를 지원하지 않고, 시작점 클릭 규칙만 유지합니다.
+  await editorPage.keyboard.press("Enter");
+  await expect(editorPage.getByRole("alertdialog")).toHaveCount(0);
   expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
 
   // OpenLayers 기본 동작과 달리 마지막 정점 재클릭으로는 끝내지 않습니다.
@@ -182,7 +208,7 @@ test("폴리곤은 마지막 정점이 아니라 시작점을 클릭해야 별�
   expect(completed.pastCount).toBe(before.pastCount + 1);
 });
 
-test("ESC는 진행 중인 Path sketch만 취소하고 레이어와 history를 만들지 않는다", async ({
+test("ESC 확인 모달에서 계속 그리거나 Path sketch만 취소할 수 있다", async ({
   page,
 }) => {
   const editorPage = await openEditorViaDemo(page);
@@ -196,6 +222,25 @@ test("ESC는 진행 중인 Path sketch만 취소하고 레이어와 history를 �
   ).toBeVisible();
 
   await editorPage.keyboard.press("Escape");
+  const dialog = editorPage.getByRole("alertdialog", { name: "그리기를 취소할까요?" });
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByText("지금까지 찍은 점 2개는 저장되지 않습니다."),
+  ).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "계속 그리기" })).toBeFocused();
+
+  // 모달의 ESC는 안전한 기본값인 '계속 그리기'로 닫힙니다.
+  await editorPage.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(
+    editorPage.getByRole("button", { name: "패스 그리기 완료" }),
+  ).toBeVisible();
+  expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
+
+  await editorPage.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "그리기 취소" }).click();
+  await expect(dialog).toBeHidden();
   await expect(
     editorPage.getByRole("button", { name: "패스 그리기 완료" }),
   ).toBeHidden();

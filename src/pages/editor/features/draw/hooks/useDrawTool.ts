@@ -9,10 +9,22 @@ import { getToolActivation } from "@/pages/editor/features/modes";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import { isTextEntryTarget } from "@/pages/editor/state/isTextEntryTarget";
 import { GeometryKind } from "@/pages/editor/types/editorTypes";
-import { resolveDrawHint } from "../model/drawToolModel";
+import {
+  confirmDialog,
+  isConfirmationDialogOpen,
+} from "@/shared/ui/confirmation-dialog";
+import { resolveDrawHint, resolveDrawKeyboardIntent } from "../model/drawToolModel";
+
+function isInteractiveControlTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.closest("button, a, [role='dialog'], [role='alertdialog']") !== null
+  );
+}
 
 export function useDrawTool(map: OpenLayersMap | null) {
   const handleRef = useRef<ReturnType<typeof attachFeatureDraw> | null>(null);
+  const sketchRef = useRef<DrawSketchState>(EMPTY_DRAW_SKETCH_STATE);
   const activeMode = useEditorStore((state) => state.activeMode);
   const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
   const sceneReady = useEditorStore((state) => state.scene !== null);
@@ -26,7 +38,10 @@ export function useDrawTool(map: OpenLayersMap | null) {
     const handle = attachFeatureDraw(map, {
       shape: useEditorStore.getState().activeDrawShape,
       onCommit: (geometry) => useEditorStore.getState().addFeatures([{ geometry }]),
-      onStateChange: setSketch,
+      onStateChange: (nextSketch) => {
+        sketchRef.current = nextSketch;
+        setSketch(nextSketch);
+      },
     });
     handleRef.current = handle;
 
@@ -36,6 +51,7 @@ export function useDrawTool(map: OpenLayersMap | null) {
     return () => {
       handle.detach();
       handleRef.current = null;
+      sketchRef.current = EMPTY_DRAW_SKETCH_STATE;
       setSketch(EMPTY_DRAW_SKETCH_STATE);
     };
   }, [map]);
@@ -48,16 +64,62 @@ export function useDrawTool(map: OpenLayersMap | null) {
     handleRef.current?.setActive(getToolActivation(activeMode).draw && sceneReady);
   }, [activeMode, sceneReady]);
 
-  // ESC는 현재 sketch만 취소합니다. 완성된 scene history에는 영향을 주지 않습니다.
+  // 키보드 동작은 현재 sketch에만 적용합니다. 완성된 scene history는 건드리지 않습니다.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
-        event.key === "Escape" &&
-        !isTextEntryTarget(event.target) &&
-        handleRef.current?.abort()
+        event.defaultPrevented ||
+        event.repeat ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.shiftKey ||
+        isTextEntryTarget(event.target)
       ) {
-        event.preventDefault();
+        return;
       }
+
+      const editorState = useEditorStore.getState();
+      const currentSketch = sketchRef.current;
+      const intent = resolveDrawKeyboardIntent({
+        key: event.key,
+        shape: editorState.activeDrawShape,
+        isDrawing: currentSketch.isDrawing,
+        canFinish: currentSketch.canFinish,
+        confirmationOpen: isConfirmationDialogOpen(),
+      });
+
+      if (intent === "finish") {
+        // 버튼에서 Enter를 누르면 native click이 완료를 맡으므로 전역 shortcut은 중복 실행하지 않습니다.
+        if (isInteractiveControlTarget(event.target)) {
+          return;
+        }
+        if (handleRef.current?.finish()) {
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (intent !== "cancel") {
+        return;
+      }
+
+      event.preventDefault();
+      const vertexCount = currentSketch.vertexCount;
+
+      void (async () => {
+        const confirmed = await confirmDialog({
+          title: "그리기를 취소할까요?",
+          description: `지금까지 찍은 점 ${vertexCount}개는 저장되지 않습니다.`,
+          confirmLabel: "그리기 취소",
+          cancelLabel: "계속 그리기",
+          tone: "danger",
+          initialFocus: "cancel",
+        });
+        if (confirmed) {
+          handleRef.current?.abort();
+        }
+      })();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
