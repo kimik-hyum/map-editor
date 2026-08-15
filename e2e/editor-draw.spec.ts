@@ -67,6 +67,15 @@ async function clickMapPoint(page: Page, xRatio: number, yRatio: number) {
   await page.mouse.click(point.x, point.y);
 }
 
+async function readMapCursor(page: Page): Promise<string> {
+  return page
+    .getByLabel("OSM map editor")
+    .locator(".ol-viewport")
+    .evaluate((element) => {
+      return (element as HTMLElement).style.cursor;
+    });
+}
+
 async function platformModifier(page: Page): Promise<"Meta" | "Control"> {
   return page.evaluate(() =>
     /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control",
@@ -77,6 +86,8 @@ test("마커는 클릭 한 번마다 별도 레이어로 즉시 완성된다", a
   const editorPage = await openEditorViaDemo(page);
   const before = await readEditorSnapshot(editorPage);
   await activateDrawShape(editorPage, "마커");
+  expect(await readMapCursor(editorPage)).toContain("data:image/svg+xml");
+  expect(await readMapCursor(editorPage)).toContain("13 30");
 
   await clickMapPoint(editorPage, 0.55, 0.3);
   await expect
@@ -101,6 +112,8 @@ test("Path는 정점 로컬 undo/redo 후 완료 버튼으로 별도 레이어�
   const editorPage = await openEditorViaDemo(page);
   const before = await readEditorSnapshot(editorPage);
   await activateDrawShape(editorPage, "패스");
+  expect(await readMapCursor(editorPage)).toContain("data:image/svg+xml");
+  expect(await readMapCursor(editorPage)).toContain("7 7");
 
   await clickMapPoint(editorPage, 0.5, 0.25);
   const finishButton = editorPage.getByRole("button", { name: "패스 그리기 완료" });
@@ -177,6 +190,8 @@ test("폴리곤은 마지막 정점이 아니라 시작점을 클릭해야 별�
   const editorPage = await openEditorViaDemo(page);
   const before = await readEditorSnapshot(editorPage);
   await activateDrawShape(editorPage, "폴리곤");
+  expect(await readMapCursor(editorPage)).toContain("data:image/svg+xml");
+  expect(await readMapCursor(editorPage)).toContain("7 7");
 
   const start = await mapPoint(editorPage, 0.5, 0.3);
   const second = await mapPoint(editorPage, 0.62, 0.2);

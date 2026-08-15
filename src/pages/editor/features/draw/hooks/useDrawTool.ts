@@ -13,6 +13,7 @@ import {
   confirmDialog,
   isConfirmationDialogOpen,
 } from "@/shared/ui/confirmation-dialog";
+import { resolveDrawCursor } from "../model/drawCursorModel";
 import { resolveDrawHint, resolveDrawKeyboardIntent } from "../model/drawToolModel";
 
 function isInteractiveControlTarget(target: EventTarget | null): boolean {
@@ -63,6 +64,24 @@ export function useDrawTool(map: OpenLayersMap | null) {
   useEffect(() => {
     handleRef.current?.setActive(getToolActivation(activeMode).draw && sceneReady);
   }, [activeMode, sceneReady]);
+
+  useEffect(() => {
+    if (!map || !getToolActivation(activeMode).draw || !sceneReady) {
+      return;
+    }
+
+    const viewport = map.getViewport();
+    const previousCursor = viewport.style.cursor;
+    const drawCursor = resolveDrawCursor(activeDrawShape);
+    viewport.style.cursor = drawCursor;
+
+    return () => {
+      // 다른 interaction이 이후 커서를 바꿨다면 그 값을 덮어쓰지 않습니다.
+      if (viewport.style.cursor === drawCursor) {
+        viewport.style.cursor = previousCursor;
+      }
+    };
+  }, [activeDrawShape, activeMode, map, sceneReady]);
 
   // 키보드 동작은 현재 sketch에만 적용합니다. 완성된 scene history는 건드리지 않습니다.
   useEffect(() => {
