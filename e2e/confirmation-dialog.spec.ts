@@ -47,6 +47,7 @@ test("전역 confirmDialog는 어느 화면에서든 열리고 boolean 결과를
   await expect(confirmDialog).toBeVisible();
   const confirmButton = page.getByRole("button", { name: "도형 완성" });
   await expect(confirmButton).toBeFocused();
+  await expect(confirmButton).toHaveClass(/bg-emerald-700/);
   await confirmButton.click();
   await expect(confirmDialog).toBeHidden();
   await expect(confirmed).resolves.toBe(true);

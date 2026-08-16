@@ -230,6 +230,23 @@ describe("createLayerPanelViewModel", () => {
     expect(viewModel.rows.map((row) => row.name)).toEqual(["bare", "라벨"]);
   });
 
+  it("Point 종류를 Draw UI와 같은 마커 용어로 표시한다", () => {
+    const marker = createFeature({
+      geometryKind: GeometryKind.Point,
+      feature: {
+        type: "Feature",
+        id: "marker",
+        geometry: { type: "Point", coordinates: [126.98, 37.56] },
+        properties: {},
+      },
+    });
+    const scene = createScene([
+      createFeatureLayer({ geometryKinds: [GeometryKind.Point] }, marker),
+    ]);
+
+    expect(createLayerPanelViewModel(scene).rows[0].geometryKindLabel).toBe("마커");
+  });
+
   it("scene이 없으면 준비 안 됨 상태를 돌려준다", () => {
     const viewModel = createLayerPanelViewModel(null);
     expect(viewModel).toMatchObject({ isReady: false, isEmpty: true, rows: [] });

@@ -1,5 +1,6 @@
 import "ol/ol.css";
 import { MapCursorTooltip } from "@/shared/ui/MapCursorTooltip";
+import { useConfirmationDialogOpen } from "@/shared/ui/confirmation-dialog";
 import { useEditorClipboard } from "./features/clipboard";
 import { DrawFinishButton, useDrawTool } from "./features/draw";
 import { GeometryOpMarkers } from "./features/geometry-ops";
@@ -25,9 +26,11 @@ export function EditorPage() {
   const isSceneReady = useEditorStore((state) => state.scene !== null);
   const activeMode = useEditorStore((state) => state.activeMode);
   const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
+  const confirmationOpen = useConfirmationDialogOpen();
   const activation = getToolActivation(activeMode);
-  const cursorHint =
-    drawTool.hint ?? (editAffordance ? EDIT_HINTS[editAffordance] : null);
+  const cursorHint = confirmationOpen
+    ? null
+    : (drawTool.hint ?? (editAffordance ? EDIT_HINTS[editAffordance] : null));
 
   // 좌측 rail의 경계 도구가 활성일 때만, 거기서 고른 종류(행정동/법정동/우편번호)의
   // 경계를 현재 줌·화면으로 받아 그린다. 다른 모드로 바꾸면 비운다.
@@ -52,7 +55,7 @@ export function EditorPage() {
     onDiscardInProgressRedo: drawTool.discardRedo,
   });
   // Cmd/Ctrl+C 복사 · Cmd/Ctrl+V 붙여넣기. 시스템 클립보드라 다른 에디터 창과도 공유된다(#76).
-  useEditorClipboard();
+  useEditorClipboard({ onBeforePaste: drawTool.discardRedo });
 
   return (
     <div className="grid h-screen grid-cols-[88px_minmax(0,1fr)] overflow-hidden">
@@ -60,6 +63,7 @@ export function EditorPage() {
         <EditorModePanel
           boundaryOperationError={regionOps.error}
           boundaryStatus={regionStatus}
+          confirmDiscardDraw={drawTool.confirmDiscardSketch}
         />
       </aside>
       <main className="relative min-h-0 min-w-0">
@@ -67,6 +71,7 @@ export function EditorPage() {
           ref={mapElementRef}
           className="h-screen w-full"
           aria-label="OSM map editor"
+          tabIndex={-1}
         />
         <MapCursorTooltip text={cursorHint} containerRef={mapElementRef} />
         <DrawFinishButton

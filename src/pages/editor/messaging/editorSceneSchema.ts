@@ -13,7 +13,15 @@ import { findDuplicateIds, normalizeSceneInput } from "./normalizeSceneInput";
 // normalizeSceneInput으로 내부 EditorScene(리치 모델)으로 변환합니다.
 // 즉 검증 경계(이 파일)와 기본값 채움(normalizeSceneInput)을 분리합니다.
 
-const coordinateSchema = z.tuple([z.number(), z.number()]);
+const coordinateSchema = z.tuple([
+  z.number().min(-180).max(180),
+  z.number().min(-90).max(90),
+]);
+const multiPointCoordinatesSchema = z.array(coordinateSchema).min(1);
+const lineStringCoordinatesSchema = z.array(coordinateSchema).min(2);
+// 입력에서는 열린 3점을 허용하고 normalizeSceneInput이 마지막에 시작점을 붙여 링을 닫습니다.
+const linearRingCoordinatesSchema = z.array(coordinateSchema).min(3);
+const polygonCoordinatesSchema = z.array(linearRingCoordinatesSchema).min(1);
 
 // 입력 허용 범위를 실제 렌더링 범위와 맞춰 "통과하지만 안 보이는" geometry를 막습니다.
 const geometrySchema = z.discriminatedUnion("type", [
@@ -23,23 +31,23 @@ const geometrySchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("MultiPoint"),
-    coordinates: z.array(coordinateSchema),
+    coordinates: multiPointCoordinatesSchema,
   }),
   z.object({
     type: z.literal("LineString"),
-    coordinates: z.array(coordinateSchema),
+    coordinates: lineStringCoordinatesSchema,
   }),
   z.object({
     type: z.literal("MultiLineString"),
-    coordinates: z.array(z.array(coordinateSchema)),
+    coordinates: z.array(lineStringCoordinatesSchema).min(1),
   }),
   z.object({
     type: z.literal("Polygon"),
-    coordinates: z.array(z.array(coordinateSchema)),
+    coordinates: polygonCoordinatesSchema,
   }),
   z.object({
     type: z.literal("MultiPolygon"),
-    coordinates: z.array(z.array(z.array(coordinateSchema))),
+    coordinates: z.array(polygonCoordinatesSchema).min(1),
   }),
 ]);
 

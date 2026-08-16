@@ -24,11 +24,13 @@ import { DrawShapePopup } from "./DrawShapePopup";
 type EditorModePanelProps = {
   boundaryStatus: RegionBoundaryStatus;
   boundaryOperationError: string | null;
+  confirmDiscardDraw: () => Promise<boolean>;
 };
 
 export function EditorModePanel({
   boundaryStatus,
   boundaryOperationError,
+  confirmDiscardDraw,
 }: EditorModePanelProps) {
   const activeMode = useEditorStore((state) => state.activeMode);
   const setActiveMode = useEditorStore((state) => state.setActiveMode);
@@ -66,9 +68,19 @@ export function EditorModePanel({
             const next = value[0] as EditorMode | undefined;
 
             if (next) {
-              setActiveMode(next);
-              setBoundaryPopupOpen(next === EditorMode.Boundary);
-              setDrawPopupOpen(next === EditorMode.Draw);
+              void (async () => {
+                if (
+                  activeMode === EditorMode.Draw &&
+                  next !== EditorMode.Draw &&
+                  !(await confirmDiscardDraw())
+                ) {
+                  return;
+                }
+
+                setActiveMode(next);
+                setBoundaryPopupOpen(next === EditorMode.Boundary);
+                setDrawPopupOpen(next === EditorMode.Draw);
+              })();
               return;
             }
 
@@ -137,6 +149,7 @@ export function EditorModePanel({
       />
       <DrawShapePopup
         anchor={drawAnchorRef}
+        confirmDiscardDraw={confirmDiscardDraw}
         onOpenChange={setDrawPopupOpen}
         open={drawPopupOpen && activeMode === EditorMode.Draw}
       />

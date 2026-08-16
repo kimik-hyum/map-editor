@@ -83,6 +83,34 @@ export function useDrawTool(map: OpenLayersMap | null) {
     };
   }, [activeDrawShape, activeMode, map, sceneReady]);
 
+  const confirmDiscardSketch = useCallback(async () => {
+    const currentSketch = sketchRef.current;
+    if (!currentSketch.isDrawing) {
+      return true;
+    }
+
+    const confirmed = await confirmDialog({
+      title: "그리기를 취소할까요?",
+      description: `지금까지 찍은 점 ${currentSketch.vertexCount}개는 저장되지 않습니다.`,
+      confirmLabel: "그리기 취소",
+      cancelLabel: "계속 그리기",
+      tone: "danger",
+      initialFocus: "cancel",
+    });
+
+    if (confirmed) {
+      handleRef.current?.abort();
+      return true;
+    }
+
+    // AlertDialog의 기존 포커스 복원이 끝난 뒤 지도에 돌려, 다음 Enter가 rail 버튼을
+    // 다시 누르지 않고 현재 Path 완료 단축키로 이어지게 합니다.
+    requestAnimationFrame(() => {
+      map?.getTargetElement().focus({ preventScroll: true });
+    });
+    return false;
+  }, [map]);
+
   // 키보드 동작은 현재 sketch에만 적용합니다. 완성된 scene history는 건드리지 않습니다.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -124,25 +152,11 @@ export function useDrawTool(map: OpenLayersMap | null) {
       }
 
       event.preventDefault();
-      const vertexCount = currentSketch.vertexCount;
-
-      void (async () => {
-        const confirmed = await confirmDialog({
-          title: "그리기를 취소할까요?",
-          description: `지금까지 찍은 점 ${vertexCount}개는 저장되지 않습니다.`,
-          confirmLabel: "그리기 취소",
-          cancelLabel: "계속 그리기",
-          tone: "danger",
-          initialFocus: "cancel",
-        });
-        if (confirmed) {
-          handleRef.current?.abort();
-        }
-      })();
+      void confirmDiscardSketch();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [confirmDiscardSketch]);
 
   const finish = useCallback(() => handleRef.current?.finish() ?? false, []);
   const undoVertex = useCallback(() => handleRef.current?.undoVertex() ?? false, []);
@@ -155,6 +169,7 @@ export function useDrawTool(map: OpenLayersMap | null) {
     undoVertex,
     redoVertex,
     discardRedo,
+    confirmDiscardSketch,
     hint: getToolActivation(activeMode).draw
       ? resolveDrawHint(activeDrawShape, sketch.isDrawing)
       : null,

@@ -12,7 +12,7 @@ import {
 // 네이티브 copy/paste 이벤트의 clipboardData를 직접 쓰므로 비동기 권한 요청이 없고,
 // 같은 OS 클립보드를 공유하는 다른 에디터 창(심지어 다른 앱)과도 그대로 호환됩니다.
 // 변하는 값(scene/선택)은 이벤트 시점에 store 게터로 당겨 읽습니다(어댑터 규약과 동일한 pull 경계).
-export function useEditorClipboard(): void {
+export function useEditorClipboard(options: { onBeforePaste?: () => void } = {}): void {
   const addFeatures = useEditorStore((state) => state.addFeatures);
 
   useEffect(() => {
@@ -62,6 +62,8 @@ export function useEditorClipboard(): void {
       }
 
       event.preventDefault();
+      // 붙여넣기는 새 scene 편집이므로, 그보다 오래된 진행 도구의 redo 분기를 먼저 버립니다.
+      options.onBeforePaste?.();
       addFeatures(inputs);
     };
 
@@ -71,5 +73,5 @@ export function useEditorClipboard(): void {
       window.removeEventListener("copy", handleCopy);
       window.removeEventListener("paste", handlePaste);
     };
-  }, [addFeatures]);
+  }, [addFeatures, options.onBeforePaste]);
 }

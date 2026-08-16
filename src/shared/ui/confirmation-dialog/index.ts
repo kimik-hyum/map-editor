@@ -1,4 +1,5 @@
 export { ConfirmationDialogProvider } from "./ConfirmationDialogProvider";
+export { useConfirmationDialogOpen } from "./useConfirmationDialogOpen";
 export {
   confirmDialog,
   isConfirmationDialogOpen,

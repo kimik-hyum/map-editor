@@ -82,12 +82,35 @@ async function platformModifier(page: Page): Promise<"Meta" | "Control"> {
   );
 }
 
+async function pasteMarker(page: Page) {
+  await page.evaluate(async () => {
+    const { serializeClipboardPayload } =
+      await import("/src/pages/editor/features/clipboard/model/clipboardPayload.ts");
+    const clipboardData = new DataTransfer();
+    const text = serializeClipboardPayload([
+      {
+        name: "붙여넣은 마커",
+        geometry: { type: "Point", coordinates: [126.98, 37.56] },
+      },
+    ]);
+    clipboardData.setData("application/json", text);
+    const event = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", { value: clipboardData });
+    window.dispatchEvent(event);
+  });
+}
+
 test("마커는 클릭 한 번마다 별도 레이어로 즉시 완성된다", async ({ page }) => {
   const editorPage = await openEditorViaDemo(page);
   const before = await readEditorSnapshot(editorPage);
   await activateDrawShape(editorPage, "마커");
   expect(await readMapCursor(editorPage)).toContain("data:image/svg+xml");
   expect(await readMapCursor(editorPage)).toContain("13 30");
+
+  const rejectedPoint = await mapPoint(editorPage, 0.5, 0.25);
+  await editorPage.mouse.click(rejectedPoint.x, rejectedPoint.y, { button: "right" });
+  await editorPage.mouse.click(rejectedPoint.x, rejectedPoint.y, { button: "middle" });
+  expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
 
   await clickMapPoint(editorPage, 0.55, 0.3);
   await expect
@@ -115,10 +138,17 @@ test("Path는 정점 로컬 undo/redo 후 완료 버튼으로 별도 레이어�
   expect(await readMapCursor(editorPage)).toContain("data:image/svg+xml");
   expect(await readMapCursor(editorPage)).toContain("7 7");
 
+  const cursorTooltip = editorPage.locator('main > [role="status"]');
+  const tooltipPoint = await mapPoint(editorPage, 0.5, 0.8);
+  await editorPage.mouse.move(tooltipPoint.x, tooltipPoint.y);
+  await expect(cursorTooltip).toBeVisible();
+  await editorPage.locator("aside").hover();
+  await expect(cursorTooltip).toBeHidden();
+
   await clickMapPoint(editorPage, 0.5, 0.25);
   const finishButton = editorPage.getByRole("button", { name: "패스 그리기 완료" });
   await expect(finishButton).toBeVisible();
-  await expect(finishButton).toHaveClass(/bg-emerald-600/);
+  await expect(finishButton).toHaveClass(/bg-emerald-700/);
   await expect(finishButton.locator("svg")).toHaveClass(/lucide-flag-triangle-right/);
   await expect(finishButton).toBeDisabled();
   await expect(finishButton).toContainText("1점");
@@ -137,6 +167,11 @@ test("Path는 정점 로컬 undo/redo 후 완료 버튼으로 별도 레이어�
   await clickMapPoint(editorPage, 0.6, 0.35);
   await clickMapPoint(editorPage, 0.7, 0.25);
   await expect(finishButton).toBeEnabled();
+  await expect(finishButton).toContainText("3점");
+
+  const rejectedPoint = await mapPoint(editorPage, 0.75, 0.4);
+  await editorPage.mouse.click(rejectedPoint.x, rejectedPoint.y, { button: "right" });
+  await editorPage.mouse.click(rejectedPoint.x, rejectedPoint.y, { button: "middle" });
   await expect(finishButton).toContainText("3점");
 
   const duringSketch = await readEditorSnapshot(editorPage);
@@ -182,7 +217,7 @@ test("첫 정점 undo의 로컬 redo는 Draw 모드나 도형을 벗어나면 �
 
   await editorPage.getByRole("button", { name: "선택", exact: true }).click();
   await editorPage.keyboard.press(`${modifier}+Shift+z`);
-  await editorPage.getByRole("button", { name: "패스 그리기" }).click();
+  await editorPage.getByRole("button", { name: "패스 그리기", exact: true }).click();
   await editorPage
     .getByRole("dialog", { name: "추가할 도형" })
     .getByRole("button", { name: "추가할 도형 닫기" })
@@ -194,13 +229,37 @@ test("첫 정점 undo의 로컬 redo는 Draw 모드나 도형을 벗어나면 �
   // 도형을 바꾸는 경로에서도 이전 Path 좌표가 Polygon으로 복구되지 않습니다.
   await clickMapPoint(editorPage, 0.5, 0.25);
   await editorPage.keyboard.press(`${modifier}+z`);
-  await editorPage.getByRole("button", { name: "패스 그리기" }).click();
+  await editorPage.getByRole("button", { name: "패스 그리기", exact: true }).click();
   const popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
   await popup.getByRole("button", { name: /^폴리곤/ }).click();
   await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
   await editorPage.keyboard.press(`${modifier}+Shift+z`);
   await expect(finishButton).toBeHidden();
   expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
+  await editorPage.keyboard.press("Escape");
+  await expect(editorPage.getByRole("alertdialog")).toHaveCount(0);
+});
+
+test("붙여넣기 scene 편집은 그보다 오래된 Draw 로컬 redo를 폐기한다", async ({
+  page,
+}) => {
+  const editorPage = await openEditorViaDemo(page);
+  const before = await readEditorSnapshot(editorPage);
+  const modifier = await platformModifier(editorPage);
+  await activateDrawShape(editorPage, "패스");
+  const finishButton = editorPage.getByRole("button", { name: "패스 그리기 완료" });
+
+  await clickMapPoint(editorPage, 0.5, 0.25);
+  await editorPage.keyboard.press(`${modifier}+z`);
+  await expect(finishButton).toBeHidden();
+
+  await pasteMarker(editorPage);
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
+    .toBe(before.layerCount + 1);
+
+  await editorPage.keyboard.press(`${modifier}+Shift+z`);
+  await expect(finishButton).toBeHidden();
 });
 
 test("전역 undo가 실행되면 로컬 redo 분기를 버리고 전역 redo 순서를 지킨다", async ({
@@ -238,6 +297,60 @@ test("전역 undo가 실행되면 로컬 redo 분기를 버리고 전역 redo �
   await expect(finishButton).toBeHidden();
 });
 
+test("진행 중 sketch를 두고 도형이나 모드를 바꾸면 취소 확인을 거친다", async ({
+  page,
+}) => {
+  const editorPage = await openEditorViaDemo(page);
+  await activateDrawShape(editorPage, "패스");
+  const finishButton = editorPage.getByRole("button", { name: "패스 그리기 완료" });
+  const map = editorPage.getByLabel("OSM map editor");
+
+  await clickMapPoint(editorPage, 0.5, 0.25);
+  await clickMapPoint(editorPage, 0.6, 0.35);
+  await editorPage.getByRole("button", { name: "패스 그리기", exact: true }).click();
+  let popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  await popup.getByRole("button", { name: /^폴리곤/ }).click();
+
+  const dialog = editorPage.getByRole("alertdialog", { name: "그리기를 취소할까요?" });
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByText("지금까지 찍은 점 2개는 저장되지 않습니다."),
+  ).toBeVisible();
+  await editorPage.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(map).toBeFocused();
+  await expect(finishButton).toContainText("2점");
+
+  await editorPage.getByRole("button", { name: "패스 그리기", exact: true }).click();
+  popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  await popup.getByRole("button", { name: /^폴리곤/ }).click();
+  await dialog.getByRole("button", { name: "그리기 취소" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(editorPage.getByRole("button", { name: "폴리곤 그리기" })).toBeVisible();
+  await expect(finishButton).toBeHidden();
+  await expect(popup).toBeHidden();
+  await editorPage.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+
+  await activateDrawShape(editorPage, "패스");
+  await clickMapPoint(editorPage, 0.5, 0.25);
+  await clickMapPoint(editorPage, 0.6, 0.35);
+  await editorPage.getByRole("button", { name: "선택", exact: true }).click();
+  await expect(dialog).toBeVisible();
+  await editorPage.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(map).toBeFocused();
+  await expect(finishButton).toContainText("2점");
+
+  await editorPage.getByRole("button", { name: "선택", exact: true }).click();
+  await dialog.getByRole("button", { name: "그리기 취소" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(
+    editorPage.getByRole("button", { name: "선택", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(finishButton).toBeHidden();
+});
+
 test("Path는 완성 가능한 상태에서 Enter로 모달 없이 완성된다", async ({ page }) => {
   const editorPage = await openEditorViaDemo(page);
   const before = await readEditorSnapshot(editorPage);
@@ -255,6 +368,28 @@ test("Path는 완성 가능한 상태에서 Enter로 모달 없이 완성된다"
   const completed = await readEditorSnapshot(editorPage);
   expect(completed.lastFeature?.geometry.type).toBe("LineString");
   expect(completed.pastCount).toBe(before.pastCount + 1);
+});
+
+test("ESC로 계속 그리기를 선택한 뒤 Enter는 Path를 완성한다", async ({ page }) => {
+  const editorPage = await openEditorViaDemo(page);
+  const before = await readEditorSnapshot(editorPage);
+  await activateDrawShape(editorPage, "패스");
+  const map = editorPage.getByLabel("OSM map editor");
+
+  await clickMapPoint(editorPage, 0.5, 0.25);
+  await clickMapPoint(editorPage, 0.6, 0.35);
+  await editorPage.keyboard.press("Escape");
+  const dialog = editorPage.getByRole("alertdialog", { name: "그리기를 취소할까요?" });
+  await expect(dialog).toBeVisible();
+  await editorPage.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(map).toBeFocused();
+
+  await editorPage.keyboard.press("Enter");
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
+    .toBe(before.layerCount + 1);
+  await expect(editorPage.getByRole("dialog", { name: "추가할 도형" })).toHaveCount(0);
 });
 
 test("폴리곤은 마지막 정점이 아니라 시작점을 클릭해야 별도 레이어로 완성된다", async ({
@@ -316,10 +451,27 @@ test("ESC 확인 모달에서 계속 그리거나 Path sketch만 취소할 수 �
     dialog.getByText("지금까지 찍은 점 2개는 저장되지 않습니다."),
   ).toBeVisible();
   await expect(dialog.getByRole("button", { name: "계속 그리기" })).toBeFocused();
+  const cursorTooltip = editorPage.locator('main > [role="status"]');
+  await expect(cursorTooltip).toBeHidden();
+  const [modalZIndex, tooltipZIndex] = await Promise.all([
+    dialog.evaluate((element) =>
+      Number.parseInt(
+        getComputedStyle(element.parentElement as HTMLElement).zIndex,
+        10,
+      ),
+    ),
+    cursorTooltip.evaluate((element) =>
+      Number.parseInt(getComputedStyle(element).zIndex, 10),
+    ),
+  ]);
+  expect(modalZIndex).toBeGreaterThan(tooltipZIndex);
 
   // 모달이 열린 동안에는 배경 sketch의 history를 변경하지 않습니다.
   const modifier = await platformModifier(editorPage);
   await editorPage.keyboard.press(`${modifier}+z`);
+  await expect(
+    editorPage.locator('button[aria-label="패스 그리기 완료"]'),
+  ).toContainText("2점");
   await editorPage.keyboard.press(`${modifier}+Shift+z`);
   // alertdialog가 배경을 접근성 트리에서 숨기므로 DOM에서 직접 sketch 상태를 확인합니다.
   await expect(

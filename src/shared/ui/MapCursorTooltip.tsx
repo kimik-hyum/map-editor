@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 
 type MapCursorTooltipProps = {
   // 표시할 문구. null이면 숨깁니다.
@@ -11,6 +11,7 @@ type MapCursorTooltipProps = {
 // 커서의 살짝 위쪽에 좌상단을 두는 left 정렬이며, text가 있을 때만 보입니다.
 export function MapCursorTooltip({ text, containerRef }: MapCursorTooltipProps) {
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const [pointerInside, setPointerInside] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -40,8 +41,15 @@ export function MapCursorTooltip({ text, containerRef }: MapCursorTooltipProps) 
       }
     };
 
+    const handlePointerEnter = () => setPointerInside(true);
+    const handlePointerLeave = () => setPointerInside(false);
+
+    container.addEventListener("pointerenter", handlePointerEnter);
+    container.addEventListener("pointerleave", handlePointerLeave);
     container.addEventListener("pointermove", handlePointerMove);
     return () => {
+      container.removeEventListener("pointerenter", handlePointerEnter);
+      container.removeEventListener("pointerleave", handlePointerLeave);
       container.removeEventListener("pointermove", handlePointerMove);
       if (frameId !== 0) {
         cancelAnimationFrame(frameId);
@@ -53,9 +61,9 @@ export function MapCursorTooltip({ text, containerRef }: MapCursorTooltipProps) 
     <div
       ref={tooltipRef}
       role="status"
-      aria-hidden={text === null}
+      aria-hidden={text === null || !pointerInside}
       className={`pointer-events-none absolute left-0 top-0 z-[1000] whitespace-nowrap rounded-md bg-gray-900/90 px-2 py-1 text-xs font-medium text-white shadow-lg ${
-        text === null ? "hidden" : ""
+        text === null || !pointerInside ? "hidden" : ""
       }`}
     >
       {text}

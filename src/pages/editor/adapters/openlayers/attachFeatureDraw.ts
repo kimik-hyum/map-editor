@@ -1,6 +1,6 @@
 import type Feature from "ol/Feature";
 import type { EventsKey } from "ol/events";
-import { never } from "ol/events/condition";
+import { never, primaryAction } from "ol/events/condition";
 import type Geometry from "ol/geom/Geometry";
 import LineString from "ol/geom/LineString";
 import Point from "ol/geom/Point";
@@ -222,6 +222,9 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
   const buildDraw = () => {
     const instance = new Draw({
       type: drawGeometryTypeForShape(shape),
+      // OpenLayers 기본 noModifierKeys는 mouse button을 구분하지 않으므로 우클릭·휠 클릭도
+      // 정점으로 처리합니다. 터치·펜의 primary pointer와 마우스 좌클릭만 Draw 입력으로 받습니다.
+      condition: primaryAction,
       stopClick: true,
       snapTolerance: POLYGON_CLOSE_TOLERANCE_PX,
       // 기본 Shift 자유그리기는 정점 단위 undo/redo 계약과 충돌하므로 명시적으로 끕니다.

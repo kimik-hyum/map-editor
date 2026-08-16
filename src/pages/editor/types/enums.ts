@@ -32,8 +32,8 @@ export enum GeometryKind {
 
 // 도형 종류 enum을 화면에 표시할 때 사용하는 공통 한글 라벨입니다.
 export const geometryKindLabels = {
-  [GeometryKind.Point]: "점",
-  [GeometryKind.MultiPoint]: "여러 점",
+  [GeometryKind.Point]: "마커",
+  [GeometryKind.MultiPoint]: "여러 마커",
   [GeometryKind.Polygon]: "폴리곤",
   [GeometryKind.MultiPolygon]: "멀티 폴리곤",
   [GeometryKind.Path]: "패스",

@@ -41,7 +41,7 @@ const toneStyles: Record<
     icon: CircleCheckBig,
     iconClassName: "bg-emerald-50 text-emerald-600",
     confirmClassName:
-      "bg-emerald-600 hover:bg-emerald-700 focus-visible:ring-emerald-300",
+      "bg-emerald-700 hover:bg-emerald-800 focus-visible:ring-emerald-300",
   },
 };
 
@@ -71,8 +71,8 @@ export function ConfirmationDialog({
       }}
     >
       <AlertDialog.Portal>
-        <AlertDialog.Backdrop className="fixed inset-0 z-[100] bg-slate-950/45 backdrop-blur-[1px] transition-opacity duration-150 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
-        <AlertDialog.Viewport className="fixed inset-0 z-[101] flex items-center justify-center p-4">
+        <AlertDialog.Backdrop className="fixed inset-0 z-[1100] bg-slate-950/45 backdrop-blur-[1px] transition-opacity duration-150 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
+        <AlertDialog.Viewport className="fixed inset-0 z-[1101] flex items-center justify-center p-4">
           <AlertDialog.Popup
             initialFocus={
               initialFocus === "confirm" ? confirmButtonRef : cancelButtonRef

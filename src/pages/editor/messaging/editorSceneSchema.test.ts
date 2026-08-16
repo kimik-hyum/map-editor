@@ -103,6 +103,40 @@ describe("parseInitMessage", () => {
     expect(result.ok).toBe(false);
   });
 
+  it.each([
+    ["빈 MultiPoint", { type: "MultiPoint", coordinates: [] }],
+    ["한 점짜리 LineString", { type: "LineString", coordinates: [[126.9, 37.5]] }],
+    ["빈 MultiLineString", { type: "MultiLineString", coordinates: [] }],
+    [
+      "한 점짜리 MultiLineString part",
+      { type: "MultiLineString", coordinates: [[[126.9, 37.5]]] },
+    ],
+    ["빈 Polygon", { type: "Polygon", coordinates: [] }],
+    [
+      "두 점짜리 Polygon ring",
+      {
+        type: "Polygon",
+        coordinates: [
+          [
+            [126.9, 37.5],
+            [127.0, 37.6],
+          ],
+        ],
+      },
+    ],
+    ["빈 MultiPolygon", { type: "MultiPolygon", coordinates: [] }],
+    ["경도 범위 초과", { type: "Point", coordinates: [181, 37.5] }],
+    ["위도 범위 초과", { type: "Point", coordinates: [126.9, 91] }],
+  ])("렌더링할 수 없는 %s geometry를 거부한다", (_name, geometry) => {
+    const result = parseInitMessage({
+      type: EditorMessageType.Init,
+      sessionId: "s",
+      scene: { version: 2, features: [{ geometry }] },
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
   it("Path와 Point geometry를 허용하고 종류를 파생한다", () => {
     const lineResult = parseInitMessage({
       type: EditorMessageType.Init,

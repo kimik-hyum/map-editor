@@ -69,6 +69,7 @@
 
 - `createOpenLayersGeometry`가 `Point`, `MultiPoint`, `LineString`, `MultiLineString`, `Polygon`, `MultiPolygon`을 모두 변환한다.
   참고: [`src/pages/editor/adapters/openlayers/createOpenLayersGeometry.ts`](../src/pages/editor/adapters/openlayers/createOpenLayersGeometry.ts)
+- 메시지·클립보드 입력 경계에서 도형별 최소 좌표 수, 비어 있지 않은 multi part, 경위도 범위를 검증한다.
 - `features/draw` controller와 `attachFeatureDraw` adapter가 마커 즉시 완료, 패스 버튼·Enter 완료, 폴리곤 시작점 닫기, ESC 취소 확인을 담당한다.
 - 그리는 중 정점 undo/redo와 확인된 ESC 취소는 scene을 변경하지 않고, 완성 시 `addFeatures`가 새 레이어와 전역 history 한 단계를 만든다.
 
