@@ -14,7 +14,7 @@ import {
 // 같은 OS 클립보드를 공유하는 다른 에디터 창(심지어 다른 앱)과도 그대로 호환됩니다.
 // 변하는 값(scene/선택)은 이벤트 시점에 store 게터로 당겨 읽습니다(어댑터 규약과 동일한 pull 경계).
 type EditorClipboardOptions = {
-  disabled?: boolean;
+  isDisabled?: () => boolean;
   onBeforePaste?: () => void;
 };
 
@@ -24,7 +24,7 @@ export function useEditorClipboard(options: EditorClipboardOptions = {}): void {
   useEffect(() => {
     const handleCopy = (event: ClipboardEvent) => {
       // 진행 중 sketch와 scene 편집의 시간축이 섞이지 않도록 clipboard 자체를 차단합니다.
-      if (options.disabled) {
+      if (options.isDisabled?.()) {
         event.preventDefault();
         return;
       }
@@ -56,7 +56,7 @@ export function useEditorClipboard(options: EditorClipboardOptions = {}): void {
     };
 
     const handlePaste = (event: ClipboardEvent) => {
-      if (options.disabled) {
+      if (options.isDisabled?.()) {
         event.preventDefault();
         return;
       }
@@ -85,7 +85,7 @@ export function useEditorClipboard(options: EditorClipboardOptions = {}): void {
     };
 
     const handleCut = (event: ClipboardEvent) => {
-      if (options.disabled) {
+      if (options.isDisabled?.()) {
         event.preventDefault();
       }
     };
@@ -98,5 +98,5 @@ export function useEditorClipboard(options: EditorClipboardOptions = {}): void {
       window.removeEventListener("cut", handleCut);
       window.removeEventListener("paste", handlePaste);
     };
-  }, [addFeatures, options.disabled, options.onBeforePaste]);
+  }, [addFeatures, options.isDisabled, options.onBeforePaste]);
 }

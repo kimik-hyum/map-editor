@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 type EditorSnapshot = {
   layerCount: number;
   pastCount: number;
+  futureCount: number;
   selectedFeatureIds: string[];
   lastFeature: {
     id: string;
@@ -61,6 +62,7 @@ async function readEditorSnapshot(page: Page): Promise<EditorSnapshot> {
     return {
       layerCount: state.scene?.layers.length ?? 0,
       pastCount: state.past.length,
+      futureCount: state.future.length,
       selectedFeatureIds: state.selectedFeatureIds,
       lastFeature: lastFeature
         ? {
@@ -387,6 +389,50 @@ test("전역 undo가 실행되면 로컬 redo 분기를 버리고 전역 redo �
   await expect(finishButton).toBeHidden();
 });
 
+test("진행 중 sketch에서는 로컬 redo가 없어도 전역 redo를 실행하지 않는다", async ({
+  page,
+}) => {
+  const editorPage = await openEditorViaDemo(page);
+  const before = await readEditorSnapshot(editorPage);
+  const modifier = await platformModifier(editorPage);
+
+  await activateDrawShape(editorPage, "마커");
+  await clickMapPoint(editorPage, 0.55, 0.3);
+  await editorPage.keyboard.press(`${modifier}+z`);
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).futureCount)
+    .toBe(1);
+
+  await editorPage.getByRole("button", { name: "마커 그리기" }).click();
+  const popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  await popup.getByRole("button", { name: /^패스/ }).click();
+  await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
+  const finishButton = editorPage.getByRole("button", { name: "패스 그리기 완료" });
+
+  await clickMapPoint(editorPage, 0.5, 0.25);
+  await clickMapPoint(editorPage, 0.6, 0.35);
+  await expect(finishButton).toContainText("2점");
+
+  const beforeRedo = await readEditorSnapshot(editorPage);
+  await editorPage.keyboard.press(`${modifier}+Shift+z`);
+  await expect(finishButton).toContainText("2점");
+  const afterBlockedRedo = await readEditorSnapshot(editorPage);
+  expect(afterBlockedRedo.layerCount).toBe(beforeRedo.layerCount);
+  expect(afterBlockedRedo.pastCount).toBe(beforeRedo.pastCount);
+  expect(afterBlockedRedo.futureCount).toBe(beforeRedo.futureCount);
+
+  // sketch 취소 뒤에는 보존된 전역 future를 다시 적용할 수 있습니다.
+  await editorPage.keyboard.press("Escape");
+  await editorPage
+    .getByRole("alertdialog", { name: "그리기를 취소할까요?" })
+    .getByRole("button", { name: "그리기 취소" })
+    .click();
+  await editorPage.keyboard.press(`${modifier}+Shift+z`);
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
+    .toBe(before.layerCount + 1);
+});
+
 test("진행 중 sketch를 두고 도형이나 모드를 바꾸면 취소 확인을 거친다", async ({
   page,
 }) => {
@@ -500,6 +546,7 @@ test("키보드로 지도 중심에 Marker·Path·Polygon을 추가할 수 있�
 
   await activateDrawShape(editorPage, "마커");
   await expect(map).toHaveAttribute("tabindex", "0");
+  await expect(map).toHaveAttribute("aria-keyshortcuts", "Space");
   await map.focus();
   await expect(map).toBeFocused();
   await editorPage.keyboard.press("Space");
@@ -511,6 +558,7 @@ test("키보드로 지도 중심에 Marker·Path·Polygon을 추가할 수 있�
   let popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
   await popup.getByRole("button", { name: /^패스/ }).click();
   await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
+  await expect(map).toHaveAttribute("aria-keyshortcuts", "Space Enter");
   await map.focus();
   await editorPage.keyboard.press("Space");
   await editorPage.keyboard.press("ArrowRight");
@@ -528,6 +576,7 @@ test("키보드로 지도 중심에 Marker·Path·Polygon을 추가할 수 있�
   popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
   await popup.getByRole("button", { name: /^폴리곤/ }).click();
   await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
+  await expect(map).toHaveAttribute("aria-keyshortcuts", "Space");
   await map.focus();
   await editorPage.keyboard.press("Space");
   await editorPage.keyboard.press("ArrowRight");
@@ -548,6 +597,73 @@ test("키보드로 지도 중심에 Marker·Path·Polygon을 추가할 수 있�
   expect((await readEditorSnapshot(editorPage)).lastFeature?.geometry.type).toBe(
     "Polygon",
   );
+});
+
+test("Polygon은 서로 다른 정점이 세 개일 때만 닫을 수 있다", async ({ page }) => {
+  const editorPage = await openEditorViaDemo(page);
+  const before = await readEditorSnapshot(editorPage);
+  const map = editorPage.getByLabel("OSM map editor");
+  await activateDrawShape(editorPage, "폴리곤");
+  await map.focus();
+
+  await editorPage.keyboard.press("Space");
+  await editorPage.keyboard.press("Space");
+  await editorPage.keyboard.press("Space");
+  const closeButton = editorPage.getByRole("button", {
+    name: "폴리곤 시작점에서 닫기",
+  });
+  await expect(closeButton).toContainText("3점");
+  await expect(closeButton).toBeDisabled();
+  expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
+
+  await editorPage.keyboard.press("ArrowRight");
+  await editorPage.waitForTimeout(300);
+  await editorPage.keyboard.press("Space");
+  await editorPage.keyboard.press("ArrowDown");
+  await editorPage.waitForTimeout(300);
+  await editorPage.keyboard.press("Space");
+  await expect(closeButton).toBeEnabled();
+  await closeButton.click();
+
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
+    .toBe(before.layerCount + 1);
+  const completed = await readEditorSnapshot(editorPage);
+  const ring = completed.lastFeature?.geometry.coordinates as number[][][];
+  expect(
+    new Set(ring[0].slice(0, -1).map((coordinate) => coordinate.join(","))).size,
+  ).toBe(3);
+});
+
+test("지도 크기가 바뀌면 커서 툴팁을 새 경계 안으로 다시 배치한다", async ({
+  page,
+}) => {
+  const editorPage = await openEditorViaDemo(page);
+  await editorPage.setViewportSize({ width: 1280, height: 820 });
+  await activateDrawShape(editorPage, "마커");
+  const map = editorPage.getByLabel("OSM map editor");
+  const tooltip = editorPage.locator('main > [role="status"]');
+
+  await editorPage.mouse.move(760, 580);
+  await expect(tooltip).toBeVisible();
+  await editorPage.setViewportSize({ width: 800, height: 600 });
+
+  await expect
+    .poll(async () => {
+      const [mapBounds, tooltipBounds] = await Promise.all([
+        map.boundingBox(),
+        tooltip.boundingBox(),
+      ]);
+      return (
+        mapBounds !== null &&
+        tooltipBounds !== null &&
+        tooltipBounds.x >= mapBounds.x &&
+        tooltipBounds.y >= mapBounds.y &&
+        tooltipBounds.x + tooltipBounds.width <= mapBounds.x + mapBounds.width &&
+        tooltipBounds.y + tooltipBounds.height <= mapBounds.y + mapBounds.height
+      );
+    })
+    .toBe(true);
 });
 
 test("ESC로 계속 그리기를 선택한 뒤 Enter는 Path를 완성한다", async ({ page }) => {

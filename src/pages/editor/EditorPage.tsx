@@ -11,7 +11,7 @@ import { useRegionBoundaries, useRegionBoundaryOps } from "./features/regions";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
 import { useEditorHistoryShortcuts } from "./state/historyShortcuts";
-import { EditAffordanceKind } from "./types/editorTypes";
+import { EditAffordanceKind, GeometryKind } from "./types/editorTypes";
 
 // 커서 위치의 편집 동작별 힌트 문구.
 const EDIT_HINTS: Record<EditAffordanceKind, string> = {
@@ -25,6 +25,7 @@ export function EditorPage() {
   const drawTool = useDrawTool(map);
   const isSceneReady = useEditorStore((state) => state.scene !== null);
   const activeMode = useEditorStore((state) => state.activeMode);
+  const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
   const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
   const confirmationOpen = useConfirmationDialogOpen();
   const activation = getToolActivation(activeMode);
@@ -50,13 +51,14 @@ export function EditorPage() {
   useEditorMessaging();
   // 그리기 중에는 정점 로컬 history를, sketch가 없으면 전역 scene history를 사용합니다.
   useEditorHistoryShortcuts({
+    isInProgress: drawTool.isDrawingInProgress,
     onUndoInProgress: drawTool.undoVertex,
     onRedoInProgress: drawTool.redoVertex,
     onDiscardInProgressRedo: drawTool.discardRedo,
   });
   // Cmd/Ctrl+C 복사 · Cmd/Ctrl+V 붙여넣기. 진행 중 sketch에서는 clipboard를 모두 차단한다.
   useEditorClipboard({
-    disabled: drawTool.isDrawing,
+    isDisabled: drawTool.isDrawingInProgress,
     onBeforePaste: drawTool.discardRedo,
   });
 
@@ -75,7 +77,13 @@ export function EditorPage() {
           className="peer h-screen w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
           aria-label="OSM map editor"
           aria-describedby={activation.draw ? "draw-keyboard-instructions" : undefined}
-          aria-keyshortcuts={activation.draw ? "Space Enter" : undefined}
+          aria-keyshortcuts={
+            activation.draw
+              ? activeDrawShape === GeometryKind.Path
+                ? "Space Enter"
+                : "Space"
+              : undefined
+          }
           role="application"
           // biome-ignore lint/a11y/noNoninteractiveTabindex: OpenLayers 지도를 방향키·Space로 조작하는 application 위젯입니다.
           tabIndex={0}
@@ -101,7 +109,7 @@ export function EditorPage() {
           visible={drawTool.showPathFinish}
         />
         <DrawPolygonCloseButton
-          enabled={drawTool.vertexCount >= 3}
+          enabled={drawTool.canClosePolygon}
           onClose={drawTool.closePolygon}
           vertexCount={drawTool.vertexCount}
           visible={drawTool.showPolygonFinish}

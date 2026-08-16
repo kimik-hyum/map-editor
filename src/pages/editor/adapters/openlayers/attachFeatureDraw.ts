@@ -21,6 +21,7 @@ export type DrawSketchState = {
   isDrawing: boolean;
   vertexCount: number;
   canFinish: boolean;
+  canClosePolygon: boolean;
   canUndo: boolean;
   canRedo: boolean;
 };
@@ -29,6 +30,7 @@ export const EMPTY_DRAW_SKETCH_STATE: DrawSketchState = {
   isDrawing: false,
   vertexCount: 0,
   canFinish: false,
+  canClosePolygon: false,
   canUndo: false,
   canRedo: false,
 };
@@ -69,6 +71,60 @@ export function confirmedDrawVertexCount(geometry: Geometry): number {
     return Math.max(0, ring.length - 2);
   }
   return 0;
+}
+
+function coordinateKey(coordinate: readonly number[]): string {
+  return `${coordinate[0]},${coordinate[1]}`;
+}
+
+function confirmedDrawCoordinates(geometry: Geometry): number[][] {
+  if (geometry instanceof Point) {
+    return [geometry.getCoordinates()];
+  }
+  if (geometry instanceof LineString) {
+    return geometry.getCoordinates().slice(0, -1);
+  }
+  if (geometry instanceof Polygon) {
+    const ring = geometry.getCoordinates()[0] ?? [];
+    // 최초 [A, A]에서는 하나만 확정됐고, 이후 뒤의 두 좌표는 cursor와 closure입니다.
+    return ring.length <= 2 ? ring.slice(0, 1) : ring.slice(0, -2);
+  }
+  return [];
+}
+
+export function confirmedDrawDistinctVertexCount(geometry: Geometry): number {
+  return new Set(confirmedDrawCoordinates(geometry).map(coordinateKey)).size;
+}
+
+export function canCloseDrawPolygon(
+  shape: DrawShape,
+  distinctVertexCount: number,
+): boolean {
+  return shape === GeometryKind.Polygon && distinctVertexCount >= 3;
+}
+
+// drawend 시점의 Polygon에는 cursor가 제거되고 마지막 closure만 남습니다.
+// UI 완료 조건이 우회되더라도 무효 geometry를 scene/history에 넣지 않는 마지막 방어선입니다.
+export function isCommittableDrawGeometry(geometry: Geometry): boolean {
+  if (geometry instanceof Point) {
+    return true;
+  }
+  if (geometry instanceof LineString) {
+    return geometry.getCoordinates().length >= 2;
+  }
+  if (geometry instanceof Polygon) {
+    const ring = geometry.getCoordinates()[0] ?? [];
+    const first = ring[0];
+    const last = ring[ring.length - 1];
+    const closed =
+      first !== undefined &&
+      last !== undefined &&
+      first[0] === last[0] &&
+      first[1] === last[1];
+    const vertices = closed ? ring.slice(0, -1) : ring;
+    return new Set(vertices.map(coordinateKey)).size >= 3;
+  }
+  return false;
 }
 
 export function canFinishDraw(shape: DrawShape, vertexCount: number): boolean {
@@ -134,6 +190,7 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
   let active = false;
   let drawing = false;
   let vertexCount = 0;
+  let distinctVertexCount = 0;
   let firstCoordinate: number[] | null = null;
   let sketchFeature: Feature<Geometry> | null = null;
   let geometryChangeKey: EventsKey | null = null;
@@ -145,6 +202,7 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
       isDrawing: drawing,
       vertexCount,
       canFinish: drawing && canFinishDraw(shape, vertexCount),
+      canClosePolygon: drawing && canCloseDrawPolygon(shape, distinctVertexCount),
       canUndo: drawing && shape !== GeometryKind.Point && vertexCount > 0,
       // 첫 정점 undo는 OpenLayers sketch를 종료하므로, drawing이 false여도
       // 바로 이어지는 redo로 복원할 수 있게 좌표를 보존합니다. 모드 전환이나 전역 undo에서는 폐기합니다.
@@ -163,6 +221,7 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
     unbindGeometry();
     drawing = false;
     vertexCount = 0;
+    distinctVertexCount = 0;
     firstCoordinate = null;
     sketchFeature = null;
     if (clearRedo) {
@@ -186,12 +245,14 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
       return;
     }
     const nextCount = confirmedDrawVertexCount(geometry);
+    const nextDistinctCount = confirmedDrawDistinctVertexCount(geometry);
     if (nextCount > vertexCount && !internalVertexMutation) {
       // undo 뒤 새 점을 찍으면 일반 history와 마찬가지로 redo 분기를 버립니다.
       redoCoordinates.length = 0;
     }
-    if (nextCount !== vertexCount) {
+    if (nextCount !== vertexCount || nextDistinctCount !== distinctVertexCount) {
       vertexCount = nextCount;
+      distinctVertexCount = nextDistinctCount;
       emitState();
     }
   };
@@ -206,6 +267,7 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
     const geometry = sketchFeature.getGeometry();
     firstCoordinate = geometry ? readFirstCoordinate(geometry) : null;
     vertexCount = geometry ? confirmedDrawVertexCount(geometry) : 0;
+    distinctVertexCount = geometry ? confirmedDrawDistinctVertexCount(geometry) : 0;
     if (geometry) {
       geometryChangeKey = geometry.on("change", handleGeometryChange);
     }
@@ -215,7 +277,7 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
   const handleDrawEnd = (event: DrawEvent) => {
     const geometry = event.feature.getGeometry();
     resetSketch();
-    if (geometry) {
+    if (geometry && isCommittableDrawGeometry(geometry)) {
       options.onCommit(olGeometryToEditorGeometry(geometry));
     }
   };
@@ -249,7 +311,7 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
         const firstPixel = map.getPixelFromCoordinate(firstCoordinate);
         return shouldFinishFromPointer(
           shape,
-          vertexCount,
+          shape === GeometryKind.Polygon ? distinctVertexCount : vertexCount,
           isWithinPixelTolerance(event.pixel, firstPixel, POLYGON_CLOSE_TOLERANCE_PX),
         );
       },
@@ -319,7 +381,7 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
   };
 
   const closePolygon = () => {
-    if (!drawing || shape !== GeometryKind.Polygon || vertexCount < 3) {
+    if (!drawing || !canCloseDrawPolygon(shape, distinctVertexCount)) {
       return false;
     }
     return draw.finishDrawing() !== null;

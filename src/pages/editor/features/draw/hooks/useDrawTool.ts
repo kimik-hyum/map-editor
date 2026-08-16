@@ -213,6 +213,8 @@ export function useDrawTool(map: OpenLayersMap | null) {
   const undoVertex = useCallback(() => handleRef.current?.undoVertex() ?? false, []);
   const redoVertex = useCallback(() => handleRef.current?.redoVertex() ?? false, []);
   const discardRedo = useCallback(() => handleRef.current?.discardRedo() ?? false, []);
+  // 전역 이벤트 listener는 React effect가 다시 붙기 전에도 최신 sketch 상태를 읽어야 합니다.
+  const isDrawingInProgress = useCallback(() => sketchRef.current.isDrawing, []);
 
   return {
     ...sketch,
@@ -221,6 +223,7 @@ export function useDrawTool(map: OpenLayersMap | null) {
     undoVertex,
     redoVertex,
     discardRedo,
+    isDrawingInProgress,
     confirmDiscardSketch,
     hint: getToolActivation(activeMode).draw
       ? resolveDrawHint(activeDrawShape, sketch.isDrawing)

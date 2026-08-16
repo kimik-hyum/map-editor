@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveHistoryShortcut } from "./historyShortcuts";
+import { resolveHistoryShortcut, shouldUseSceneHistory } from "./historyShortcuts";
 
 // 텍스트 입력 가드(input/textarea)는 런타임/e2e에서 확인합니다. 여기서는 키 조합 해석만 검증합니다.
 const base = {
@@ -39,5 +39,14 @@ describe("resolveHistoryShortcut", () => {
     expect(
       resolveHistoryShortcut({ ...base, metaKey: true, shiftKey: true }, true),
     ).toBeNull();
+  });
+});
+
+describe("shouldUseSceneHistory", () => {
+  it("진행 중 도구가 있거나 로컬 history가 소비했으면 scene history를 막는다", () => {
+    expect(shouldUseSceneHistory(true, false)).toBe(false);
+    expect(shouldUseSceneHistory(true, true)).toBe(false);
+    expect(shouldUseSceneHistory(false, true)).toBe(false);
+    expect(shouldUseSceneHistory(false, false)).toBe(true);
   });
 });

@@ -4,9 +4,12 @@ import Polygon from "ol/geom/Polygon";
 import { describe, expect, it } from "vitest";
 import { GeometryKind } from "@/pages/editor/types/editorTypes";
 import {
+  canCloseDrawPolygon,
   canFinishDraw,
+  confirmedDrawDistinctVertexCount,
   confirmedDrawVertexCount,
   drawGeometryTypeForShape,
+  isCommittableDrawGeometry,
   isWithinPixelTolerance,
   shouldFinishFromPointer,
 } from "./attachFeatureDraw";
@@ -77,12 +80,80 @@ describe("confirmedDrawVertexCount", () => {
   });
 });
 
+describe("confirmedDrawDistinctVertexCount", () => {
+  it("Polygon cursor와 closure를 제외하고 서로 다른 확정 정점만 센다", () => {
+    expect(
+      confirmedDrawDistinctVertexCount(
+        new Polygon([
+          [
+            [0, 0],
+            [0, 0],
+            [1, 0],
+            [2, 2],
+            [0, 0],
+          ],
+        ]),
+      ),
+    ).toBe(2);
+    expect(
+      confirmedDrawDistinctVertexCount(
+        new Polygon([
+          [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [2, 2],
+            [0, 0],
+          ],
+        ]),
+      ),
+    ).toBe(3);
+  });
+});
+
 describe("canFinishDraw", () => {
   it("Path만 확정 정점 2개부터 버튼 완료할 수 있다", () => {
     expect(canFinishDraw(GeometryKind.Path, 1)).toBe(false);
     expect(canFinishDraw(GeometryKind.Path, 2)).toBe(true);
     expect(canFinishDraw(GeometryKind.Polygon, 3)).toBe(false);
     expect(canFinishDraw(GeometryKind.Point, 1)).toBe(false);
+  });
+});
+
+describe("canCloseDrawPolygon", () => {
+  it("Polygon은 서로 다른 확정 정점이 세 개 이상일 때만 닫을 수 있다", () => {
+    expect(canCloseDrawPolygon(GeometryKind.Polygon, 2)).toBe(false);
+    expect(canCloseDrawPolygon(GeometryKind.Polygon, 3)).toBe(true);
+    expect(canCloseDrawPolygon(GeometryKind.Path, 3)).toBe(false);
+  });
+});
+
+describe("isCommittableDrawGeometry", () => {
+  it("서로 다른 정점이 부족한 최종 Polygon을 거부한다", () => {
+    expect(
+      isCommittableDrawGeometry(
+        new Polygon([
+          [
+            [0, 0],
+            [0, 0],
+            [0, 0],
+            [0, 0],
+          ],
+        ]),
+      ),
+    ).toBe(false);
+    expect(
+      isCommittableDrawGeometry(
+        new Polygon([
+          [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, 0],
+          ],
+        ]),
+      ),
+    ).toBe(true);
   });
 });
 

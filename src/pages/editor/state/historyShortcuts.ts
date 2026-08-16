@@ -12,12 +12,21 @@ type ShortcutEventLike = {
 };
 
 type HistoryShortcutOptions = {
+  // 진행 중 도구가 있으면 로컬 handler가 소비하지 못한 shortcut도 scene으로 넘기지 않습니다.
+  isInProgress?: () => boolean;
   // 진행 중인 도구가 정점 등 자기 로컬 history를 소비했으면 true를 반환합니다.
   onUndoInProgress?: () => boolean;
   onRedoInProgress?: () => boolean;
   // 전역 scene undo가 실제 실행되면 더 오래된 로컬 redo 분기는 시간 순서를 보장하기 위해 버립니다.
   onDiscardInProgressRedo?: () => boolean;
 };
+
+export function shouldUseSceneHistory(
+  inProgress: boolean,
+  handledInProgress: boolean,
+): boolean {
+  return !inProgress && !handledInProgress;
+}
 
 // 키 입력을 되돌리기/다시하기 의도로 해석하는 순수 함수입니다(테스트 용이).
 export function resolveHistoryShortcut(
@@ -60,7 +69,10 @@ export function useEditorHistoryShortcuts(options: HistoryShortcutOptions = {}):
 
       event.preventDefault();
       if (intent === "undo") {
-        if (!options.onUndoInProgress?.()) {
+        const handledInProgress = options.onUndoInProgress?.() ?? false;
+        if (
+          shouldUseSceneHistory(options.isInProgress?.() ?? false, handledInProgress)
+        ) {
           // 전역 history가 실제로 한 단계 이동할 때만 로컬 redo를 폐기합니다.
           // 전역 past가 비어 있으면 추가 Undo 뒤에도 첫 정점 redo를 유지합니다.
           const editorState = useEditorStore.getState();
@@ -70,7 +82,10 @@ export function useEditorHistoryShortcuts(options: HistoryShortcutOptions = {}):
           }
         }
       } else {
-        if (!options.onRedoInProgress?.()) {
+        const handledInProgress = options.onRedoInProgress?.() ?? false;
+        if (
+          shouldUseSceneHistory(options.isInProgress?.() ?? false, handledInProgress)
+        ) {
           redo();
         }
       }
@@ -79,6 +94,7 @@ export function useEditorHistoryShortcuts(options: HistoryShortcutOptions = {}):
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
+    options.isInProgress,
     options.onDiscardInProgressRedo,
     options.onRedoInProgress,
     options.onUndoInProgress,

@@ -78,6 +78,8 @@ export function MapCursorTooltip({ text, containerRef }: MapCursorTooltipProps) 
     container.addEventListener("pointerenter", handlePointerEnter);
     container.addEventListener("pointerleave", handlePointerLeave);
     container.addEventListener("pointermove", handlePointerMove);
+    const resizeObserver = new ResizeObserver(scheduleApply);
+    resizeObserver.observe(container);
     if (pointerRef.current && pointerInside && text !== null) {
       scheduleApply();
     }
@@ -85,6 +87,7 @@ export function MapCursorTooltip({ text, containerRef }: MapCursorTooltipProps) 
       container.removeEventListener("pointerenter", handlePointerEnter);
       container.removeEventListener("pointerleave", handlePointerLeave);
       container.removeEventListener("pointermove", handlePointerMove);
+      resizeObserver.disconnect();
       if (frameId !== 0) {
         cancelAnimationFrame(frameId);
       }
