@@ -24,6 +24,34 @@ async function openEditorViaDemo(page: Page): Promise<Page> {
   return editorPage;
 }
 
+async function replaceEditorSession(
+  page: Page,
+  sessionId: string,
+  featureName: string,
+) {
+  await page.evaluate(
+    ({ nextSessionId, nextFeatureName }) => {
+      window.open("", "map-editor-child")?.postMessage(
+        {
+          type: "MAP_EDITOR_INIT",
+          sessionId: nextSessionId,
+          scene: {
+            version: 2,
+            features: [
+              {
+                name: nextFeatureName,
+                geometry: { type: "Point", coordinates: [126.98, 37.56] },
+              },
+            ],
+          },
+        },
+        window.location.origin,
+      );
+    },
+    { nextSessionId: sessionId, nextFeatureName: featureName },
+  );
+}
+
 async function readEditorSnapshot(page: Page): Promise<EditorSnapshot> {
   return page.evaluate(async () => {
     const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
@@ -83,7 +111,7 @@ async function platformModifier(page: Page): Promise<"Meta" | "Control"> {
 }
 
 async function pasteMarker(page: Page) {
-  await page.evaluate(async () => {
+  return page.evaluate(async () => {
     const { serializeClipboardPayload } =
       await import("/src/pages/editor/features/clipboard/model/clipboardPayload.ts");
     const clipboardData = new DataTransfer();
@@ -97,7 +125,21 @@ async function pasteMarker(page: Page) {
     const event = new Event("paste", { bubbles: true, cancelable: true });
     Object.defineProperty(event, "clipboardData", { value: clipboardData });
     window.dispatchEvent(event);
+    return event.defaultPrevented;
   });
+}
+
+async function dispatchClipboardEvent(page: Page, type: "copy" | "cut") {
+  return page.evaluate((eventType) => {
+    const clipboardData = new DataTransfer();
+    const event = new Event(eventType, { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", { value: clipboardData });
+    window.dispatchEvent(event);
+    return {
+      defaultPrevented: event.defaultPrevented,
+      applicationJson: clipboardData.getData("application/json"),
+    };
+  }, type);
 }
 
 test("마커는 클릭 한 번마다 별도 레이어로 즉시 완성된다", async ({ page }) => {
@@ -110,6 +152,9 @@ test("마커는 클릭 한 번마다 별도 레이어로 즉시 완성된다", a
   const rejectedPoint = await mapPoint(editorPage, 0.5, 0.25);
   await editorPage.mouse.click(rejectedPoint.x, rejectedPoint.y, { button: "right" });
   await editorPage.mouse.click(rejectedPoint.x, rejectedPoint.y, { button: "middle" });
+  await editorPage.keyboard.down("Control");
+  await editorPage.mouse.click(rejectedPoint.x, rejectedPoint.y);
+  await editorPage.keyboard.up("Control");
   expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
 
   await clickMapPoint(editorPage, 0.55, 0.3);
@@ -144,6 +189,23 @@ test("Path는 정점 로컬 undo/redo 후 완료 버튼으로 별도 레이어�
   await expect(cursorTooltip).toBeVisible();
   await editorPage.locator("aside").hover();
   await expect(cursorTooltip).toBeHidden();
+  const mapBounds = await editorPage.getByLabel("OSM map editor").boundingBox();
+  if (!mapBounds) {
+    throw new Error("지도 영역을 찾을 수 없습니다.");
+  }
+  await editorPage.mouse.move(mapBounds.x + mapBounds.width - 2, mapBounds.y + 2);
+  await expect(cursorTooltip).toBeVisible();
+  await expect
+    .poll(async () => {
+      const tooltipBounds = await cursorTooltip.boundingBox();
+      return (
+        tooltipBounds !== null &&
+        tooltipBounds.x >= mapBounds.x &&
+        tooltipBounds.y >= mapBounds.y &&
+        tooltipBounds.x + tooltipBounds.width <= mapBounds.x + mapBounds.width
+      );
+    })
+    .toBe(true);
 
   await clickMapPoint(editorPage, 0.5, 0.25);
   const finishButton = editorPage.getByRole("button", { name: "패스 그리기 완료" });
@@ -262,6 +324,34 @@ test("붙여넣기 scene 편집은 그보다 오래된 Draw 로컬 redo를 폐�
   await expect(finishButton).toBeHidden();
 });
 
+test("진행 중 sketch에서는 copy/cut/paste를 차단하고 로컬 history만 유지한다", async ({
+  page,
+}) => {
+  const editorPage = await openEditorViaDemo(page);
+  const before = await readEditorSnapshot(editorPage);
+  const modifier = await platformModifier(editorPage);
+  await activateDrawShape(editorPage, "패스");
+  const finishButton = editorPage.getByRole("button", { name: "패스 그리기 완료" });
+
+  await clickMapPoint(editorPage, 0.5, 0.25);
+  await clickMapPoint(editorPage, 0.6, 0.35);
+  await expect(finishButton).toContainText("2점");
+
+  const copyResult = await dispatchClipboardEvent(editorPage, "copy");
+  const cutResult = await dispatchClipboardEvent(editorPage, "cut");
+  expect(copyResult).toEqual({ defaultPrevented: true, applicationJson: "" });
+  expect(cutResult.defaultPrevented).toBe(true);
+  expect(await pasteMarker(editorPage)).toBe(true);
+  expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
+  await expect(finishButton).toContainText("2점");
+
+  await editorPage.keyboard.press(`${modifier}+z`);
+  await expect(finishButton).toContainText("1점");
+  await editorPage.keyboard.press(`${modifier}+Shift+z`);
+  await expect(finishButton).toContainText("2점");
+  expect((await readEditorSnapshot(editorPage)).pastCount).toBe(before.pastCount);
+});
+
 test("전역 undo가 실행되면 로컬 redo 분기를 버리고 전역 redo 순서를 지킨다", async ({
   page,
 }) => {
@@ -351,6 +441,39 @@ test("진행 중 sketch를 두고 도형이나 모드를 바꾸면 취소 확인
   await expect(finishButton).toBeHidden();
 });
 
+test("새 INIT은 이전 session의 draw 확인과 지연된 모드·도형 전환을 취소한다", async ({
+  page,
+}) => {
+  const editorPage = await openEditorViaDemo(page);
+  await activateDrawShape(editorPage, "패스");
+  await clickMapPoint(editorPage, 0.5, 0.25);
+  await clickMapPoint(editorPage, 0.6, 0.35);
+
+  await editorPage.getByRole("button", { name: "행정동 경계" }).click();
+  const dialog = editorPage.getByRole("alertdialog", { name: "그리기를 취소할까요?" });
+  await expect(dialog).toBeVisible();
+  await replaceEditorSession(page, "mode-replacement", "모드 교체 도형");
+  await expect(dialog).toBeHidden();
+  await expect(editorPage.getByText("모드 교체 도형")).toBeVisible();
+  await expect(
+    editorPage.getByRole("button", { name: "선택", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+
+  await activateDrawShape(editorPage, "패스");
+  await clickMapPoint(editorPage, 0.5, 0.25);
+  await clickMapPoint(editorPage, 0.6, 0.35);
+  await editorPage.getByRole("button", { name: "패스 그리기", exact: true }).click();
+  const popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  await popup.getByRole("button", { name: /^마커/ }).click();
+  await expect(dialog).toBeVisible();
+
+  await replaceEditorSession(page, "shape-replacement", "도형 교체 도형");
+  await expect(dialog).toBeHidden();
+  await expect(editorPage.getByText("도형 교체 도형")).toBeVisible();
+  await editorPage.getByRole("button", { name: "선택", exact: true }).click();
+  await expect(editorPage.getByRole("button", { name: "폴리곤 그리기" })).toBeVisible();
+});
+
 test("Path는 완성 가능한 상태에서 Enter로 모달 없이 완성된다", async ({ page }) => {
   const editorPage = await openEditorViaDemo(page);
   const before = await readEditorSnapshot(editorPage);
@@ -368,6 +491,63 @@ test("Path는 완성 가능한 상태에서 Enter로 모달 없이 완성된다"
   const completed = await readEditorSnapshot(editorPage);
   expect(completed.lastFeature?.geometry.type).toBe("LineString");
   expect(completed.pastCount).toBe(before.pastCount + 1);
+});
+
+test("키보드로 지도 중심에 Marker·Path·Polygon을 추가할 수 있다", async ({ page }) => {
+  const editorPage = await openEditorViaDemo(page);
+  const before = await readEditorSnapshot(editorPage);
+  const map = editorPage.getByLabel("OSM map editor");
+
+  await activateDrawShape(editorPage, "마커");
+  await expect(map).toHaveAttribute("tabindex", "0");
+  await map.focus();
+  await expect(map).toBeFocused();
+  await editorPage.keyboard.press("Space");
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
+    .toBe(before.layerCount + 1);
+
+  await editorPage.getByRole("button", { name: "마커 그리기" }).click();
+  let popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  await popup.getByRole("button", { name: /^패스/ }).click();
+  await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
+  await map.focus();
+  await editorPage.keyboard.press("Space");
+  await editorPage.keyboard.press("ArrowRight");
+  await editorPage.waitForTimeout(300);
+  await editorPage.keyboard.press("Space");
+  await expect(
+    editorPage.getByRole("button", { name: "패스 그리기 완료" }),
+  ).toBeEnabled();
+  await editorPage.keyboard.press("Enter");
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
+    .toBe(before.layerCount + 2);
+
+  await editorPage.getByRole("button", { name: "패스 그리기" }).click();
+  popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  await popup.getByRole("button", { name: /^폴리곤/ }).click();
+  await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
+  await map.focus();
+  await editorPage.keyboard.press("Space");
+  await editorPage.keyboard.press("ArrowRight");
+  await editorPage.waitForTimeout(300);
+  await editorPage.keyboard.press("Space");
+  await editorPage.keyboard.press("ArrowDown");
+  await editorPage.waitForTimeout(300);
+  await editorPage.keyboard.press("Space");
+  const closeButton = editorPage.getByRole("button", {
+    name: "폴리곤 시작점에서 닫기",
+  });
+  await expect(closeButton).toBeEnabled();
+  await closeButton.focus();
+  await editorPage.keyboard.press("Enter");
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
+    .toBe(before.layerCount + 3);
+  expect((await readEditorSnapshot(editorPage)).lastFeature?.geometry.type).toBe(
+    "Polygon",
+  );
 });
 
 test("ESC로 계속 그리기를 선택한 뒤 Enter는 Path를 완성한다", async ({ page }) => {
@@ -429,6 +609,64 @@ test("폴리곤은 마지막 정점이 아니라 시작점을 클릭해야 별�
   const coordinates = completed.lastFeature?.geometry.coordinates as number[][][];
   expect(coordinates[0][coordinates[0].length - 1]).toEqual(coordinates[0][0]);
   expect(completed.pastCount).toBe(before.pastCount + 1);
+});
+
+test("Polygon 정점 수와 undo/redo는 이동 중 커서가 아니라 확정 좌표를 보존한다", async ({
+  page,
+}) => {
+  const editorPage = await openEditorViaDemo(page);
+  const before = await readEditorSnapshot(editorPage);
+  const modifier = await platformModifier(editorPage);
+  await activateDrawShape(editorPage, "폴리곤");
+
+  const start = await mapPoint(editorPage, 0.5, 0.3);
+  const second = await mapPoint(editorPage, 0.62, 0.2);
+  const third = await mapPoint(editorPage, 0.68, 0.4);
+  const movedCursor = await mapPoint(editorPage, 0.8, 0.6);
+
+  // 같은 화면 좌표로 먼저 기준 Polygon을 완성해 원래 세 번째 좌표를 기록합니다.
+  await editorPage.mouse.click(start.x, start.y);
+  await editorPage.mouse.click(second.x, second.y);
+  await editorPage.mouse.click(third.x, third.y);
+  await editorPage.mouse.click(start.x, start.y);
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
+    .toBe(before.layerCount + 1);
+  const baseline = await readEditorSnapshot(editorPage);
+  const baselineRing = baseline.lastFeature?.geometry.coordinates as number[][][];
+
+  await editorPage.keyboard.press(`${modifier}+z`);
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
+    .toBe(before.layerCount);
+
+  await editorPage.mouse.click(start.x, start.y);
+  await editorPage.mouse.click(second.x, second.y);
+  await editorPage.mouse.click(third.x, third.y);
+  await editorPage.mouse.move(movedCursor.x, movedCursor.y, { steps: 10 });
+
+  await editorPage.keyboard.press("Escape");
+  const dialog = editorPage.getByRole("alertdialog", { name: "그리기를 취소할까요?" });
+  await expect(
+    dialog.getByText("지금까지 찍은 점 3개는 저장되지 않습니다."),
+  ).toBeVisible();
+  await editorPage.keyboard.press("Escape");
+
+  await editorPage.keyboard.press(`${modifier}+z`);
+  await editorPage.keyboard.press("Escape");
+  await expect(
+    dialog.getByText("지금까지 찍은 점 2개는 저장되지 않습니다."),
+  ).toBeVisible();
+  await editorPage.keyboard.press("Escape");
+  await editorPage.keyboard.press(`${modifier}+Shift+z`);
+  await editorPage.mouse.click(start.x, start.y);
+
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
+    .toBe(before.layerCount + 1);
+  const restored = await readEditorSnapshot(editorPage);
+  const restoredRing = restored.lastFeature?.geometry.coordinates as number[][][];
+  expect(restoredRing[0][2]).toEqual(baselineRing[0][2]);
 });
 
 test("ESC 확인 모달에서 계속 그리거나 Path sketch만 취소할 수 있다", async ({

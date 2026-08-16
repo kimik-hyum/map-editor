@@ -2,7 +2,7 @@ import "ol/ol.css";
 import { MapCursorTooltip } from "@/shared/ui/MapCursorTooltip";
 import { useConfirmationDialogOpen } from "@/shared/ui/confirmation-dialog";
 import { useEditorClipboard } from "./features/clipboard";
-import { DrawFinishButton, useDrawTool } from "./features/draw";
+import { DrawFinishButton, DrawPolygonCloseButton, useDrawTool } from "./features/draw";
 import { GeometryOpMarkers } from "./features/geometry-ops";
 import { LayerPanel } from "./features/layers";
 import { useOpenLayersEditorMap } from "./features/map";
@@ -54,8 +54,11 @@ export function EditorPage() {
     onRedoInProgress: drawTool.redoVertex,
     onDiscardInProgressRedo: drawTool.discardRedo,
   });
-  // Cmd/Ctrl+C 복사 · Cmd/Ctrl+V 붙여넣기. 시스템 클립보드라 다른 에디터 창과도 공유된다(#76).
-  useEditorClipboard({ onBeforePaste: drawTool.discardRedo });
+  // Cmd/Ctrl+C 복사 · Cmd/Ctrl+V 붙여넣기. 진행 중 sketch에서는 clipboard를 모두 차단한다.
+  useEditorClipboard({
+    disabled: drawTool.isDrawing,
+    onBeforePaste: drawTool.discardRedo,
+  });
 
   return (
     <div className="grid h-screen grid-cols-[88px_minmax(0,1fr)] overflow-hidden">
@@ -69,16 +72,39 @@ export function EditorPage() {
       <main className="relative min-h-0 min-w-0">
         <section
           ref={mapElementRef}
-          className="h-screen w-full"
+          className="peer h-screen w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
           aria-label="OSM map editor"
-          tabIndex={-1}
+          aria-describedby={activation.draw ? "draw-keyboard-instructions" : undefined}
+          aria-keyshortcuts={activation.draw ? "Space Enter" : undefined}
+          role="application"
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: OpenLayers 지도를 방향키·Space로 조작하는 application 위젯입니다.
+          tabIndex={0}
         />
+        <p className="sr-only" id="draw-keyboard-instructions">
+          방향키로 지도 중심을 이동하고 Space 키로 마커 또는 정점을 추가합니다. 패스는
+          Enter 키로 완료하고 폴리곤은 시작점에서 닫기 버튼으로 완료합니다.
+        </p>
+        {activation.draw && isSceneReady ? (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-1/2 z-30 hidden h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-teal-600/20 shadow-[0_0_0_1px_rgba(15,118,110,0.95)] peer-focus-visible:block"
+          >
+            <span className="absolute left-1/2 top-[-5px] h-8 w-px -translate-x-1/2 bg-teal-800" />
+            <span className="absolute left-[-5px] top-1/2 h-px w-8 -translate-y-1/2 bg-teal-800" />
+          </div>
+        ) : null}
         <MapCursorTooltip text={cursorHint} containerRef={mapElementRef} />
         <DrawFinishButton
           enabled={drawTool.canFinish}
           onFinish={drawTool.finish}
           vertexCount={drawTool.vertexCount}
           visible={drawTool.showPathFinish}
+        />
+        <DrawPolygonCloseButton
+          enabled={drawTool.vertexCount >= 3}
+          onClose={drawTool.closePolygon}
+          vertexCount={drawTool.vertexCount}
+          visible={drawTool.showPolygonFinish}
         />
         <GeometryOpMarkers
           overlays={geometryOp.overlays}

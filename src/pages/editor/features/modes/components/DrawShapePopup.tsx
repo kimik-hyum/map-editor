@@ -30,7 +30,16 @@ export function DrawShapePopup({
           return;
         }
         void (async () => {
-          if (await confirmDiscardDraw()) {
+          const context = useEditorStore.getState();
+          if (!(await confirmDiscardDraw())) {
+            return;
+          }
+
+          const currentContext = useEditorStore.getState();
+          if (
+            currentContext.sessionId === context.sessionId &&
+            currentContext.scene === context.scene
+          ) {
             setActiveDrawShape(nextShape);
           }
         })();

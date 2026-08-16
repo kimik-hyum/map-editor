@@ -1,6 +1,6 @@
 import type Feature from "ol/Feature";
 import type { EventsKey } from "ol/events";
-import { never, primaryAction } from "ol/events/condition";
+import { never, noModifierKeys, primaryAction } from "ol/events/condition";
 import type Geometry from "ol/geom/Geometry";
 import LineString from "ol/geom/LineString";
 import Point from "ol/geom/Point";
@@ -60,7 +60,13 @@ export function confirmedDrawVertexCount(geometry: Geometry): number {
     return Math.max(0, geometry.getCoordinates().length - 1);
   }
   if (geometry instanceof Polygon) {
-    return Math.max(0, (geometry.getCoordinates()[0]?.length ?? 0) - 1);
+    const ring = geometry.getCoordinates()[0] ?? [];
+    // OL Draw의 Polygon geometry는 첫 drawstart에서 [A, A], 이후에는
+    // [확정 정점..., 현재 커서, 시작점 closure]를 노출합니다.
+    if (ring.length === 2) {
+      return 1;
+    }
+    return Math.max(0, ring.length - 2);
   }
   return 0;
 }
@@ -113,7 +119,10 @@ function readLastConfirmedCoordinate(geometry: Geometry): number[] | null {
   }
   if (geometry instanceof Polygon) {
     const coordinates = geometry.getCoordinates()[0] ?? [];
-    return coordinates[coordinates.length - 2]?.slice() ?? null;
+    // 첫 drawstart의 [A, A] 특례를 제외하면 뒤의 두 좌표는
+    // 현재 커서와 시작점 closure이므로 그 앞 좌표가 마지막 확정 정점입니다.
+    const confirmedIndex = coordinates.length === 2 ? 0 : coordinates.length - 3;
+    return coordinates[confirmedIndex]?.slice() ?? null;
   }
   return null;
 }
@@ -223,8 +232,8 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
     const instance = new Draw({
       type: drawGeometryTypeForShape(shape),
       // OpenLayers 기본 noModifierKeys는 mouse button을 구분하지 않으므로 우클릭·휠 클릭도
-      // 정점으로 처리합니다. 터치·펜의 primary pointer와 마우스 좌클릭만 Draw 입력으로 받습니다.
-      condition: primaryAction,
+      // 정점으로 처리합니다. primary pointer와 보조키 없는 마우스 좌클릭만 Draw 입력으로 받습니다.
+      condition: (event) => primaryAction(event) && noModifierKeys(event),
       stopClick: true,
       snapTolerance: POLYGON_CLOSE_TOLERANCE_PX,
       // 기본 Shift 자유그리기는 정점 단위 undo/redo 계약과 충돌하므로 명시적으로 끕니다.
@@ -309,6 +318,28 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
     return draw.finishDrawing() !== null;
   };
 
+  const closePolygon = () => {
+    if (!drawing || shape !== GeometryKind.Polygon || vertexCount < 3) {
+      return false;
+    }
+    return draw.finishDrawing() !== null;
+  };
+
+  const addVertexAtCoordinate = (coordinate: number[]) => {
+    if (!active) {
+      return false;
+    }
+
+    if (shape === GeometryKind.Point) {
+      discardRedo();
+      options.onCommit(olGeometryToEditorGeometry(new Point(coordinate.slice())));
+      return true;
+    }
+
+    draw.appendCoordinates([coordinate.slice()]);
+    return true;
+  };
+
   const undoVertex = () => {
     if (!drawing || shape === GeometryKind.Point) {
       return false;
@@ -354,6 +385,8 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
     setActive,
     setShape,
     finish,
+    closePolygon,
+    addVertexAtCoordinate,
     undoVertex,
     redoVertex,
     discardRedo,

@@ -69,10 +69,19 @@ export function EditorModePanel({
 
             if (next) {
               void (async () => {
+                const context = useEditorStore.getState();
                 if (
                   activeMode === EditorMode.Draw &&
                   next !== EditorMode.Draw &&
                   !(await confirmDiscardDraw())
+                ) {
+                  return;
+                }
+
+                const currentContext = useEditorStore.getState();
+                if (
+                  currentContext.sessionId !== context.sessionId ||
+                  currentContext.scene !== context.scene
                 ) {
                   return;
                 }

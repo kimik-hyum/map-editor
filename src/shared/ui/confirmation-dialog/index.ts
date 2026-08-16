@@ -1,6 +1,7 @@
 export { ConfirmationDialogProvider } from "./ConfirmationDialogProvider";
 export { useConfirmationDialogOpen } from "./useConfirmationDialogOpen";
 export {
+  cancelAllConfirmationDialogs,
   confirmDialog,
   isConfirmationDialogOpen,
   type ConfirmationDialogInitialFocus,

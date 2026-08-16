@@ -115,3 +115,8 @@ export function confirmDialog(options: ConfirmationDialogOptions): Promise<boole
 export function isConfirmationDialogOpen(): boolean {
   return confirmationDialogStore.getSnapshot().activeRequest !== null;
 }
+
+// 화면/세션 교체처럼 기존 요청의 문맥이 사라질 때 활성·대기 확인을 안전하게 취소합니다.
+export function cancelAllConfirmationDialogs(): void {
+  confirmationDialogStore.cancelAll();
+}

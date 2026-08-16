@@ -124,6 +124,47 @@ describe("parseInitMessage", () => {
         ],
       },
     ],
+    [
+      "이미 닫힌 세 좌표 Polygon ring",
+      {
+        type: "Polygon",
+        coordinates: [
+          [
+            [126.9, 37.5],
+            [127.0, 37.6],
+            [126.9, 37.5],
+          ],
+        ],
+      },
+    ],
+    [
+      "서로 다른 정점이 부족한 Polygon ring",
+      {
+        type: "Polygon",
+        coordinates: [
+          [
+            [126.9, 37.5],
+            [126.9, 37.5],
+            [127.0, 37.6],
+          ],
+        ],
+      },
+    ],
+    [
+      "이미 닫힌 세 좌표 MultiPolygon ring",
+      {
+        type: "MultiPolygon",
+        coordinates: [
+          [
+            [
+              [126.9, 37.5],
+              [127.0, 37.6],
+              [126.9, 37.5],
+            ],
+          ],
+        ],
+      },
+    ],
     ["빈 MultiPolygon", { type: "MultiPolygon", coordinates: [] }],
     ["경도 범위 초과", { type: "Point", coordinates: [181, 37.5] }],
     ["위도 범위 초과", { type: "Point", coordinates: [126.9, 91] }],

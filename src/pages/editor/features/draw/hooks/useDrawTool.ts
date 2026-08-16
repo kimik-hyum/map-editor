@@ -26,10 +26,20 @@ function isInteractiveControlTarget(target: EventTarget | null): boolean {
 export function useDrawTool(map: OpenLayersMap | null) {
   const handleRef = useRef<ReturnType<typeof attachFeatureDraw> | null>(null);
   const sketchRef = useRef<DrawSketchState>(EMPTY_DRAW_SKETCH_STATE);
+  const focusRestoreFrameRef = useRef<number | null>(null);
   const activeMode = useEditorStore((state) => state.activeMode);
   const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
   const sceneReady = useEditorStore((state) => state.scene !== null);
   const [sketch, setSketch] = useState<DrawSketchState>(EMPTY_DRAW_SKETCH_STATE);
+
+  const cancelFocusRestore = useCallback(() => {
+    if (focusRestoreFrameRef.current !== null) {
+      cancelAnimationFrame(focusRestoreFrameRef.current);
+      focusRestoreFrameRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => cancelFocusRestore, [cancelFocusRestore]);
 
   useEffect(() => {
     if (!map) {
@@ -50,12 +60,13 @@ export function useDrawTool(map: OpenLayersMap | null) {
     handle.setActive(getToolActivation(state.activeMode).draw && state.scene !== null);
 
     return () => {
+      cancelFocusRestore();
       handle.detach();
       handleRef.current = null;
       sketchRef.current = EMPTY_DRAW_SKETCH_STATE;
       setSketch(EMPTY_DRAW_SKETCH_STATE);
     };
-  }, [map]);
+  }, [cancelFocusRestore, map]);
 
   useEffect(() => {
     handleRef.current?.setShape(activeDrawShape);
@@ -89,6 +100,10 @@ export function useDrawTool(map: OpenLayersMap | null) {
       return true;
     }
 
+    const confirmationContext = useEditorStore.getState();
+    const sceneAtRequest = confirmationContext.scene;
+    const sessionIdAtRequest = confirmationContext.sessionId;
+
     const confirmed = await confirmDialog({
       title: "그리기를 취소할까요?",
       description: `지금까지 찍은 점 ${currentSketch.vertexCount}개는 저장되지 않습니다.`,
@@ -98,18 +113,32 @@ export function useDrawTool(map: OpenLayersMap | null) {
       initialFocus: "cancel",
     });
 
+    const currentContext = useEditorStore.getState();
+    if (
+      currentContext.scene !== sceneAtRequest ||
+      currentContext.sessionId !== sessionIdAtRequest
+    ) {
+      return false;
+    }
+
     if (confirmed) {
+      cancelFocusRestore();
       handleRef.current?.abort();
       return true;
     }
 
     // AlertDialog의 기존 포커스 복원이 끝난 뒤 지도에 돌려, 다음 Enter가 rail 버튼을
     // 다시 누르지 않고 현재 Path 완료 단축키로 이어지게 합니다.
-    requestAnimationFrame(() => {
-      map?.getTargetElement().focus({ preventScroll: true });
+    cancelFocusRestore();
+    focusRestoreFrameRef.current = requestAnimationFrame(() => {
+      focusRestoreFrameRef.current = null;
+      const target = map?.getTargetElement();
+      if (target?.isConnected) {
+        target.focus({ preventScroll: true });
+      }
     });
     return false;
-  }, [map]);
+  }, [cancelFocusRestore, map]);
 
   // 키보드 동작은 현재 sketch에만 적용합니다. 완성된 scene history는 건드리지 않습니다.
   useEffect(() => {
@@ -128,6 +157,24 @@ export function useDrawTool(map: OpenLayersMap | null) {
 
       const editorState = useEditorStore.getState();
       const currentSketch = sketchRef.current;
+
+      // 지도에 키보드 포커스가 있을 때 화면 중심을 좌표 입력 지점으로 사용합니다.
+      // 방향키 이동은 OpenLayers KeyboardPan이 맡고 Space만 정점 추가로 소비합니다.
+      if (
+        event.key === " " &&
+        map &&
+        event.target === map.getTargetElement() &&
+        getToolActivation(editorState.activeMode).draw &&
+        editorState.scene !== null &&
+        !isConfirmationDialogOpen()
+      ) {
+        const center = map.getView().getCenter();
+        if (center && handleRef.current?.addVertexAtCoordinate(center)) {
+          event.preventDefault();
+        }
+        return;
+      }
+
       const intent = resolveDrawKeyboardIntent({
         key: event.key,
         shape: editorState.activeDrawShape,
@@ -156,9 +203,13 @@ export function useDrawTool(map: OpenLayersMap | null) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [confirmDiscardSketch]);
+  }, [confirmDiscardSketch, map]);
 
   const finish = useCallback(() => handleRef.current?.finish() ?? false, []);
+  const closePolygon = useCallback(
+    () => handleRef.current?.closePolygon() ?? false,
+    [],
+  );
   const undoVertex = useCallback(() => handleRef.current?.undoVertex() ?? false, []);
   const redoVertex = useCallback(() => handleRef.current?.redoVertex() ?? false, []);
   const discardRedo = useCallback(() => handleRef.current?.discardRedo() ?? false, []);
@@ -166,6 +217,7 @@ export function useDrawTool(map: OpenLayersMap | null) {
   return {
     ...sketch,
     finish,
+    closePolygon,
     undoVertex,
     redoVertex,
     discardRedo,
@@ -176,6 +228,10 @@ export function useDrawTool(map: OpenLayersMap | null) {
     showPathFinish:
       getToolActivation(activeMode).draw &&
       activeDrawShape === GeometryKind.Path &&
+      sketch.isDrawing,
+    showPolygonFinish:
+      getToolActivation(activeMode).draw &&
+      activeDrawShape === GeometryKind.Polygon &&
       sketch.isDrawing,
   };
 }

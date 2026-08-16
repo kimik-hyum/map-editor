@@ -11,6 +11,7 @@ type MapCursorTooltipProps = {
 // 커서의 살짝 위쪽에 좌상단을 두는 left 정렬이며, text가 있을 때만 보입니다.
 export function MapCursorTooltip({ text, containerRef }: MapCursorTooltipProps) {
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const pointerRef = useRef<{ clientX: number; clientY: number } | null>(null);
   const [pointerInside, setPointerInside] = useState(false);
 
   useEffect(() => {
@@ -21,32 +22,65 @@ export function MapCursorTooltip({ text, containerRef }: MapCursorTooltipProps) 
     }
 
     let frameId = 0;
-    let pointerX = 0;
-    let pointerY = 0;
 
     const apply = () => {
       frameId = 0;
-      // 커서 기준 오른쪽 12px, 위쪽 16px 지점에 "아래 모서리"가 오도록(=커서 살짝 위), left 정렬.
-      element.style.transform = `translate(${pointerX + 12}px, ${pointerY - 16}px) translateY(-100%)`;
+      const pointer = pointerRef.current;
+      if (!pointer) {
+        return;
+      }
+
+      const base = (element.offsetParent as HTMLElement | null) ?? container;
+      const baseRect = base.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const pointerX = pointer.clientX - baseRect.left;
+      const pointerY = pointer.clientY - baseRect.top;
+      const minX = containerRect.left - baseRect.left;
+      const minY = containerRect.top - baseRect.top;
+      const maxX = containerRect.right - baseRect.left;
+      const maxY = containerRect.bottom - baseRect.top;
+      const width = element.offsetWidth;
+      const height = element.offsetHeight;
+
+      let x = pointerX + 12;
+      if (x + width > maxX) {
+        x = pointerX - width - 12;
+      }
+      x = Math.min(Math.max(x, minX), Math.max(minX, maxX - width));
+
+      let y = pointerY - height - 16;
+      if (y < minY) {
+        y = pointerY + 16;
+      }
+      y = Math.min(Math.max(y, minY), Math.max(minY, maxY - height));
+
+      element.style.transform = `translate(${x}px, ${y}px)`;
     };
 
-    const handlePointerMove = (event: PointerEvent) => {
-      // 위치 기준은 툴팁의 positioned 조상(offsetParent). section/main 사이에 offset이 생겨도 어긋나지 않도록.
-      const base = (element.offsetParent as HTMLElement | null) ?? container;
-      const rect = base.getBoundingClientRect();
-      pointerX = event.clientX - rect.left;
-      pointerY = event.clientY - rect.top;
+    const scheduleApply = () => {
       if (frameId === 0) {
         frameId = requestAnimationFrame(apply);
       }
     };
 
-    const handlePointerEnter = () => setPointerInside(true);
+    const handlePointerMove = (event: PointerEvent) => {
+      pointerRef.current = { clientX: event.clientX, clientY: event.clientY };
+      scheduleApply();
+    };
+
+    const handlePointerEnter = (event: PointerEvent) => {
+      pointerRef.current = { clientX: event.clientX, clientY: event.clientY };
+      setPointerInside(true);
+      scheduleApply();
+    };
     const handlePointerLeave = () => setPointerInside(false);
 
     container.addEventListener("pointerenter", handlePointerEnter);
     container.addEventListener("pointerleave", handlePointerLeave);
     container.addEventListener("pointermove", handlePointerMove);
+    if (pointerRef.current && pointerInside && text !== null) {
+      scheduleApply();
+    }
     return () => {
       container.removeEventListener("pointerenter", handlePointerEnter);
       container.removeEventListener("pointerleave", handlePointerLeave);
@@ -55,7 +89,7 @@ export function MapCursorTooltip({ text, containerRef }: MapCursorTooltipProps) 
         cancelAnimationFrame(frameId);
       }
     };
-  }, [containerRef]);
+  }, [containerRef, pointerInside, text]);
 
   return (
     <div

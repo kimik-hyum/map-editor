@@ -70,8 +70,8 @@
 - `createOpenLayersGeometry`가 `Point`, `MultiPoint`, `LineString`, `MultiLineString`, `Polygon`, `MultiPolygon`을 모두 변환한다.
   참고: [`src/pages/editor/adapters/openlayers/createOpenLayersGeometry.ts`](../src/pages/editor/adapters/openlayers/createOpenLayersGeometry.ts)
 - 메시지·클립보드 입력 경계에서 도형별 최소 좌표 수, 비어 있지 않은 multi part, 경위도 범위를 검증한다.
-- `features/draw` controller와 `attachFeatureDraw` adapter가 마커 즉시 완료, 패스 버튼·Enter 완료, 폴리곤 시작점 닫기, ESC 취소 확인을 담당한다.
-- 그리는 중 정점 undo/redo와 확인된 ESC 취소는 scene을 변경하지 않고, 완성 시 `addFeatures`가 새 레이어와 전역 history 한 단계를 만든다.
+- `features/draw` controller와 `attachFeatureDraw` adapter가 마커 즉시 완료, 패스 버튼·Enter 완료, 폴리곤 시작점/키보드 닫기, ESC 취소 확인을 담당한다. 지도 포커스 상태에서는 방향키+`Space`로 중심 좌표를 입력할 수 있다.
+- 그리는 중 정점 undo/redo와 확인된 ESC 취소는 scene을 변경하지 않고, copy/cut/paste도 차단한다. 완성 시에만 `addFeatures`가 새 레이어와 전역 history 한 단계를 만든다.
 
 남은 작업:
 
@@ -163,7 +163,7 @@
 
 ### 부가 규칙
 
-- 단축키: `Cmd/Ctrl+Z` = undo, `Cmd/Ctrl+Shift+Z`(+`Ctrl+Y`) = redo. input 포커스에서는 무시한다. 그리는 중에는 Draw의 정점 로컬 history가 전역 scene history보다 우선한다.
+- 단축키: `Cmd/Ctrl+Z` = undo, `Cmd/Ctrl+Shift+Z`(+`Ctrl+Y`) = redo. input 포커스에서는 무시한다. 그리는 중에는 Draw의 정점 로컬 history만 허용하고 clipboard scene 편집을 차단한다.
 - 편집 중 취소는 ESC(현재 편집 무름), 전역 undo/redo는 확정된 scene 이력만 다룬다.
 - 히스토리 길이 상한(예: 50), 초과 시 오래된 항목부터 버린다.
 - `dirty = scene !== (INIT 시점 baseline)`. undo로 baseline까지 가면 `dirty=false`. 새 INIT/`resetScene` 시 히스토리를 초기화한다.

@@ -31,18 +31,49 @@ describe("confirmedDrawVertexCount", () => {
         ]),
       ),
     ).toBe(2);
-    expect(
-      confirmedDrawVertexCount(
-        new Polygon([
-          [
-            [0, 0],
-            [1, 0],
-            [1, 1],
-            [1, 1],
-          ],
-        ]),
-      ),
-    ).toBe(3);
+  });
+
+  it.each([
+    [
+      "최초 drawstart",
+      [
+        [0, 0],
+        [0, 0],
+      ],
+      1,
+    ],
+    [
+      "첫 점과 이동 커서",
+      [
+        [0, 0],
+        [1, 1],
+        [0, 0],
+      ],
+      1,
+    ],
+    [
+      "두 확정점과 이동 커서",
+      [
+        [0, 0],
+        [1, 0],
+        [2, 1],
+        [0, 0],
+      ],
+      2,
+    ],
+    [
+      "세 확정점과 이동 커서",
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [2, 2],
+        [0, 0],
+      ],
+      3,
+    ],
+  ])("Polygon의 %s 구조에서 확정 정점만 센다", (_name, ring, expected) => {
+    expect(confirmedDrawVertexCount(new Polygon([ring]))).toBe(expected);
   });
 });
 
