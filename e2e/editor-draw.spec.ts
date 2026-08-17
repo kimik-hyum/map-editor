@@ -599,10 +599,13 @@ test("키보드로 지도 중심에 Marker·Path·Polygon을 추가할 수 있�
   );
 });
 
-test("Polygon은 서로 다른 정점이 세 개일 때만 닫을 수 있다", async ({ page }) => {
+test("키보드 Polygon은 같은 좌표를 무시하고 서로 다른 정점 세 개에서만 닫힌다", async ({
+  page,
+}) => {
   const editorPage = await openEditorViaDemo(page);
   const before = await readEditorSnapshot(editorPage);
   const map = editorPage.getByLabel("OSM map editor");
+  const modifier = await platformModifier(editorPage);
   await activateDrawShape(editorPage, "폴리곤");
   await map.focus();
 
@@ -612,9 +615,15 @@ test("Polygon은 서로 다른 정점이 세 개일 때만 닫을 수 있다", a
   const closeButton = editorPage.getByRole("button", {
     name: "폴리곤 시작점에서 닫기",
   });
-  await expect(closeButton).toContainText("3점");
+  await expect(closeButton).toContainText("1점");
   await expect(closeButton).toBeDisabled();
   expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
+
+  // 무시된 두 입력은 로컬 history를 만들지 않아 undo 한 번으로 첫 정점만 제거됩니다.
+  await editorPage.keyboard.press(`${modifier}+z`);
+  await expect(closeButton).toBeHidden();
+  await editorPage.keyboard.press(`${modifier}+Shift+z`);
+  await expect(closeButton).toContainText("1점");
 
   await editorPage.keyboard.press("ArrowRight");
   await editorPage.waitForTimeout(300);

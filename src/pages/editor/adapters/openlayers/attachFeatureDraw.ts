@@ -77,6 +77,10 @@ function coordinateKey(coordinate: readonly number[]): string {
   return `${coordinate[0]},${coordinate[1]}`;
 }
 
+function coordinatesEqual(left: readonly number[], right: readonly number[]): boolean {
+  return left[0] === right[0] && left[1] === right[1];
+}
+
 function confirmedDrawCoordinates(geometry: Geometry): number[][] {
   if (geometry instanceof Point) {
     return [geometry.getCoordinates()];
@@ -94,6 +98,17 @@ function confirmedDrawCoordinates(geometry: Geometry): number[][] {
 
 export function confirmedDrawDistinctVertexCount(geometry: Geometry): number {
   return new Set(confirmedDrawCoordinates(geometry).map(coordinateKey)).size;
+}
+
+// 지도 중심을 Space로 입력할 때 이미 확정된 정점과 완전히 같은 좌표는 새 정점이 아닙니다.
+// cursor/closure 좌표는 confirmedDrawCoordinates에서 제외되므로 현재 포인터 위치와는 비교하지 않습니다.
+export function canAppendDrawCoordinate(
+  geometry: Geometry,
+  coordinate: readonly number[],
+): boolean {
+  return confirmedDrawCoordinates(geometry).every(
+    (confirmedCoordinate) => !coordinatesEqual(confirmedCoordinate, coordinate),
+  );
 }
 
 export function canCloseDrawPolygon(
@@ -395,6 +410,12 @@ export function attachFeatureDraw(map: OpenLayersMap, options: FeatureDrawOption
     if (shape === GeometryKind.Point) {
       discardRedo();
       options.onCommit(olGeometryToEditorGeometry(new Point(coordinate.slice())));
+      return true;
+    }
+
+    const geometry = sketchFeature?.getGeometry();
+    if (drawing && geometry && !canAppendDrawCoordinate(geometry, coordinate)) {
+      // Space 기본 동작은 소비하되 sketch와 로컬 undo/redo 분기는 그대로 둡니다.
       return true;
     }
 

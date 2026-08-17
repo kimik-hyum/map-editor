@@ -4,6 +4,7 @@ import Polygon from "ol/geom/Polygon";
 import { describe, expect, it } from "vitest";
 import { GeometryKind } from "@/pages/editor/types/editorTypes";
 import {
+  canAppendDrawCoordinate,
   canCloseDrawPolygon,
   canFinishDraw,
   confirmedDrawDistinctVertexCount,
@@ -108,6 +109,35 @@ describe("confirmedDrawDistinctVertexCount", () => {
         ]),
       ),
     ).toBe(3);
+  });
+});
+
+describe("canAppendDrawCoordinate", () => {
+  it("Path의 cursor는 제외하고 이미 확정된 좌표만 중복으로 거부한다", () => {
+    const geometry = new LineString([
+      [0, 0],
+      [1, 1],
+      [2, 2],
+    ]);
+
+    expect(canAppendDrawCoordinate(geometry, [0, 0])).toBe(false);
+    expect(canAppendDrawCoordinate(geometry, [1, 1])).toBe(false);
+    expect(canAppendDrawCoordinate(geometry, [2, 2])).toBe(true);
+  });
+
+  it("Polygon의 cursor와 closure는 제외하고 기존 확정 좌표를 거부한다", () => {
+    const geometry = new Polygon([
+      [
+        [0, 0],
+        [1, 0],
+        [2, 2],
+        [0, 0],
+      ],
+    ]);
+
+    expect(canAppendDrawCoordinate(geometry, [0, 0])).toBe(false);
+    expect(canAppendDrawCoordinate(geometry, [1, 0])).toBe(false);
+    expect(canAppendDrawCoordinate(geometry, [2, 2])).toBe(true);
   });
 });
 

@@ -1,6 +1,6 @@
 # Editor Open Questions Review
 
-최초 검토일: 2026-05-30 · 현황 갱신: 2026-07-17
+최초 검토일: 2026-05-30 · 현황 갱신: 2026-08-17
 
 이 문서는 에디터 구현 중 고민했던 지점을 코드 기준으로 다시 점검하고, 이미 해결된 부분과 아직 남은 부분을 코멘트로 남긴 기록이다.
 
@@ -71,7 +71,14 @@
   참고: [`src/pages/editor/adapters/openlayers/createOpenLayersGeometry.ts`](../src/pages/editor/adapters/openlayers/createOpenLayersGeometry.ts)
 - 메시지·클립보드 입력 경계에서 도형별 최소 좌표 수, 비어 있지 않은 multi part, 경위도 범위를 검증한다.
 - `features/draw` controller와 `attachFeatureDraw` adapter가 마커 즉시 완료, 패스 버튼·Enter 완료, 폴리곤 시작점/키보드 닫기, ESC 취소 확인을 담당한다. 지도 포커스 상태에서는 방향키+`Space`로 중심 좌표를 입력할 수 있다.
+- 폴리곤·패스의 키보드 입력은 이미 확정된 정점과 완전히 같은 지도 중심 좌표를 무시하며, 무시된 입력은 정점 수나 로컬 undo/redo를 변경하지 않는다.
 - 그리는 중 정점 undo/redo와 확인된 ESC 취소는 scene을 변경하지 않고, copy/cut/paste도 차단한다. 완성 시에만 `addFeatures`가 새 레이어와 전역 history 한 단계를 만든다.
+
+알려진 제약(2026-08-17 결정):
+
+- View의 가로 반복 월드는 열려 있어 반복 월드에서 그리면 `[-180, 180]` 밖의 경도가 만들어질 수 있지만, 현재 예상 사용 범위에서는 발생 가능성이 낮아 코드로 제한하지 않는다.
+- 입력 schema의 경도 범위와 Draw 출력 경계가 달라 복사·재INIT에서 거부될 수 있다는 점은 의도적으로 문서화해 둔다.
+- 실제 이슈가 생기면 단일 월드 제한과 날짜변경선 횡단 geometry 정책을 함께 검토한다. Path/Polygon 좌표를 각각 단순 wrap하는 자동 수정은 geometry를 왜곡할 수 있어 채택하지 않는다.
 
 남은 작업:
 
