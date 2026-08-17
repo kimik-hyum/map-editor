@@ -15,6 +15,7 @@ describe("resolveDrawKeyboardIntent", () => {
     shape: GeometryKind.Path,
     isDrawing: true,
     canFinish: true,
+    canClosePolygon: false,
     confirmationOpen: false,
   } as const;
 
@@ -22,17 +23,28 @@ describe("resolveDrawKeyboardIntent", () => {
     expect(resolveDrawKeyboardIntent({ ...drawingPath, key: "Escape" })).toBe("cancel");
   });
 
-  it("완성 가능한 Path의 Enter만 즉시 완료한다", () => {
+  it("완성 가능한 Path와 Polygon의 Enter는 즉시 완료한다", () => {
     expect(resolveDrawKeyboardIntent({ ...drawingPath, key: "Enter" })).toBe("finish");
     expect(
       resolveDrawKeyboardIntent({
         ...drawingPath,
         shape: GeometryKind.Polygon,
+        canFinish: false,
+        canClosePolygon: true,
         key: "Enter",
       }),
-    ).toBeNull();
+    ).toBe("finish");
     expect(
       resolveDrawKeyboardIntent({ ...drawingPath, canFinish: false, key: "Enter" }),
+    ).toBeNull();
+    expect(
+      resolveDrawKeyboardIntent({
+        ...drawingPath,
+        shape: GeometryKind.Polygon,
+        canFinish: false,
+        canClosePolygon: false,
+        key: "Enter",
+      }),
     ).toBeNull();
   });
 

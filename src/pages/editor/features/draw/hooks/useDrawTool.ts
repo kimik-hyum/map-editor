@@ -207,6 +207,7 @@ export function useDrawTool(map: OpenLayersMap | null) {
         shape: editorState.activeDrawShape,
         isDrawing: currentSketch.isDrawing,
         canFinish: currentSketch.canFinish,
+        canClosePolygon: currentSketch.canClosePolygon,
         confirmationOpen: isConfirmationDialogOpen(),
       });
 
@@ -215,7 +216,11 @@ export function useDrawTool(map: OpenLayersMap | null) {
         if (isInteractiveControlTarget(event.target)) {
           return;
         }
-        if (handleRef.current?.finish()) {
+        const completed =
+          editorState.activeDrawShape === GeometryKind.Polygon
+            ? handleRef.current?.closePolygon()
+            : handleRef.current?.finish();
+        if (completed) {
           event.preventDefault();
         }
         return;

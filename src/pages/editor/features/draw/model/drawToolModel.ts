@@ -7,6 +7,7 @@ type ResolveDrawKeyboardIntentOptions = {
   shape: DrawShape;
   isDrawing: boolean;
   canFinish: boolean;
+  canClosePolygon: boolean;
   confirmationOpen: boolean;
 };
 
@@ -15,6 +16,7 @@ export function resolveDrawKeyboardIntent({
   shape,
   isDrawing,
   canFinish,
+  canClosePolygon,
   confirmationOpen,
 }: ResolveDrawKeyboardIntentOptions): DrawKeyboardIntent {
   if (!isDrawing || confirmationOpen) {
@@ -25,8 +27,13 @@ export function resolveDrawKeyboardIntent({
     return "cancel";
   }
 
-  if (key === "Enter" && shape === GeometryKind.Path && canFinish) {
-    return "finish";
+  if (key === "Enter") {
+    if (shape === GeometryKind.Path && canFinish) {
+      return "finish";
+    }
+    if (shape === GeometryKind.Polygon && canClosePolygon) {
+      return "finish";
+    }
   }
 
   return null;
@@ -42,6 +49,6 @@ export function resolveDrawHint(shape: DrawShape, isDrawing: boolean): string {
       : "클릭하여 패스 시작";
   }
   return isDrawing
-    ? "정점을 추가하고 시작점을 클릭하여 완성하세요"
+    ? "정점을 추가하고 시작점을 클릭하거나 Enter로 완성하세요"
     : "클릭하여 폴리곤 시작";
 }

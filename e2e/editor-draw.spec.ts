@@ -148,8 +148,10 @@ test("마커는 클릭 한 번마다 별도 레이어로 즉시 완성된다", a
   const editorPage = await openEditorViaDemo(page);
   const before = await readEditorSnapshot(editorPage);
   await activateDrawShape(editorPage, "마커");
-  expect(await readMapCursor(editorPage)).toContain("data:image/svg+xml");
-  expect(await readMapCursor(editorPage)).toContain("10 23");
+  const markerCursor = await readMapCursor(editorPage);
+  expect(markerCursor).toContain("data:image/svg+xml");
+  expect(markerCursor).toContain("8 19");
+  expect(decodeURIComponent(markerCursor)).toContain("width='20'");
 
   const rejectedPoint = await mapPoint(editorPage, 0.5, 0.25);
   await editorPage.mouse.click(rejectedPoint.x, rejectedPoint.y, { button: "right" });
@@ -182,8 +184,10 @@ test("Path는 정점 로컬 undo/redo 후 완료 버튼으로 별도 레이어�
   const editorPage = await openEditorViaDemo(page);
   const before = await readEditorSnapshot(editorPage);
   await activateDrawShape(editorPage, "패스");
-  expect(await readMapCursor(editorPage)).toContain("data:image/svg+xml");
-  expect(await readMapCursor(editorPage)).toContain("5 5");
+  const pathCursor = await readMapCursor(editorPage);
+  expect(pathCursor).toContain("data:image/svg+xml");
+  expect(pathCursor).toContain("4 4");
+  expect(decodeURIComponent(pathCursor)).toContain("width='20'");
 
   const cursorTooltip = editorPage.locator('main > [role="status"]');
   const tooltipPoint = await mapPoint(editorPage, 0.5, 0.8);
@@ -595,7 +599,7 @@ test("키보드로 지도 중심에 Marker·Path·Polygon을 추가할 수 있�
   popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
   await popup.getByRole("button", { name: /^폴리곤/ }).click();
   await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
-  await expect(map).toHaveAttribute("aria-keyshortcuts", "K Space");
+  await expect(map).toHaveAttribute("aria-keyshortcuts", "K Space Enter");
   await map.focus();
   await editorPage.keyboard.press("k");
   await expect(crosshair).toBeVisible();
@@ -610,8 +614,8 @@ test("키보드로 지도 중심에 Marker·Path·Polygon을 추가할 수 있�
     name: "폴리곤 시작점에서 닫기",
   });
   await expect(closeButton).toBeEnabled();
-  await closeButton.focus();
   await editorPage.keyboard.press("Enter");
+  await expect(crosshair).toHaveCount(0);
   await expect
     .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
     .toBe(before.layerCount + 3);
@@ -719,14 +723,16 @@ test("ESC로 계속 그리기를 선택한 뒤 Enter는 Path를 완성한다", a
   await expect(editorPage.getByRole("dialog", { name: "추가할 도형" })).toHaveCount(0);
 });
 
-test("폴리곤은 마지막 정점이 아니라 시작점을 클릭해야 별도 레이어로 완성된다", async ({
+test("폴리곤은 마지막 정점이 아닌 시작점 클릭이나 Enter로 완성된다", async ({
   page,
 }) => {
   const editorPage = await openEditorViaDemo(page);
   const before = await readEditorSnapshot(editorPage);
   await activateDrawShape(editorPage, "폴리곤");
-  expect(await readMapCursor(editorPage)).toContain("data:image/svg+xml");
-  expect(await readMapCursor(editorPage)).toContain("5 5");
+  const polygonCursor = await readMapCursor(editorPage);
+  expect(polygonCursor).toContain("data:image/svg+xml");
+  expect(polygonCursor).toContain("4 4");
+  expect(decodeURIComponent(polygonCursor)).toContain("width='20'");
 
   const start = await mapPoint(editorPage, 0.5, 0.3);
   const second = await mapPoint(editorPage, 0.62, 0.2);
@@ -735,11 +741,6 @@ test("폴리곤은 마지막 정점이 아니라 시작점을 클릭해야 별�
   await editorPage.mouse.click(second.x, second.y);
   await editorPage.mouse.click(third.x, third.y);
 
-  expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
-
-  // 폴리곤은 Enter 완료를 지원하지 않고, 시작점 클릭 규칙만 유지합니다.
-  await editorPage.keyboard.press("Enter");
-  await expect(editorPage.getByRole("alertdialog")).toHaveCount(0);
   expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
 
   // OpenLayers 기본 동작과 달리 마지막 정점 재클릭으로는 끝내지 않습니다.
@@ -756,6 +757,22 @@ test("폴리곤은 마지막 정점이 아니라 시작점을 클릭해야 별�
   const coordinates = completed.lastFeature?.geometry.coordinates as number[][][];
   expect(coordinates[0][coordinates[0].length - 1]).toEqual(coordinates[0][0]);
   expect(completed.pastCount).toBe(before.pastCount + 1);
+
+  // 시작점 재클릭과 별개로, 세 정점 이상이면 지도에 포커스가 있는 Enter도 완료합니다.
+  const enterStart = await mapPoint(editorPage, 0.42, 0.55);
+  const enterSecond = await mapPoint(editorPage, 0.54, 0.48);
+  const enterThird = await mapPoint(editorPage, 0.58, 0.68);
+  await editorPage.mouse.click(enterStart.x, enterStart.y);
+  await editorPage.mouse.click(enterSecond.x, enterSecond.y);
+  await editorPage.mouse.click(enterThird.x, enterThird.y);
+  await editorPage.keyboard.press("Enter");
+
+  await expect
+    .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
+    .toBe(before.layerCount + 2);
+  const enterCompleted = await readEditorSnapshot(editorPage);
+  expect(enterCompleted.lastFeature?.geometry.type).toBe("Polygon");
+  expect(enterCompleted.pastCount).toBe(before.pastCount + 2);
 });
 
 test("Polygon 정점 수와 undo/redo는 이동 중 커서가 아니라 확정 좌표를 보존한다", async ({

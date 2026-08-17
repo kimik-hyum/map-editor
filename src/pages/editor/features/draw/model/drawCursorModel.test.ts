@@ -4,9 +4,9 @@ import { resolveDrawCursor } from "./drawCursorModel";
 
 describe("resolveDrawCursor", () => {
   const cases = [
-    [GeometryKind.Polygon, "5 5"],
-    [GeometryKind.Path, "5 5"],
-    [GeometryKind.Point, "10 23"],
+    [GeometryKind.Polygon, "4 4"],
+    [GeometryKind.Path, "4 4"],
+    [GeometryKind.Point, "8 19"],
   ] as const satisfies ReadonlyArray<readonly [DrawShape, string]>;
 
   it.each(cases)("%s에 도구별 커서와 hotspot을 제공한다", (shape, hotspot) => {
@@ -14,6 +14,8 @@ describe("resolveDrawCursor", () => {
 
     expect(cursor).toContain("data:image/svg+xml");
     expect(cursor).toContain(hotspot);
+    expect(decodeURIComponent(cursor)).toContain("width='20'");
+    expect(decodeURIComponent(cursor)).toContain("height='20'");
     expect(cursor).toMatch(/, crosshair$/);
   });
 

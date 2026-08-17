@@ -79,9 +79,9 @@ export function EditorPage() {
           aria-describedby={activation.draw ? "draw-keyboard-instructions" : undefined}
           aria-keyshortcuts={
             activation.draw
-              ? activeDrawShape === GeometryKind.Path
-                ? "K Space Enter"
-                : "K Space"
+              ? activeDrawShape === GeometryKind.Point
+                ? "K Space"
+                : "K Space Enter"
               : undefined
           }
           role="application"
@@ -90,8 +90,8 @@ export function EditorPage() {
         />
         <p className="sr-only" id="draw-keyboard-instructions">
           K 키로 키보드 조준 모드를 켠 뒤 방향키로 지도 중심을 이동하고 Space 키로 마커
-          또는 정점을 추가합니다. K 키를 다시 누르면 조준 모드가 꺼집니다. 패스는 Enter
-          키로 완료하고 폴리곤은 시작점에서 닫기 버튼으로 완료합니다.
+          또는 정점을 추가합니다. K 키를 다시 누르면 조준 모드가 꺼집니다. 패스와 정점
+          3개 이상의 폴리곤은 Enter 키로 완료할 수 있습니다.
         </p>
         {activation.draw && isSceneReady && drawTool.keyboardTargetingActive ? (
           <div
