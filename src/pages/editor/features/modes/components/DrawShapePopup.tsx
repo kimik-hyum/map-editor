@@ -7,11 +7,16 @@ type DrawShapePopupProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   anchor: RefObject<HTMLButtonElement | null>;
+  confirmDiscardDraw: () => Promise<boolean>;
 };
 
 // 그리기(추가) 도구로 만들 도형(폴리곤/패스/마커)을 고르는 팝업입니다. 공용 ToolOptionPopup에 store를 연결합니다.
-// 실제 그리기 인터랙션/렌더링은 후속(#12, #41)에서 담당합니다.
-export function DrawShapePopup({ open, onOpenChange, anchor }: DrawShapePopupProps) {
+export function DrawShapePopup({
+  open,
+  onOpenChange,
+  anchor,
+  confirmDiscardDraw,
+}: DrawShapePopupProps) {
   const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
   const setActiveDrawShape = useEditorStore((state) => state.setActiveDrawShape);
 
@@ -20,7 +25,25 @@ export function DrawShapePopup({ open, onOpenChange, anchor }: DrawShapePopupPro
       activeId={activeDrawShape}
       anchor={anchor}
       onOpenChange={onOpenChange}
-      onSelect={setActiveDrawShape}
+      onSelect={(nextShape) => {
+        if (nextShape === activeDrawShape) {
+          return;
+        }
+        void (async () => {
+          const context = useEditorStore.getState();
+          if (!(await confirmDiscardDraw())) {
+            return;
+          }
+
+          const currentContext = useEditorStore.getState();
+          if (
+            currentContext.sessionId === context.sessionId &&
+            currentContext.scene === context.scene
+          ) {
+            setActiveDrawShape(nextShape);
+          }
+        })();
+      }}
       open={open}
       options={drawShapeOptions}
       title="추가할 도형"

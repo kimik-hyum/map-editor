@@ -1,6 +1,5 @@
 import Collection from "ol/Collection";
 import type Feature from "ol/Feature";
-import GeoJSON from "ol/format/GeoJSON";
 import type Geometry from "ol/geom/Geometry";
 import SimpleGeometry from "ol/geom/SimpleGeometry";
 import type { EventsKey } from "ol/events";
@@ -11,13 +10,15 @@ import { unByKey } from "ol/Observable";
 import { Circle as CircleStyle, Fill, Stroke, Style } from "ol/style";
 import { editorDefaultTheme } from "@/pages/editor/theme/editorTheme";
 import { canEditLayerVertices } from "@/pages/editor/types/editorTypes";
-import type {
-  EditorCoordinate,
-  EditorScene,
-  GeoJsonGeometry,
-} from "@/pages/editor/types/editorTypes";
+import type { EditorScene, GeoJsonGeometry } from "@/pages/editor/types/editorTypes";
 import { forEachEditorContentLayer } from "./editorContentLayers";
 import { nearestVertexDistance } from "./geometryDistance";
+import {
+  normalizeClosedRings,
+  olGeometryToEditorGeometry,
+} from "./olGeometryToEditorGeometry";
+
+export { normalizeClosedRings, olGeometryToEditorGeometry };
 
 type VertexModifyOptions = {
   // 항상 최신 scene을 읽어 편집 대상 레이어 상태를 확인합니다.
@@ -42,44 +43,6 @@ function createHandleStyle(): Style {
       stroke: new Stroke({ color: token.strokeColor, width: token.strokeWidth }),
     }),
   });
-}
-
-const geoJsonFormat = new GeoJSON();
-
-// 닫힌 링(폴리곤)의 마지막 좌표가 첫 좌표와 같도록 보장합니다(변환 후 안전망).
-function closeRing(ring: EditorCoordinate[]): EditorCoordinate[] {
-  if (ring.length === 0) {
-    return ring;
-  }
-  const first = ring[0];
-  const last = ring[ring.length - 1];
-  if (first[0] === last[0] && first[1] === last[1]) {
-    return ring;
-  }
-  return [...ring, [first[0], first[1]]];
-}
-
-// 폴리곤/멀티폴리곤 링 닫힘을 정규화합니다. 그 외 타입은 그대로.
-export function normalizeClosedRings(geometry: GeoJsonGeometry): GeoJsonGeometry {
-  if (geometry.type === "Polygon") {
-    return { type: "Polygon", coordinates: geometry.coordinates.map(closeRing) };
-  }
-  if (geometry.type === "MultiPolygon") {
-    return {
-      type: "MultiPolygon",
-      coordinates: geometry.coordinates.map((polygon) => polygon.map(closeRing)),
-    };
-  }
-  return geometry;
-}
-
-// OpenLayers geometry(EPSG:3857) → 에디터 GeoJSON(경위도). 링 닫힘까지 정규화.
-export function olGeometryToEditorGeometry(geometry: Geometry): GeoJsonGeometry {
-  const object = geoJsonFormat.writeGeometryObject(geometry, {
-    featureProjection: "EPSG:3857",
-    dataProjection: "EPSG:4326",
-  }) as GeoJsonGeometry;
-  return normalizeClosedRings(object);
 }
 
 // 두 geometry의 좌표가 완전히 같은지(no-op 커밋 방지용). 이동/정점편집 어댑터가 공유한다.

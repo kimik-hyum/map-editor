@@ -30,7 +30,7 @@ import {
   subtractGeometry,
   unionGeometries,
 } from "@/pages/editor/features/geometry-ops";
-import { getMapInteractionActivation } from "@/pages/editor/features/map/model/mapInteractionModel";
+import { getToolActivation } from "@/pages/editor/features/modes";
 import {
   deriveSelectionTargets,
   getChangedSelectionIds,
@@ -290,9 +290,7 @@ export function useOpenLayersEditorMap() {
         return;
       }
       // 편집 비활성 모드에서는 팬/줌 후에도 정점 핸들을 되살리지 않는다.
-      if (
-        !getMapInteractionActivation(useEditorStore.getState().activeMode).vertexEdit
-      ) {
+      if (!getToolActivation(useEditorStore.getState().activeMode).vertexEdit) {
         return;
       }
       syncVertexOverlay(
@@ -350,9 +348,7 @@ export function useOpenLayersEditorMap() {
     translateTargetIdsRef.current = translateTargetIds;
 
     // 정점 핸들/편집 바인딩은 편집 활성 모드에서만, 그리고 "정점 편집 대상"에만 갱신한다.
-    const editing = getMapInteractionActivation(
-      useEditorStore.getState().activeMode,
-    ).vertexEdit;
+    const editing = getToolActivation(useEditorStore.getState().activeMode).vertexEdit;
     selectedVerticesRef.current = projectSelectedVertices(
       scene as EditorScene | null,
       vertexEditTargetIds,
@@ -407,9 +403,7 @@ export function useOpenLayersEditorMap() {
     translateTargetIdsRef.current = translateTargetIds;
 
     // 정점 핸들/편집 바인딩은 편집 활성 모드에서만, 그리고 "정점 편집 대상"에만 갱신한다.
-    const editing = getMapInteractionActivation(
-      useEditorStore.getState().activeMode,
-    ).vertexEdit;
+    const editing = getToolActivation(useEditorStore.getState().activeMode).vertexEdit;
     selectedVerticesRef.current = projectSelectedVertices(
       currentScene,
       vertexEditTargetIds,
@@ -478,7 +472,7 @@ export function useOpenLayersEditorMap() {
       return;
     }
 
-    const activation = getMapInteractionActivation(activeMode);
+    const activation = getToolActivation(activeMode);
     selectionRef.current?.setActive(activation.selection);
     modifyRef.current?.setActive(activation.vertexEdit);
     translateRef.current?.setActive(activation.vertexEdit);
@@ -545,7 +539,7 @@ export function useOpenLayersEditorMap() {
     };
 
     // 선택 모드가 아니면 마커를 모두 내리고 라벨을 복구한다.
-    if (!getMapInteractionActivation(activeMode).selection) {
+    if (!getToolActivation(activeMode).geometryOps) {
       geometryOpTargetsRef.current = EMPTY_GEOMETRY_OP_TARGETS;
       applyChips(overlays.sync([]));
       return;

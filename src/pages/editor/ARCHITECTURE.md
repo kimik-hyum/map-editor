@@ -5,7 +5,7 @@ Codex와 Claude는 이 문서를 기준으로 `EditorPage` 비대화, OpenLayers
 
 ## 현재 구조와 목표 구조 비교
 
-목표 구조는 기존 설계를 교체하는 재작성안이 아니다. `EditorScene`, Zustand, TanStack Query, OpenLayers adapter라는 기존 경계를 유지하면서, 앞으로 Draw/Radius 같은 기능이 추가돼도 한 hook과 여러 UI 컴포넌트에 책임이 계속 쌓이지 않도록 조율 책임을 더 잘게 나누는 정리안이다.
+목표 구조는 기존 설계를 교체하는 재작성안이 아니다. `EditorScene`, Zustand, TanStack Query, OpenLayers adapter라는 기존 경계를 유지하면서, Draw/Radius 같은 기능이 추가돼도 한 hook과 여러 UI 컴포넌트에 책임이 계속 쌓이지 않도록 조율 책임을 더 잘게 나누는 정리안이다. Draw는 별도 controller로 분리됐고 나머지는 점진적으로 정리한다.
 
 ### 현재 구조
 
@@ -15,15 +15,18 @@ flowchart LR
   Messaging --> Store["Zustand editorStore<br/>EditorScene + UI 상태 + history"]
 
   Page["EditorPage<br/>화면 조립"] --> MapHook["useOpenLayersEditorMap<br/>지도 수명 + 선택 + 정점 + 이동 + 불리언"]
+  Page --> DrawHook["useDrawTool<br/>sketch + 완료 + 로컬 history"]
   Page --> RegionHooks["region hooks<br/>조회 + 참고 layer + 채택 연산"]
   FeatureUI["feature UI"] --> Store
   Store --> MapHook
+  DrawHook -- "완성 geometry" --> Store
 
   Supabase["Supabase"] --> RegionApi["regions API<br/>fetch + Zod"]
   RegionApi --> Query["TanStack Query cache"]
   Query --> RegionHooks
 
   MapHook --> Adapters["OpenLayers adapters"]
+  DrawHook --> Adapters
   RegionHooks --> Adapters
   RegionHooks -- "원본 geometry 채택" --> Store
   Adapters --> OpenLayers["OpenLayers Map"]
@@ -31,7 +34,7 @@ flowchart LR
 
 현재 구조의 핵심 장점은 원격 경계 데이터와 편집 scene이 섞이지 않고, OpenLayers 객체도 store 밖에 머문다는 점이다. 카탈로그 fallback·정렬은 `regions/model`의 공용 정책을 사용한다. 확장 시 부담이 되는 지점은 `useOpenLayersEditorMap`에 여러 상호작용 조율이 집중되고, region query key·로딩 정책이 여러 소비처에 나뉘어 있다는 점이다.
 
-### 목표 구조(코드에는 아직 미적용)
+### 목표 구조(점진 적용 중)
 
 ```mermaid
 flowchart TB
@@ -58,7 +61,8 @@ flowchart TB
     Vertex["vertex + translate"]
     GeometryOps["geometry operations"]
     Regions["region query + reference layer"]
-    FutureTools["draw + radius"]
+    Draw["draw"]
+    FutureTools["radius"]
   end
 
   Page --> Activation
@@ -68,11 +72,13 @@ flowchart TB
   Activation --> GeometryOps
   Activation --> Regions
   Activation --> FutureTools
+  Activation --> Draw
   Store --> Selection
   Store --> Vertex
   Store --> GeometryOps
   RegionVM --> Regions
   Regions -- "원본 geometry 채택" --> Store
+  Draw -- "완성 geometry" --> Store
 
   MapLife --> Adapters["OpenLayers adapters"]
   Selection --> Adapters
@@ -80,6 +86,7 @@ flowchart TB
   GeometryOps --> Adapters
   Regions --> Adapters
   FutureTools --> Adapters
+  Draw --> Adapters
   Adapters --> OpenLayers["OpenLayers Map"]
 ```
 
@@ -88,7 +95,7 @@ flowchart TB
 | 편집 상태    | 단일 Zustand store와 `EditorScene`                    | 동일. 순수 scene 편집 함수만 파일로 분리                       | 유지        |
 | 원격 상태    | TanStack Query가 region 데이터를 소유                 | query key/options와 catalog view model을 기능 안에서 통합      | 유지·정리   |
 | 지도 조율    | `useOpenLayersEditorMap`에 여러 책임 집중             | 공개 hook은 유지하고 내부 controller를 기능별로 분리           | 점진적 분리 |
-| 모드 정책    | Select 계열과 Boundary 활성화 경로가 나뉨             | 모든 tool 활성 플래그를 하나의 순수 정책에서 계산              | 통합        |
+| 모드 정책    | `toolActivationModel`에서 활성 플래그 계산            | 모든 controller가 같은 정책을 소비                             | 적용 중     |
 | 순수 모델    | 일부 option model이 React 아이콘을 포함               | 식별자·라벨·정책은 model, 아이콘은 component/presentation      | 경계 강화   |
 | adapter 핸들 | `setActive`, `sync`, `detach` 조합이 adapter마다 다름 | `detach`는 필수, 필요한 capability만 `setActive`/`sync`로 제공 | 규약 명확화 |
 | undo/redo    | `commitSceneEdit`를 통한 한 동작 한 스냅샷            | 동일한 단일 커밋 경계를 유지                                   | 유지        |
@@ -98,7 +105,7 @@ flowchart TB
 1. Query 결과를 Zustand에 복제하지 않는다. 원격 데이터는 TanStack Query, 편집 결과는 Zustand가 소유한다.
 2. `EditorPage`와 `useOpenLayersEditorMap`의 공개 계약은 유지하면서 내부 책임부터 분리한다.
 3. store를 여러 독립 store로 쪼개지 않는다. 순수 scene 변환만 추출하고 `commitSceneEdit`의 원자적 history 경계는 유지한다.
-4. Draw/Radius 구현 전에 tool activation 정책을 통합한다.
+4. Draw/Radius controller는 통합된 tool activation 정책을 사용한다.
 5. 렌더링 diff/cache 최적화는 실제 병목을 측정한 뒤 적용한다.
 
 ## Responsibility Map
@@ -150,12 +157,13 @@ flowchart TB
 
 ## Current Editor Flow
 
-1. `EditorPage.tsx`가 `useOpenLayersEditorMap`, `useEditorMessaging`, `useEditorHistoryShortcuts`를 호출한다.
+1. `EditorPage.tsx`가 `useOpenLayersEditorMap`, `useDrawTool`, `useEditorMessaging`, `useEditorHistoryShortcuts`를 호출한다.
 2. `messaging`이 postMessage payload를 검증하고 `editorStore`에 scene을 주입한다.
 3. `features/map/hooks/useOpenLayersEditorMap.ts`가 store 상태를 구독하고 OpenLayers adapter를 호출한다.
 4. `adapters/openlayers`가 scene을 OpenLayers layer/feature/interaction으로 변환하거나 동기화한다.
 5. `features/layers` 같은 UI 기능은 store action을 호출하고, map hook이 변경된 상태를 지도에 반영한다.
 6. `features/regions`는 외부 RPC 응답을 Zod로 검증한 뒤, `adapters/openlayers`의 별도 참고 레이어에만 표시한다. 사용자가 채택한 원본 geometry만 store action으로 scene에 복사한다.
+7. `features/draw`는 OpenLayers sketch를 adapter 안에 유지하고, 완성된 geometry만 `addFeatures`로 scene에 커밋한다.
 
 ## Testing Rules
 

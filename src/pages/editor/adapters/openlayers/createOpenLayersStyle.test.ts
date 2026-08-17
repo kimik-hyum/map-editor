@@ -1,4 +1,5 @@
 import { Style } from "ol/style";
+import Icon from "ol/style/Icon";
 import { describe, expect, it } from "vitest";
 import {
   EditabilityState,
@@ -14,8 +15,8 @@ import {
 } from "@/pages/editor/types/editorTypes";
 import { createOpenLayersStyle, scaleFillAlpha } from "./createOpenLayersStyle";
 
-function createFeature(): EditorFeature {
-  return {
+function createFeature(overrides: Partial<EditorFeature> = {}): EditorFeature {
+  const feature: EditorFeature = {
     id: "f1",
     name: "도형",
     geometryKind: GeometryKind.Polygon,
@@ -34,6 +35,7 @@ function createFeature(): EditorFeature {
     // 원색 보존 검증을 위해 명시 토큰(파랑 editable)을 둔다.
     style: { themeToken: "editable" },
   };
+  return { ...feature, ...overrides };
 }
 
 function createLayer(): EditorLayer {
@@ -128,6 +130,62 @@ describe("createOpenLayersStyle", () => {
       labelHidden: true,
     }) as Style;
     expect(hidden.getText()).toBeFalsy();
+  });
+
+  it("Path는 채움 없이 stroke로 렌더링한다", () => {
+    const feature = createFeature({
+      geometryKind: GeometryKind.Path,
+      feature: {
+        type: "Feature",
+        id: "path",
+        geometry: { type: "LineString", coordinates: [] },
+      },
+    });
+    const style = createOpenLayersStyle(feature, createLayer()) as Style;
+    expect(style.getStroke()).toBeTruthy();
+    expect(style.getFill()).toBeNull();
+    expect(style.getImage()).toBeNull();
+  });
+
+  it("Point는 실제 핀 Icon과 선택용 핀 halo로 렌더링한다", () => {
+    const feature = createFeature({
+      geometryKind: GeometryKind.Point,
+      feature: {
+        type: "Feature",
+        id: "point",
+        geometry: { type: "Point", coordinates: [126.9, 37.5] },
+      },
+    });
+    const base = createOpenLayersStyle(feature, createLayer()) as Style;
+    expect(base.getImage()).toBeInstanceOf(Icon);
+    expect((base.getImage() as Icon).getSrc()).toMatch(/^data:image\/svg\+xml/);
+    expect(base.getStroke()).toBeNull();
+
+    const selected = createOpenLayersStyle(feature, createLayer(), {
+      selected: true,
+    }) as Style[];
+    expect(selected).toHaveLength(2);
+    expect(selected[0].getImage()).toBeInstanceOf(Icon);
+    expect(selected[1].getImage()).toBeInstanceOf(Icon);
+  });
+
+  it("Point 이름 라벨은 핀을 가리지 않도록 위쪽으로 띄운다", () => {
+    const feature = createFeature({
+      geometryKind: GeometryKind.Point,
+      feature: {
+        type: "Feature",
+        id: "point",
+        geometry: { type: "Point", coordinates: [126.9, 37.5] },
+      },
+    });
+    const layer = createLayer();
+    const labeledLayer: EditorLayer = {
+      ...layer,
+      view: { ...layer.view, labelVisible: true },
+    };
+
+    const style = createOpenLayersStyle(feature, labeledLayer) as Style;
+    expect(style.getText()?.getOffsetY()).toBeLessThan(-32);
   });
 });
 

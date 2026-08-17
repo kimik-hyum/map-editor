@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { cancelAllConfirmationDialogs } from "@/shared/ui/confirmation-dialog";
 import { useEditorStore } from "../state/editorStore";
 import { EditorMessageType } from "../types/editorTypes";
 import {
@@ -37,6 +38,8 @@ export function useEditorMessaging() {
       const parsed = parseInitMessage(event.data);
 
       if (parsed.ok) {
+        // 이전 scene에서 열린 확인과 대기 Promise가 새 session의 상태를 뒤늦게 바꾸지 않게 합니다.
+        cancelAllConfirmationDialogs();
         initializeFromMessage(parsed.message);
         return;
       }

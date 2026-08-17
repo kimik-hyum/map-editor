@@ -8,8 +8,9 @@ import type OpenLayersMap from "ol/Map";
 import { unByKey } from "ol/Observable";
 import { canEditLayerVertices } from "@/pages/editor/types/editorTypes";
 import type { EditorScene, GeoJsonGeometry } from "@/pages/editor/types/editorTypes";
-import { olGeometryToEditorGeometry, sameCoordinates } from "./attachVertexModify";
+import { sameCoordinates } from "./attachVertexModify";
 import { forEachEditorContentLayer } from "./editorContentLayers";
+import { olGeometryToEditorGeometry } from "./olGeometryToEditorGeometry";
 
 type FeatureTranslateOptions = {
   // 항상 최신 scene을 읽어 이동 대상 레이어 상태를 확인합니다.

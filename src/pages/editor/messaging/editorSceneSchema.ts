@@ -13,18 +13,70 @@ import { findDuplicateIds, normalizeSceneInput } from "./normalizeSceneInput";
 // normalizeSceneInput으로 내부 EditorScene(리치 모델)으로 변환합니다.
 // 즉 검증 경계(이 파일)와 기본값 채움(normalizeSceneInput)을 분리합니다.
 
-const coordinateSchema = z.tuple([z.number(), z.number()]);
+const coordinateSchema = z.tuple([
+  z.number().min(-180).max(180),
+  z.number().min(-90).max(90),
+]);
+const multiPointCoordinatesSchema = z.array(coordinateSchema).min(1);
+const lineStringCoordinatesSchema = z.array(coordinateSchema).min(2);
+// 입력에서는 열린 3점을 허용하고 normalizeSceneInput이 마지막에 시작점을 붙여 링을 닫습니다.
+const linearRingCoordinatesSchema = z
+  .array(coordinateSchema)
+  .min(3)
+  .superRefine((ring, context) => {
+    const first = ring[0];
+    const last = ring[ring.length - 1];
+    const closed =
+      first !== undefined &&
+      last !== undefined &&
+      first[0] === last[0] &&
+      first[1] === last[1];
 
-// 현재 에디터는 폴리곤 계열만 렌더합니다. path/point 렌더가 열리면 여기에 추가합니다.
-// (입력 허용 범위 = 실제 지원 범위를 일치시켜 "통과하지만 안 보이는" 상황을 막습니다.)
+    if (closed && ring.length < 4) {
+      context.addIssue({
+        code: "custom",
+        message: "닫힌 Polygon ring은 최소 4개 좌표가 필요합니다.",
+      });
+    }
+
+    const vertices = closed ? ring.slice(0, -1) : ring;
+    const distinctVertexCount = new Set(
+      vertices.map((coordinate) => `${coordinate[0]},${coordinate[1]}`),
+    ).size;
+    if (distinctVertexCount < 3) {
+      context.addIssue({
+        code: "custom",
+        message: "Polygon ring은 서로 다른 정점이 최소 3개 필요합니다.",
+      });
+    }
+  });
+const polygonCoordinatesSchema = z.array(linearRingCoordinatesSchema).min(1);
+
+// 입력 허용 범위를 실제 렌더링 범위와 맞춰 "통과하지만 안 보이는" geometry를 막습니다.
 const geometrySchema = z.discriminatedUnion("type", [
   z.object({
+    type: z.literal("Point"),
+    coordinates: coordinateSchema,
+  }),
+  z.object({
+    type: z.literal("MultiPoint"),
+    coordinates: multiPointCoordinatesSchema,
+  }),
+  z.object({
+    type: z.literal("LineString"),
+    coordinates: lineStringCoordinatesSchema,
+  }),
+  z.object({
+    type: z.literal("MultiLineString"),
+    coordinates: z.array(lineStringCoordinatesSchema).min(1),
+  }),
+  z.object({
     type: z.literal("Polygon"),
-    coordinates: z.array(z.array(coordinateSchema)),
+    coordinates: polygonCoordinatesSchema,
   }),
   z.object({
     type: z.literal("MultiPolygon"),
-    coordinates: z.array(z.array(z.array(coordinateSchema))),
+    coordinates: z.array(polygonCoordinatesSchema).min(1),
   }),
 ]);
 

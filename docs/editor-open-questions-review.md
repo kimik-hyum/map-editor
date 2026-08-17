@@ -1,6 +1,6 @@
 # Editor Open Questions Review
 
-최초 검토일: 2026-05-30 · 현황 갱신: 2026-07-10
+최초 검토일: 2026-05-30 · 현황 갱신: 2026-08-17
 
 이 문서는 에디터 구현 중 고민했던 지점을 코드 기준으로 다시 점검하고, 이미 해결된 부분과 아직 남은 부분을 코멘트로 남긴 기록이다.
 
@@ -9,7 +9,7 @@
 | 고민                                                | 현재 상태                  | 코멘트                                                                                                                   |
 | --------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | 하나의 뷰에 복잡한 로직이 들어갈 때의 아키텍처      | 대부분 해결                | `EditorPage`는 조립 책임만 갖고, 도메인 모델, store, messaging, OpenLayers adapter, feature module로 책임이 나뉘어 있다. |
-| 폴리곤/path/marker의 편집 가능 여부와 상태 관리     | 부분 해결                  | Polygon/MultiPolygon 선택·이동·정점 편집은 연결됐고, path/marker 렌더링과 편집은 아직 없다.                              |
+| 폴리곤/path/marker의 편집 가능 여부와 상태 관리     | 대부분 해결                | 세 도형의 입력·렌더링·직접 그리기가 연결됐다. 도형별 세부 validation과 권한 정책 고도화는 남아 있다.                     |
 | 여러 폴리곤이 한 번에 렌더링될 때 최적화            | 렌더링 가능, 최적화 미해결 | 여러 레이어/폴리곤 렌더링은 가능하지만 scene 변경 때 editor layer를 전부 재생성한다.                                     |
 | 행정동/법정동 폴리곤 데이터 수집과 주소 개편 자동화 | 부분 해결                  | Supabase RPC·서울 적재·클라이언트 표시/복사 병합까지 연결됐다. 시도별 증분 적재 운영은 남았다.                           |
 | 편집 히스토리(undo/redo) 설계                       | 구현 완료                  | 편집 액션만 스냅샷으로 남기고, 가시성/잠금/선택은 silent로 둔다.                                                         |
@@ -43,14 +43,14 @@
 
 남은 코멘트:
 
-- 편집 interaction이 들어오면 `features/editing` 같은 별도 feature module을 두고, OpenLayers `Select`, `Modify`, `Draw`, `Snap` binding은 adapter 또는 interaction 전용 모듈에 두는 편이 좋다.
+- Draw처럼 이후 추가되는 편집 기능도 feature controller와 OpenLayers adapter를 분리하고, Snap binding은 interaction 전용 adapter에 둔다.
 - store에는 계속 OpenLayers 객체를 넣지 않는 원칙을 유지한다. OpenLayers 객체는 adapter 내부 ref/cache로 관리하고, store에는 serializable한 `EditorScene`과 UI 상태만 둔다.
 
 ## 2. 폴리곤/path/marker 편집 가능 여부와 상태 관리
 
-상태: 부분 해결
+상태: 대부분 해결
 
-> 코멘트: 편집 가능 여부를 표현하는 타입과 store 액션은 이미 있다. 다만 현재는 레이어/도형 패널 표시와 visibility 토글 중심이고, 실제 지도 위 vertex 편집, path 편집, marker 조작 가능 여부를 OpenLayers interaction에 강제하는 단계는 아직 아니다.
+> 코멘트: 편집 가능 여부 타입과 store 액션에 더해 Point/Path 렌더링과 도형별 Draw가 연결됐다. 진행 중 sketch는 OpenLayers adapter가, 완성된 geometry와 history는 store가 소유한다.
 
 해결된 방식:
 
@@ -65,19 +65,27 @@
 - 레이어 패널은 `editability`가 `Editable`이 아닐 때 배지를 노출한다. 즉 편집 가능 여부를 UI에 보여줄 기반은 이미 있다.  
   참고: [`src/pages/editor/features/layers/model/layerPanelModel.ts`](../src/pages/editor/features/layers/model/layerPanelModel.ts)
 
-아직 남은 부분:
+추가로 해결된 부분:
 
-- `createOpenLayersGeometry`는 현재 `Polygon`, `MultiPolygon`만 OpenLayers geometry로 변환한다. `Point`, `MultiPoint`, `LineString`, `MultiLineString`은 타입과 Zod schema에는 있지만 지도 렌더링에서는 아직 `null` 처리된다.  
+- `createOpenLayersGeometry`가 `Point`, `MultiPoint`, `LineString`, `MultiLineString`, `Polygon`, `MultiPolygon`을 모두 변환한다.
   참고: [`src/pages/editor/adapters/openlayers/createOpenLayersGeometry.ts`](../src/pages/editor/adapters/openlayers/createOpenLayersGeometry.ts)
-- `EditorMode`에는 수동 편집, 행정동, 법정동, 반경, 병합/제외, 스냅/정렬, 검증 모드가 있지만, 현재는 모드 선택 UI 카탈로그에 가깝다. 실제 OpenLayers interaction 전환 로직은 아직 없다.  
-  참고: [`src/pages/editor/features/modes/model/editorModeModel.ts`](../src/pages/editor/features/modes/model/editorModeModel.ts)
+- 메시지·클립보드 입력 경계에서 도형별 최소 좌표 수, 비어 있지 않은 multi part, 경위도 범위를 검증한다.
+- `features/draw` controller와 `attachFeatureDraw` adapter가 마커 즉시 완료, 패스 버튼·Enter 완료, 폴리곤 시작점/버튼·Enter 닫기, ESC 취소 확인을 담당한다. 지도 포커스 상태에서 `K`로 키보드 조준 모드를 켜야 방향키+`Space` 중심 좌표 입력이 활성화되며, `Enter`는 패스와 서로 다른 정점 3개 이상의 폴리곤 완료에만 사용한다.
+- 폴리곤·패스의 키보드 입력은 이미 확정된 정점과 완전히 같은 지도 중심 좌표를 무시하며, 무시된 입력은 정점 수나 로컬 undo/redo를 변경하지 않는다.
+- 그리는 중 정점 undo/redo와 확인된 ESC 취소는 scene을 변경하지 않고, copy/cut/paste도 차단한다. 완성 시에만 `addFeatures`가 새 레이어와 전역 history 한 단계를 만든다.
 
-추천 다음 작업:
+알려진 제약(2026-08-17 결정):
+
+- View의 가로 반복 월드는 열려 있어 반복 월드에서 그리면 `[-180, 180]` 밖의 경도가 만들어질 수 있지만, 현재 예상 사용 범위에서는 발생 가능성이 낮아 코드로 제한하지 않는다.
+- 입력 schema의 경도 범위와 Draw 출력 경계가 달라 복사·재INIT에서 거부될 수 있다는 점은 의도적으로 문서화해 둔다.
+- 실제 이슈가 생기면 단일 월드 제한과 날짜변경선 횡단 geometry 정책을 함께 검토한다. Path/Polygon 좌표를 각각 단순 wrap하는 자동 수정은 geometry를 왜곡할 수 있어 채택하지 않는다.
+
+남은 작업:
 
 - `resolveFeatureCapability(layer, feature, activeMode)` 같은 순수 함수를 추가해 최종 편집 가능 여부를 한곳에서 계산한다.
 - 계산 규칙은 `layer.behavior.lock`, `layer.behavior.editability`, `feature.behavior`, `activeMode`, `feature.state.validation` 순서로 명시한다.
 - OpenLayers interaction은 이 계산 결과를 기준으로 `Select`, `Modify`, `Draw`, `Snap`의 대상 feature를 제한한다.
-- path/marker를 지원하려면 `createOpenLayersGeometry`에 `Point`, `MultiPoint`, `LineString`, `MultiLineString` 변환을 추가하고, style resolver도 geometry kind별로 확장한다.
+- path/marker의 길이·위치 등 geometry kind별 validation 규칙을 구체화한다.
 
 ## 3. 여러 폴리곤 렌더링 최적화
 
@@ -162,8 +170,8 @@
 
 ### 부가 규칙
 
-- 단축키: `Cmd/Ctrl+Z` = undo, `Cmd/Ctrl+Shift+Z`(+`Ctrl+Y`) = redo. input 포커스·그리는 중(drawing/editing)에는 무시한다.
-- 편집 중 취소는 ESC(현재 편집 무름), undo/redo는 확정된 이력만 다룬다.
+- 단축키: `Cmd/Ctrl+Z` = undo, `Cmd/Ctrl+Shift+Z`(+`Ctrl+Y`) = redo. input 포커스에서는 무시한다. 그리는 중에는 Draw의 정점 로컬 history만 허용하고 clipboard scene 편집을 차단한다.
+- 편집 중 취소는 ESC(현재 편집 무름), 전역 undo/redo는 확정된 scene 이력만 다룬다.
 - 히스토리 길이 상한(예: 50), 초과 시 오래된 항목부터 버린다.
 - `dirty = scene !== (INIT 시점 baseline)`. undo로 baseline까지 가면 `dirty=false`. 새 INIT/`resetScene` 시 히스토리를 초기화한다.
 - undo/redo도 상태가 바뀌므로 host에 `MAP_EDITOR_CHANGE`를 보낸다.

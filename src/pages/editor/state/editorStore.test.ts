@@ -251,8 +251,8 @@ describe("editorStore - 편집 히스토리", () => {
   // reconcileSelection(사라진 피처 선택 정리)은 delete/create 액션(#11·#12)이 생기면 테스트를 추가한다.
 });
 
-describe("editorStore - 도형 추가(붙여넣기)", () => {
-  // 붙여넣기는 폴리곤 입력을 받는다. 테스트 helper의 GEOMETRY_B(Polygon)를 입력 도형으로 쓴다.
+describe("editorStore - 도형 추가(붙여넣기·그리기)", () => {
+  // 공통 추가 프리미티브의 기본 검증에는 테스트 helper의 GEOMETRY_B(Polygon)를 사용한다.
   const inputGeometry = GEOMETRY_B as EditorPolygonInputGeometry;
 
   beforeEach(() => {
@@ -282,6 +282,29 @@ describe("editorStore - 도형 추가(붙여넣기)", () => {
 
     const added = useEditorStore.getState().scene?.layers[1]?.features[0];
     expect(added?.state.lifecycle).toBe(FeatureLifecycle.Created);
+  });
+
+  it("Path와 Point도 각각 새 레이어 하나로 추가한다", () => {
+    useEditorStore.getState().addFeatures([
+      {
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [126.9, 37.5],
+            [127, 37.6],
+          ],
+        },
+      },
+    ]);
+    useEditorStore
+      .getState()
+      .addFeatures([{ geometry: { type: "Point", coordinates: [126.95, 37.55] } }]);
+
+    const layers = useEditorStore.getState().scene?.layers ?? [];
+    expect(layers).toHaveLength(3);
+    expect(layers[1].features[0].geometryKind).toBe(GeometryKind.Path);
+    expect(layers[2].features[0].geometryKind).toBe(GeometryKind.Point);
+    expect(useEditorStore.getState().past).toHaveLength(2);
   });
 
   it("undo 한 번이면 추가가 함께 취소된다", () => {

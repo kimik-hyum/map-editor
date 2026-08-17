@@ -2,6 +2,7 @@ import { Fill, Stroke, Style, Text } from "ol/style";
 import { resolvePolygonStyle } from "@/pages/editor/theme/editorStyleResolver";
 import { editorDefaultTheme } from "@/pages/editor/theme/editorTheme";
 import type { EditorFeature, EditorLayer } from "@/pages/editor/types/editorTypes";
+import { createOpenLayersMarkerIcon } from "./createOpenLayersMarkerIcon";
 
 // 선택/호버 같은 store 기반 강조 상태입니다(scene 밖이라 스타일 단계에서 반영).
 // labelHidden: 불리언 연산 칩이 이름을 대신 보여줄 때 OL 이름 라벨을 숨겨 중복을 막습니다.
@@ -46,6 +47,10 @@ export function createOpenLayersStyle(
   const base = resolvePolygonStyle(feature, layer);
   const labelStyle = editorDefaultTheme.label;
   const emphasisTheme = editorDefaultTheme.emphasis;
+  const pointMarkerTheme = editorDefaultTheme.pointMarker;
+  const geometryType = feature.feature.geometry.type;
+  const isPoint = geometryType === "Point" || geometryType === "MultiPoint";
+  const isPath = geometryType === "LineString" || geometryType === "MultiLineString";
 
   let fillColor = base.fillColor;
   let strokeWidth = base.strokeWidth;
@@ -64,13 +69,23 @@ export function createOpenLayersStyle(
   }
 
   const mainStyle = new Style({
-    fill: new Fill({
-      color: fillColor,
-    }),
-    stroke: new Stroke({
-      color: base.strokeColor,
-      width: strokeWidth,
-    }),
+    fill: isPath || isPoint ? undefined : new Fill({ color: fillColor }),
+    stroke: isPoint
+      ? undefined
+      : new Stroke({
+          color: base.strokeColor,
+          width: strokeWidth,
+        }),
+    image: isPoint
+      ? createOpenLayersMarkerIcon({
+          fillColor,
+          strokeColor: base.strokeColor,
+          strokeWidth: pointMarkerTheme.strokeWidth,
+          width:
+            pointMarkerTheme.width +
+            (emphasis.selected ? pointMarkerTheme.selectedWidthDelta : 0),
+        })
+      : undefined,
     text:
       layer.view.labelVisible && !emphasis.labelHidden
         ? new Text({
@@ -85,6 +100,7 @@ export function createOpenLayersStyle(
               color: labelStyle.color,
             }),
             font: "700 11px Inter, system-ui, sans-serif",
+            offsetY: isPoint ? pointMarkerTheme.labelOffsetY : 0,
             overflow: true,
             padding: [2, 4, 2, 4],
             stroke: new Stroke({
@@ -101,12 +117,21 @@ export function createOpenLayersStyle(
   }
 
   // 본 선 아래에 깔리는 반투명 글로우(halo). 같은 색 도형이 겹쳐도 선택을 구분해 준다.
-  const haloStyle = new Style({
-    stroke: new Stroke({
-      color: emphasisTheme.selected.haloColor,
-      width: strokeWidth + emphasisTheme.selected.haloWidthDelta,
-    }),
-  });
+  const haloStyle = isPoint
+    ? new Style({
+        image: createOpenLayersMarkerIcon({
+          fillColor: emphasisTheme.selected.haloColor,
+          strokeColor: emphasisTheme.selected.haloColor,
+          strokeWidth: pointMarkerTheme.haloStrokeWidth,
+          width: pointMarkerTheme.width + pointMarkerTheme.haloWidthDelta,
+        }),
+      })
+    : new Style({
+        stroke: new Stroke({
+          color: emphasisTheme.selected.haloColor,
+          width: strokeWidth + emphasisTheme.selected.haloWidthDelta,
+        }),
+      });
 
   return [haloStyle, mainStyle];
 }
