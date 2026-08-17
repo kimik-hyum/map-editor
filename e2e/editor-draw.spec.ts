@@ -149,7 +149,7 @@ test("마커는 클릭 한 번마다 별도 레이어로 즉시 완성된다", a
   const before = await readEditorSnapshot(editorPage);
   await activateDrawShape(editorPage, "마커");
   expect(await readMapCursor(editorPage)).toContain("data:image/svg+xml");
-  expect(await readMapCursor(editorPage)).toContain("13 30");
+  expect(await readMapCursor(editorPage)).toContain("10 23");
 
   const rejectedPoint = await mapPoint(editorPage, 0.5, 0.25);
   await editorPage.mouse.click(rejectedPoint.x, rejectedPoint.y, { button: "right" });
@@ -183,7 +183,7 @@ test("Path는 정점 로컬 undo/redo 후 완료 버튼으로 별도 레이어�
   const before = await readEditorSnapshot(editorPage);
   await activateDrawShape(editorPage, "패스");
   expect(await readMapCursor(editorPage)).toContain("data:image/svg+xml");
-  expect(await readMapCursor(editorPage)).toContain("7 7");
+  expect(await readMapCursor(editorPage)).toContain("5 5");
 
   const cursorTooltip = editorPage.locator('main > [role="status"]');
   const tooltipPoint = await mapPoint(editorPage, 0.5, 0.8);
@@ -523,13 +523,16 @@ test("새 INIT은 이전 session의 draw 확인과 지연된 모드·도형 전�
 test("Path는 완성 가능한 상태에서 Enter로 모달 없이 완성된다", async ({ page }) => {
   const editorPage = await openEditorViaDemo(page);
   const before = await readEditorSnapshot(editorPage);
+  const crosshair = editorPage.getByTestId("draw-keyboard-crosshair");
   await activateDrawShape(editorPage, "패스");
 
   await clickMapPoint(editorPage, 0.5, 0.25);
   await clickMapPoint(editorPage, 0.6, 0.35);
+  await expect(crosshair).toHaveCount(0);
   await editorPage.keyboard.press("Enter");
 
   await expect(editorPage.getByRole("alertdialog")).toHaveCount(0);
+  await expect(crosshair).toHaveCount(0);
   await expect
     .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
     .toBe(before.layerCount + 1);
@@ -546,20 +549,35 @@ test("키보드로 지도 중심에 Marker·Path·Polygon을 추가할 수 있�
 
   await activateDrawShape(editorPage, "마커");
   await expect(map).toHaveAttribute("tabindex", "0");
-  await expect(map).toHaveAttribute("aria-keyshortcuts", "Space");
+  await expect(map).toHaveAttribute("aria-keyshortcuts", "K Space");
   await map.focus();
   await expect(map).toBeFocused();
+  const crosshair = editorPage.getByTestId("draw-keyboard-crosshair");
+  await expect(crosshair).toHaveCount(0);
+  await editorPage.keyboard.press("Space");
+  expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
+  await editorPage.keyboard.press("k");
+  await expect(crosshair).toBeVisible();
+  await editorPage.keyboard.press("k");
+  await expect(crosshair).toHaveCount(0);
+  await editorPage.keyboard.press("Space");
+  expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
+  await editorPage.keyboard.press("k");
+  await expect(crosshair).toBeVisible();
   await editorPage.keyboard.press("Space");
   await expect
     .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
     .toBe(before.layerCount + 1);
+  await expect(crosshair).toHaveCount(0);
 
   await editorPage.getByRole("button", { name: "마커 그리기" }).click();
   let popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
   await popup.getByRole("button", { name: /^패스/ }).click();
   await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
-  await expect(map).toHaveAttribute("aria-keyshortcuts", "Space Enter");
+  await expect(map).toHaveAttribute("aria-keyshortcuts", "K Space Enter");
   await map.focus();
+  await editorPage.keyboard.press("k");
+  await expect(crosshair).toBeVisible();
   await editorPage.keyboard.press("Space");
   await editorPage.keyboard.press("ArrowRight");
   await editorPage.waitForTimeout(300);
@@ -568,6 +586,7 @@ test("키보드로 지도 중심에 Marker·Path·Polygon을 추가할 수 있�
     editorPage.getByRole("button", { name: "패스 그리기 완료" }),
   ).toBeEnabled();
   await editorPage.keyboard.press("Enter");
+  await expect(crosshair).toHaveCount(0);
   await expect
     .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
     .toBe(before.layerCount + 2);
@@ -576,8 +595,10 @@ test("키보드로 지도 중심에 Marker·Path·Polygon을 추가할 수 있�
   popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
   await popup.getByRole("button", { name: /^폴리곤/ }).click();
   await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
-  await expect(map).toHaveAttribute("aria-keyshortcuts", "Space");
+  await expect(map).toHaveAttribute("aria-keyshortcuts", "K Space");
   await map.focus();
+  await editorPage.keyboard.press("k");
+  await expect(crosshair).toBeVisible();
   await editorPage.keyboard.press("Space");
   await editorPage.keyboard.press("ArrowRight");
   await editorPage.waitForTimeout(300);
@@ -608,6 +629,7 @@ test("키보드 Polygon은 같은 좌표를 무시하고 서로 다른 정점 �
   const modifier = await platformModifier(editorPage);
   await activateDrawShape(editorPage, "폴리곤");
   await map.focus();
+  await editorPage.keyboard.press("k");
 
   await editorPage.keyboard.press("Space");
   await editorPage.keyboard.press("Space");
@@ -704,7 +726,7 @@ test("폴리곤은 마지막 정점이 아니라 시작점을 클릭해야 별�
   const before = await readEditorSnapshot(editorPage);
   await activateDrawShape(editorPage, "폴리곤");
   expect(await readMapCursor(editorPage)).toContain("data:image/svg+xml");
-  expect(await readMapCursor(editorPage)).toContain("7 7");
+  expect(await readMapCursor(editorPage)).toContain("5 5");
 
   const start = await mapPoint(editorPage, 0.5, 0.3);
   const second = await mapPoint(editorPage, 0.62, 0.2);

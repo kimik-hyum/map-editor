@@ -4,9 +4,9 @@ import { resolveDrawCursor } from "./drawCursorModel";
 
 describe("resolveDrawCursor", () => {
   const cases = [
-    [GeometryKind.Polygon, "7 7"],
-    [GeometryKind.Path, "7 7"],
-    [GeometryKind.Point, "13 30"],
+    [GeometryKind.Polygon, "5 5"],
+    [GeometryKind.Path, "5 5"],
+    [GeometryKind.Point, "10 23"],
   ] as const satisfies ReadonlyArray<readonly [DrawShape, string]>;
 
   it.each(cases)("%s에 도구별 커서와 hotspot을 제공한다", (shape, hotspot) => {

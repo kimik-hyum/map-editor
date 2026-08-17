@@ -80,21 +80,23 @@ export function EditorPage() {
           aria-keyshortcuts={
             activation.draw
               ? activeDrawShape === GeometryKind.Path
-                ? "Space Enter"
-                : "Space"
+                ? "K Space Enter"
+                : "K Space"
               : undefined
           }
           role="application"
-          // biome-ignore lint/a11y/noNoninteractiveTabindex: OpenLayers 지도를 방향키·Space로 조작하는 application 위젯입니다.
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: OpenLayers 지도를 K·방향키·Space로 조작하는 application 위젯입니다.
           tabIndex={0}
         />
         <p className="sr-only" id="draw-keyboard-instructions">
-          방향키로 지도 중심을 이동하고 Space 키로 마커 또는 정점을 추가합니다. 패스는
-          Enter 키로 완료하고 폴리곤은 시작점에서 닫기 버튼으로 완료합니다.
+          K 키로 키보드 조준 모드를 켠 뒤 방향키로 지도 중심을 이동하고 Space 키로 마커
+          또는 정점을 추가합니다. K 키를 다시 누르면 조준 모드가 꺼집니다. 패스는 Enter
+          키로 완료하고 폴리곤은 시작점에서 닫기 버튼으로 완료합니다.
         </p>
-        {activation.draw && isSceneReady ? (
+        {activation.draw && isSceneReady && drawTool.keyboardTargetingActive ? (
           <div
             aria-hidden
+            data-testid="draw-keyboard-crosshair"
             className="pointer-events-none absolute left-1/2 top-1/2 z-30 hidden h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-teal-600/20 shadow-[0_0_0_1px_rgba(15,118,110,0.95)] peer-focus-visible:block"
           >
             <span className="absolute left-1/2 top-[-5px] h-8 w-px -translate-x-1/2 bg-teal-800" />

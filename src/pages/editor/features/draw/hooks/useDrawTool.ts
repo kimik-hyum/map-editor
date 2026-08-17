@@ -31,6 +31,13 @@ export function useDrawTool(map: OpenLayersMap | null) {
   const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
   const sceneReady = useEditorStore((state) => state.scene !== null);
   const [sketch, setSketch] = useState<DrawSketchState>(EMPTY_DRAW_SKETCH_STATE);
+  const keyboardTargetingRef = useRef(false);
+  const [keyboardTargetingActive, setKeyboardTargetingActive] = useState(false);
+
+  const setKeyboardTargetingMode = useCallback((active: boolean) => {
+    keyboardTargetingRef.current = active;
+    setKeyboardTargetingActive(active);
+  }, []);
 
   const cancelFocusRestore = useCallback(() => {
     if (focusRestoreFrameRef.current !== null) {
@@ -48,7 +55,10 @@ export function useDrawTool(map: OpenLayersMap | null) {
 
     const handle = attachFeatureDraw(map, {
       shape: useEditorStore.getState().activeDrawShape,
-      onCommit: (geometry) => useEditorStore.getState().addFeatures([{ geometry }]),
+      onCommit: (geometry) => {
+        setKeyboardTargetingMode(false);
+        useEditorStore.getState().addFeatures([{ geometry }]);
+      },
       onStateChange: (nextSketch) => {
         sketchRef.current = nextSketch;
         setSketch(nextSketch);
@@ -64,17 +74,20 @@ export function useDrawTool(map: OpenLayersMap | null) {
       handle.detach();
       handleRef.current = null;
       sketchRef.current = EMPTY_DRAW_SKETCH_STATE;
+      keyboardTargetingRef.current = false;
       setSketch(EMPTY_DRAW_SKETCH_STATE);
     };
-  }, [cancelFocusRestore, map]);
+  }, [cancelFocusRestore, map, setKeyboardTargetingMode]);
 
   useEffect(() => {
     handleRef.current?.setShape(activeDrawShape);
-  }, [activeDrawShape]);
+    setKeyboardTargetingMode(false);
+  }, [activeDrawShape, setKeyboardTargetingMode]);
 
   useEffect(() => {
     handleRef.current?.setActive(getToolActivation(activeMode).draw && sceneReady);
-  }, [activeMode, sceneReady]);
+    setKeyboardTargetingMode(false);
+  }, [activeMode, sceneReady, setKeyboardTargetingMode]);
 
   useEffect(() => {
     if (!map || !getToolActivation(activeMode).draw || !sceneReady) {
@@ -124,6 +137,7 @@ export function useDrawTool(map: OpenLayersMap | null) {
     if (confirmed) {
       cancelFocusRestore();
       handleRef.current?.abort();
+      setKeyboardTargetingMode(false);
       return true;
     }
 
@@ -138,7 +152,7 @@ export function useDrawTool(map: OpenLayersMap | null) {
       }
     });
     return false;
-  }, [cancelFocusRestore, map]);
+  }, [cancelFocusRestore, map, setKeyboardTargetingMode]);
 
   // 키보드 동작은 현재 sketch에만 적용합니다. 완성된 scene history는 건드리지 않습니다.
   useEffect(() => {
@@ -157,16 +171,29 @@ export function useDrawTool(map: OpenLayersMap | null) {
 
       const editorState = useEditorStore.getState();
       const currentSketch = sketchRef.current;
-
-      // 지도에 키보드 포커스가 있을 때 화면 중심을 좌표 입력 지점으로 사용합니다.
-      // 방향키 이동은 OpenLayers KeyboardPan이 맡고 Space만 정점 추가로 소비합니다.
-      if (
-        event.key === " " &&
-        map &&
+      const mapHasKeyboardInput =
+        map !== null &&
         event.target === map.getTargetElement() &&
         getToolActivation(editorState.activeMode).draw &&
         editorState.scene !== null &&
-        !isConfirmationDialogOpen()
+        !isConfirmationDialogOpen();
+
+      // 조준점은 지도 포커스만으로 나타나지 않습니다. K로 키보드 좌표 입력 모드를
+      // 명시적으로 켜야 방향키 이동과 Space 정점 입력이 하나의 동작으로 인식됩니다.
+      if (event.code === "KeyK" && mapHasKeyboardInput) {
+        setKeyboardTargetingMode(!keyboardTargetingRef.current);
+        event.preventDefault();
+        return;
+      }
+
+      // 지도에 키보드 포커스가 있을 때 화면 중심을 좌표 입력 지점으로 사용합니다.
+      // K로 조준 모드를 켠 동안 방향키 이동은 OpenLayers KeyboardPan이 맡고
+      // Space만 정점 추가로 소비합니다.
+      if (
+        event.key === " " &&
+        mapHasKeyboardInput &&
+        keyboardTargetingRef.current &&
+        map
       ) {
         const center = map.getView().getCenter();
         if (center && handleRef.current?.addVertexAtCoordinate(center)) {
@@ -203,7 +230,7 @@ export function useDrawTool(map: OpenLayersMap | null) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [confirmDiscardSketch, map]);
+  }, [confirmDiscardSketch, map, setKeyboardTargetingMode]);
 
   const finish = useCallback(() => handleRef.current?.finish() ?? false, []);
   const closePolygon = useCallback(
@@ -218,6 +245,7 @@ export function useDrawTool(map: OpenLayersMap | null) {
 
   return {
     ...sketch,
+    keyboardTargetingActive,
     finish,
     closePolygon,
     undoVertex,
