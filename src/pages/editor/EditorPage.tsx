@@ -7,6 +7,7 @@ import { GeometryOpMarkers } from "./features/geometry-ops";
 import { LayerPanel } from "./features/layers";
 import { useOpenLayersEditorMap } from "./features/map";
 import { EditorModePanel, getToolActivation } from "./features/modes";
+import { useRadiusTool } from "./features/radius";
 import { useRegionBoundaries, useRegionBoundaryOps } from "./features/regions";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
@@ -23,6 +24,7 @@ const EDIT_HINTS: Record<EditAffordanceKind, string> = {
 export function EditorPage() {
   const { mapElementRef, map, editAffordance, geometryOp } = useOpenLayersEditorMap();
   const drawTool = useDrawTool(map);
+  const radiusTool = useRadiusTool(map);
   const isSceneReady = useEditorStore((state) => state.scene !== null);
   const activeMode = useEditorStore((state) => state.activeMode);
   const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
@@ -31,7 +33,9 @@ export function EditorPage() {
   const activation = getToolActivation(activeMode);
   const cursorHint = confirmationOpen
     ? null
-    : (drawTool.hint ?? (editAffordance ? EDIT_HINTS[editAffordance] : null));
+    : (drawTool.hint ??
+      radiusTool.hint ??
+      (editAffordance ? EDIT_HINTS[editAffordance] : null));
 
   // 좌측 rail의 경계 도구가 활성일 때만, 거기서 고른 종류(행정동/법정동/우편번호)의
   // 경계를 현재 줌·화면으로 받아 그린다. 다른 모드로 바꾸면 비운다.
@@ -69,6 +73,7 @@ export function EditorPage() {
           boundaryOperationError={regionOps.error}
           boundaryStatus={regionStatus}
           confirmDiscardDraw={drawTool.confirmDiscardSketch}
+          radiusTool={radiusTool}
         />
       </aside>
       <main className="relative min-h-0 min-w-0">

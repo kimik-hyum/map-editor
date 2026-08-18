@@ -8,6 +8,8 @@ import {
   type RegionBoundaryStatus,
   useRegionKinds,
 } from "@/pages/editor/features/regions";
+import { RadiusInputPopup } from "@/pages/editor/features/radius/components/RadiusInputPopup";
+import type { RadiusToolController } from "@/pages/editor/features/radius";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import { EditorMode } from "@/pages/editor/types/editorTypes";
 import {
@@ -25,12 +27,14 @@ type EditorModePanelProps = {
   boundaryStatus: RegionBoundaryStatus;
   boundaryOperationError: string | null;
   confirmDiscardDraw: () => Promise<boolean>;
+  radiusTool: RadiusToolController;
 };
 
 export function EditorModePanel({
   boundaryStatus,
   boundaryOperationError,
   confirmDiscardDraw,
+  radiusTool,
 }: EditorModePanelProps) {
   const activeMode = useEditorStore((state) => state.activeMode);
   const setActiveMode = useEditorStore((state) => state.setActiveMode);
@@ -50,6 +54,7 @@ export function EditorModePanel({
 
   const boundaryAnchorRef = useRef<HTMLButtonElement>(null);
   const drawAnchorRef = useRef<HTMLButtonElement>(null);
+  const radiusAnchorRef = useRef<HTMLButtonElement>(null);
   const [boundaryPopupOpen, setBoundaryPopupOpen] = useState(false);
   const [drawPopupOpen, setDrawPopupOpen] = useState(false);
 
@@ -98,6 +103,8 @@ export function EditorModePanel({
               setBoundaryPopupOpen(true);
             } else if (activeMode === EditorMode.Draw) {
               setDrawPopupOpen(true);
+            } else if (activeMode === EditorMode.Radius) {
+              radiusTool.openInput();
             }
           }}
         >
@@ -112,6 +119,8 @@ export function EditorModePanel({
             } else if (tool.id === EditorMode.Draw) {
               subOption = activeDrawOption;
               anchorRef = drawAnchorRef;
+            } else if (tool.id === EditorMode.Radius) {
+              anchorRef = radiusAnchorRef;
             }
 
             const Icon = subOption?.icon ?? tool.icon;
@@ -161,6 +170,18 @@ export function EditorModePanel({
         confirmDiscardDraw={confirmDiscardDraw}
         onOpenChange={setDrawPopupOpen}
         open={drawPopupOpen && activeMode === EditorMode.Draw}
+      />
+      <RadiusInputPopup
+        anchor={radiusAnchorRef}
+        canApply={radiusTool.canApply}
+        draft={radiusTool.draft}
+        error={radiusTool.error}
+        markerName={radiusTool.target?.name ?? null}
+        onApply={radiusTool.apply}
+        onCancel={radiusTool.cancel}
+        onDraftChange={radiusTool.setDraft}
+        onOpenChange={radiusTool.onOpenChange}
+        open={radiusTool.popupOpen && activeMode === EditorMode.Radius}
       />
     </>
   );

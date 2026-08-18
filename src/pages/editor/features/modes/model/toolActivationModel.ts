@@ -14,13 +14,16 @@ export type ToolActivation = {
 
 export function getToolActivation(mode: EditorMode): ToolActivation {
   const isSelect = mode === EditorMode.Select;
+  const isRadius = mode === EditorMode.Radius;
   return {
-    selection: isSelect,
+    // 반경 도구는 기준 마커가 미리 선택되지 않은 경우 지도에서 마커를 고를 수 있어야 합니다.
+    // 선택만 공유하고 정점 편집·이동·불리언 연산은 Select에 한정합니다.
+    selection: isSelect || isRadius,
     vertexEdit: isSelect,
     affordance: isSelect,
     geometryOps: isSelect,
     draw: mode === EditorMode.Draw,
     boundary: mode === EditorMode.Boundary,
-    radius: mode === EditorMode.Radius,
+    radius: isRadius,
   };
 }

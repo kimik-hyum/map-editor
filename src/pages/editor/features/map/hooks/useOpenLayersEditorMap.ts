@@ -464,7 +464,8 @@ export function useOpenLayersEditorMap() {
     useEditorStore.getState().consumeFeatureFocusRequest(featureFocusRequest.requestId);
   }, [featureFocusRequest]);
 
-  // 모드별 interaction 게이팅: Select만 선택/편집/affordance를 켜고, 나머지는 끈다.
+  // 모드별 interaction 게이팅: Select는 선택/편집/affordance를, Radius는 기준 마커
+  // 선택만 켭니다. 나머지 도구에서는 모두 끕니다.
   // 선택 상태 자체는 유지하고(하이라이트 보존), 편집 off 시 정점 핸들/상세/힌트만 내린다.
   useEffect(() => {
     const map = mapRef.current;
