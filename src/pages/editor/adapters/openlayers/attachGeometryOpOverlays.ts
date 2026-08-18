@@ -5,13 +5,14 @@ import type OpenLayersMap from "ol/Map";
 import Overlay from "ol/Overlay";
 import { forEachEditorContentLayer } from "./editorContentLayers";
 
-// 후보 폴리곤 하나의 오버레이 입력(이름 + 제거 가능 여부).
+// 후보 폴리곤 하나의 오버레이 입력(이름 + 겹침 기반 연산 가능 여부).
 // features/* 정책을 모르게 어댑터가 자체 정의합니다(구조가 같으면 모델 출력을 그대로 받습니다).
 // 내부 입력 계약이라 export하지 않습니다(sync 인자 타입으로만 사용).
 type GeometryOpOverlayInput = {
   featureId: string;
   name: string;
   canSubtract: boolean;
+  canIntersect: boolean;
 };
 
 // React가 마커 UI를 portal로 렌더할 대상 DOM과 부가 정보입니다.
@@ -20,6 +21,7 @@ export type GeometryOpOverlayHandle = {
   element: HTMLElement;
   name: string;
   canSubtract: boolean;
+  canIntersect: boolean;
 };
 
 // 콘텐츠 레이어에서 도형을 찾아 "면 내부 대표점"(지도 좌표)을 구합니다.
@@ -94,6 +96,7 @@ export function attachGeometryOpOverlays(map: OpenLayersMap) {
         element: entry.element,
         name: input.name,
         canSubtract: input.canSubtract,
+        canIntersect: input.canIntersect,
       });
     }
     return handles;

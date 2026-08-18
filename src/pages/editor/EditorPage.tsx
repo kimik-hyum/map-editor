@@ -123,6 +123,7 @@ export function EditorPage() {
         />
         <GeometryOpMarkers
           overlays={geometryOp.overlays}
+          onIntersect={geometryOp.onIntersect}
           onMerge={geometryOp.onMerge}
           onSubtract={geometryOp.onSubtract}
         />

@@ -27,6 +27,7 @@ import {
   buildGeometryOpMarkerInputs,
   deriveGeometryOpTargets,
   type GeometryOpTargets,
+  intersectGeometries,
   subtractGeometry,
   unionGeometries,
 } from "@/pages/editor/features/geometry-ops";
@@ -52,6 +53,7 @@ const EMPTY_GEOMETRY_OP_TARGETS: GeometryOpTargets = {
   targetId: null,
   mergeCandidateIds: [],
   subtractCandidateIds: [],
+  intersectCandidateIds: [],
 };
 
 // scene에서 피처의 폴리곤 geometry를 찾습니다(폴리곤이 아니면 null). 불리언 연산 입력 조회용.
@@ -103,6 +105,22 @@ function applySubtract(targetId: string, cutterId: string) {
   useEditorStore.getState().subtractFeature(targetId, result);
 }
 
+// 교집합(intersection): target을 두 폴리곤이 실제로 공유하는 면으로 교체합니다.
+// other는 차집합의 cutter처럼 그대로 유지합니다. 후보가 stale해 겹침이 사라졌거나
+// Turf 연산이 실패한 경우 target을 삭제하지 않고 안전하게 no-op으로 둡니다.
+function applyIntersect(targetId: string, otherId: string) {
+  const scene = useEditorStore.getState().scene as EditorScene | null;
+  const target = getPolygonalGeometryFromScene(scene, targetId);
+  const other = getPolygonalGeometryFromScene(scene, otherId);
+  if (!target || !other) {
+    return;
+  }
+  const result = intersectGeometries(target, other);
+  if (result) {
+    useEditorStore.getState().updateFeatureGeometry(targetId, result);
+  }
+}
+
 export function useOpenLayersEditorMap() {
   const mapElementRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<OpenLayersMap | null>(null);
@@ -135,7 +153,7 @@ export function useOpenLayersEditorMap() {
   const detailRef = useRef<ReturnType<typeof attachVertexDetail> | null>(null);
   // 외곽선 클릭으로 정점을 추가한 직후 짧은 시간 동안 따라오는 selection 단일클릭을 무시한다(만료 시각, ms).
   const suppressSelectUntilRef = useRef(0);
-  // 불리언 연산 후보(병합/제거 대상). 마커 클릭 시점에 최신 target을 읽도록 ref로도 둔다.
+  // 불리언 연산 후보(병합/제거/교집합 대상). 마커 클릭 시점에 최신 target을 읽도록 ref로도 둔다.
   const geometryOpTargetsRef = useRef<GeometryOpTargets>(EMPTY_GEOMETRY_OP_TARGETS);
   // 후보 도형 위 ol/Overlay 마커 핸들. OL이 팬/줌 위치 추적을 맡는다.
   const geometryOpOverlaysRef = useRef<ReturnType<
@@ -154,11 +172,11 @@ export function useOpenLayersEditorMap() {
   // 커서 위치 기준 편집 동작(정점 위=삭제, 외곽선=추가, 그 외=없음). 툴팁 분기에 사용.
   const [editAffordance, setEditAffordance] = useState<EditAffordance>(null);
   // 도형 위 불리언 연산 마커의 ol/Overlay 핸들(EditorPage가 portal 렌더).
-  // 선택 도형을 뺀 후보마다 +(병합), 겹치면 -(제거). 위치 추적은 OL이 담당.
+  // 선택 도형을 뺀 후보마다 +(병합), 겹치면 교집합/-(제거). 위치 추적은 OL이 담당.
   const [geometryOpOverlays, setGeometryOpOverlays] = useState<
     GeometryOpOverlayHandle[]
   >([]);
-  // 팬/줌으로 화면 범위가 바뀔 때마다 증가시켜, 병합/제거 후보를 "화면 안"으로 다시 한정한다.
+  // 팬/줌으로 화면 범위가 바뀔 때마다 증가시켜, 불리언 연산 후보를 "화면 안"으로 다시 한정한다.
   const [viewportTick, setViewportTick] = useState(0);
 
   // 마커 클릭 핸들러: 선택 도형(target)과 클릭한 후보(otherId) 사이의 연산을 바로 적용한다.
@@ -172,6 +190,12 @@ export function useOpenLayersEditorMap() {
     const targetId = geometryOpTargetsRef.current.targetId;
     if (targetId) {
       applySubtract(targetId, cutterId);
+    }
+  };
+  const handleGeometryOpIntersect = (otherId: string) => {
+    const targetId = geometryOpTargetsRef.current.targetId;
+    if (targetId) {
+      applyIntersect(targetId, otherId);
     }
   };
 
@@ -192,7 +216,7 @@ export function useOpenLayersEditorMap() {
     map.addLayer(detailLayer);
     detailLayerRef.current = detailLayer;
 
-    // 후보 도형 위 병합/제거 마커는 ol/Overlay로 지도 좌표에 고정한다(OL이 팬/줌 위치 추적).
+    // 후보 도형 위 불리언 연산 마커는 ol/Overlay로 지도 좌표에 고정한다(OL이 팬/줌 위치 추적).
     geometryOpOverlaysRef.current = attachGeometryOpOverlays(map);
 
     const selection = attachEditorSelection(map, {
@@ -516,7 +540,8 @@ export function useOpenLayersEditorMap() {
     }
   }, [activeMode]);
 
-  // 도형 위 불리언 연산 마커: 단일 폴리곤 선택 시 다른 폴리곤마다 병합(+)·겹치면 제거(-) 마커를 띄운다.
+  // 도형 위 불리언 연산 마커: 단일 폴리곤 선택 시 다른 폴리곤마다 병합(+),
+  // 실제 면적이 겹치면 교집합·제거(-) 마커를 띄운다.
   // 선택/scene/모드가 바뀔 때마다 후보를 재도출해 ol/Overlay에 반영한다(위치의 팬·줌 추적은 OL이 담당).
   // biome-ignore lint/correctness/useExhaustiveDependencies: viewportTick은 의도적 재실행 트리거다 — effect는 getViewportFeatureIds(map)로 실시간 화면 범위를 읽어 본문에서 tick을 직접 참조하지 않지만, 팬/줌(moveend)마다 후보를 다시 화면 안으로 한정하려면 deps에 있어야 한다.
   useEffect(() => {
@@ -565,6 +590,7 @@ export function useOpenLayersEditorMap() {
       overlays: geometryOpOverlays,
       onMerge: handleGeometryOpMerge,
       onSubtract: handleGeometryOpSubtract,
+      onIntersect: handleGeometryOpIntersect,
     },
   };
 }
