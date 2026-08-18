@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Lock, LockOpen } from "lucide-react";
+import { GripVertical, Lock, LockOpen, Trash2 } from "lucide-react";
 import { isToggleSelectionModifier } from "@/pages/editor/features/selection";
 import { useScrollIntoViewWhenSelected } from "../hooks/useScrollIntoViewWhenSelected";
 import type { FeatureStackRowViewModel } from "../model/layerPanelModel";
@@ -11,6 +11,7 @@ type FeatureStackRowProps = {
   onToggleVisibility: (row: FeatureStackRowViewModel) => void;
   onToggleLock: (row: FeatureStackRowViewModel) => void;
   onSelect: (row: FeatureStackRowViewModel, additive: boolean) => void;
+  onDelete: (row: FeatureStackRowViewModel) => Promise<void>;
 };
 
 // 평탄 스택(1레이어 = 1도형)의 행 하나. 선택 하이라이트·스크롤 추적·표시/잠금 토글·순서 이동을 담당합니다.
@@ -21,6 +22,7 @@ export function FeatureStackRow({
   onToggleVisibility,
   onToggleLock,
   onSelect,
+  onDelete,
 }: FeatureStackRowProps) {
   // 지도에서 선택돼도 패널이 해당 행으로 따라가도록 스크롤한다.
   const rowRef = useScrollIntoViewWhenSelected<HTMLLIElement>(row.isSelected);
@@ -96,6 +98,17 @@ export function FeatureStackRow({
           ) : null}
         </span>
       </button>
+      {row.canDelete ? (
+        <button
+          aria-label={`${row.name} 삭제`}
+          className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-0 text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-600"
+          onClick={() => void onDelete(row)}
+          title="레이어 삭제"
+          type="button"
+        >
+          <Trash2 aria-hidden className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
       {/* 끌기 핸들: 여기서만 드래그가 시작된다(터치 스크롤 간섭도 핸들로 한정).
           키보드 이동(스페이스 후 방향키)이 동작하려면 활성자 ref와 속성을 함께 붙여야 한다. */}
       <button

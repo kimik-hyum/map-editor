@@ -280,8 +280,10 @@ describe("editorStore - 도형 추가(붙여넣기·그리기)", () => {
   it("추가된 도형은 Created lifecycle이다", () => {
     useEditorStore.getState().addFeatures([{ geometry: inputGeometry }]);
 
-    const added = useEditorStore.getState().scene?.layers[1]?.features[0];
+    const addedLayer = useEditorStore.getState().scene?.layers[1];
+    const added = addedLayer?.features[0];
     expect(added?.state.lifecycle).toBe(FeatureLifecycle.Created);
+    expect(addedLayer?.behavior.deletable).toBe(true);
   });
 
   it("Path와 Point도 각각 새 레이어 하나로 추가한다", () => {
@@ -322,6 +324,56 @@ describe("editorStore - 도형 추가(붙여넣기·그리기)", () => {
 
     expect(useEditorStore.getState().scene).toBe(before);
     expect(useEditorStore.getState().past).toHaveLength(0);
+  });
+});
+
+describe("editorStore - 로컬 생성 레이어 삭제", () => {
+  const inputGeometry = GEOMETRY_B as EditorPolygonInputGeometry;
+
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_A));
+  });
+
+  it("생성 레이어를 제거하고 선택을 정리하며 undo/redo 한 단계로 처리한다", () => {
+    useEditorStore
+      .getState()
+      .addFeatures([{ name: "임시 결과", geometry: inputGeometry }]);
+    const createdId = useEditorStore.getState().selectedFeatureIds[0];
+
+    useEditorStore.getState().deleteCreatedFeature(createdId);
+
+    expect(layerIds()).toEqual(["layer-1"]);
+    expect(useEditorStore.getState().selectedFeatureIds).toEqual([]);
+    expect(useEditorStore.getState().past).toHaveLength(2);
+
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().scene?.layers).toHaveLength(2);
+    useEditorStore.getState().redo();
+    expect(layerIds()).toEqual(["layer-1"]);
+  });
+
+  it("부모 원본은 layer의 deletable 값이 true여도 삭제하지 않는다", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().deleteCreatedFeature("feature-1");
+
+    expect(useEditorStore.getState().scene).toBe(before);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+  });
+
+  it("잠긴 생성 레이어는 삭제하지 않고, 잠금을 풀면 다시 삭제할 수 있다", () => {
+    useEditorStore.getState().addFeatures([{ geometry: inputGeometry }]);
+    const createdId = useEditorStore.getState().selectedFeatureIds[0];
+    const createdLayerId = useEditorStore.getState().scene?.layers[1]?.id ?? "";
+    useEditorStore.getState().setLayerLocked(createdLayerId, true);
+    const before = useEditorStore.getState().scene;
+
+    useEditorStore.getState().deleteCreatedFeature(createdId);
+    expect(useEditorStore.getState().scene).toBe(before);
+
+    useEditorStore.getState().setLayerLocked(createdLayerId, false);
+    useEditorStore.getState().deleteCreatedFeature(createdId);
+    expect(layerIds()).toEqual(["layer-1"]);
   });
 });
 

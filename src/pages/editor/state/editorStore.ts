@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { addFeaturesToScene } from "../messaging/normalizeSceneInput";
 import {
+  canDeleteCreatedFeature,
   EditabilityState,
   EditorMode,
   FeatureLifecycle,
@@ -80,6 +81,7 @@ type EditorStoreActions = {
   setLayerLocked: (layerId: string, locked: boolean) => void;
   updateFeatureView: (featureId: string, view: Partial<EditorFeatureViewState>) => void;
   addFeatures: (inputs: ReadonlyArray<EditorFeatureInput>) => void;
+  deleteCreatedFeature: (featureId: string) => void;
   updateFeatureGeometry: (featureId: string, geometry: GeoJsonGeometry) => void;
   updateFeaturesGeometry: (
     updates: ReadonlyArray<{ featureId: string; geometry: GeoJsonGeometry }>,
@@ -207,11 +209,41 @@ function setLayerLockedInScene(
         ...layer.behavior,
         lock: locked ? LockState.Locked : LockState.Unlocked,
         editability: locked ? EditabilityState.Readonly : EditabilityState.Editable,
-        deletable: !locked,
+        // 잠금을 풀어도 부모 원본은 삭제 가능해지지 않습니다. 로컬 생성 레이어만 복원합니다.
+        deletable:
+          !locked &&
+          layer.features.length === 1 &&
+          layer.features[0]?.state.lifecycle === FeatureLifecycle.Created,
         draggable: !locked,
       },
     };
   });
+
+  return changed ? { ...scene, layers } : scene;
+}
+
+// 로컬에서 생성된 도형만 제거합니다. 1레이어=1도형 구조라 비워진 내부 레이어도 함께 제거합니다.
+// UI가 버튼을 숨겨도 직접 호출될 수 있으므로 lifecycle·권한·잠금을 store 경계에서 다시 확인합니다.
+function deleteCreatedFeatureInScene(
+  scene: EditorScene,
+  featureId: string,
+): EditorScene {
+  let changed = false;
+  const layers: EditorScene["layers"] = [];
+
+  for (const layer of scene.layers) {
+    const feature = layer.features.find((candidate) => candidate.id === featureId);
+    if (!feature || !canDeleteCreatedFeature(layer, feature)) {
+      layers.push(layer);
+      continue;
+    }
+
+    const features = layer.features.filter((candidate) => candidate.id !== featureId);
+    changed = true;
+    if (features.length > 0) {
+      layers.push({ ...layer, features });
+    }
+  }
 
   return changed ? { ...scene, layers } : scene;
 }
@@ -735,6 +767,9 @@ export const useEditorStore = create<EditorStore>((set) => {
           dirty: next !== state.baselineScene,
         };
       }),
+    // 로컬 생성 레이어 삭제를 한 스냅샷(=undo 1단계)으로 커밋합니다.
+    deleteCreatedFeature: (featureId) =>
+      commitSceneEdit((scene) => deleteCreatedFeatureInScene(scene, featureId)),
     // geometry 변경은 편집이므로 히스토리에 스냅샷을 남깁니다.
     updateFeatureGeometry: (featureId, geometry) =>
       commitSceneEdit((scene) =>

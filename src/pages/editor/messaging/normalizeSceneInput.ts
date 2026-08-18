@@ -52,7 +52,10 @@ function closeGeometryRings(geometry: GeoJsonGeometry): GeoJsonGeometry {
 }
 
 // 잠금 여부 → 레이어 권한. 잠금 = 읽기 전용 = 참고용(패널 선택은 가능, 변경 불가).
-function layerBehaviorFor(locked: boolean): EditorLayerBehavior {
+function layerBehaviorFor(
+  locked: boolean,
+  lifecycle: FeatureLifecycle,
+): EditorLayerBehavior {
   if (locked) {
     return {
       lock: LockState.Locked,
@@ -66,7 +69,8 @@ function layerBehaviorFor(locked: boolean): EditorLayerBehavior {
     lock: LockState.Unlocked,
     editability: EditabilityState.Editable,
     selectable: true,
-    deletable: true,
+    // 부모가 준 원본(Clean)은 보호하고 로컬 생성물(Created)만 삭제할 수 있습니다.
+    deletable: lifecycle === FeatureLifecycle.Created,
     draggable: true,
   };
 }
@@ -124,7 +128,7 @@ export function createFeatureLayer(
       zIndex,
       labelVisible: true,
     },
-    behavior: layerBehaviorFor(locked),
+    behavior: layerBehaviorFor(locked, lifecycle),
     features: [feature],
   };
 }

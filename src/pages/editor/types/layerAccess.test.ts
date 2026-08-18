@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   EditabilityState,
+  FeatureLifecycle,
   type EditorScene,
   LockState,
   VisibilityState,
 } from "./editorTypes";
-import { canEditLayerVertices, canSelectLayer } from "./layerAccess";
+import {
+  canDeleteCreatedFeature,
+  canEditLayerVertices,
+  canSelectLayer,
+} from "./layerAccess";
 
 function sceneWithLayer(state: {
   visibility: VisibilityState;
@@ -82,5 +87,41 @@ describe("canEditLayerVertices", () => {
     expect(canEditLayerVertices(sceneWithLayer(editableVisible), "missing")).toBe(
       false,
     );
+  });
+});
+
+describe("canDeleteCreatedFeature", () => {
+  const layer = sceneWithLayer(editableVisible).layers[0];
+  const created = {
+    state: { lifecycle: FeatureLifecycle.Created },
+  } as Parameters<typeof canDeleteCreatedFeature>[1];
+  const original = {
+    state: { lifecycle: FeatureLifecycle.Clean },
+  } as Parameters<typeof canDeleteCreatedFeature>[1];
+
+  it("삭제 권한이 있는 잠금 해제 레이어의 로컬 생성물만 허용한다", () => {
+    const deletable = {
+      ...layer,
+      behavior: { ...layer.behavior, deletable: true },
+    };
+    expect(canDeleteCreatedFeature(deletable, created)).toBe(true);
+    expect(canDeleteCreatedFeature(deletable, original)).toBe(false);
+  });
+
+  it("로컬 생성물이어도 잠겼거나 삭제 권한이 없으면 거부한다", () => {
+    const locked = {
+      ...layer,
+      behavior: {
+        ...layer.behavior,
+        lock: LockState.Locked,
+        deletable: false,
+      },
+    };
+    const denied = {
+      ...layer,
+      behavior: { ...layer.behavior, deletable: false },
+    };
+    expect(canDeleteCreatedFeature(locked, created)).toBe(false);
+    expect(canDeleteCreatedFeature(denied, created)).toBe(false);
   });
 });

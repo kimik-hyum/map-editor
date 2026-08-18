@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { toggleFeatureSelection } from "@/pages/editor/features/selection";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
+import { confirmDialog } from "@/shared/ui/confirmation-dialog";
 import {
   getNextLayerVisibility,
   type FeatureStackRowViewModel,
@@ -13,6 +14,7 @@ export function useLayerPanelActions() {
   const setLayerLocked = useEditorStore((state) => state.setLayerLocked);
   const setSelectedFeatureIds = useEditorStore((state) => state.setSelectedFeatureIds);
   const requestFeatureFocus = useEditorStore((state) => state.requestFeatureFocus);
+  const deleteCreatedFeature = useEditorStore((state) => state.deleteCreatedFeature);
 
   // 행(도형)의 표시 토글. 1레이어 = 1도형이라 도형을 담은 내부 레이어의 표시를 바꾼다.
   const toggleRowVisibility = useCallback(
@@ -70,10 +72,40 @@ export function useLayerPanelActions() {
     [updateLayerZIndexes],
   );
 
+  // 부모 원본에는 버튼이 없고, 로컬 생성 레이어만 확인 후 삭제합니다.
+  // 확인 중 새 INIT/scene 변경이 생기면 오래된 행을 삭제하지 않습니다.
+  const deleteRow = useCallback(
+    async (row: FeatureStackRowViewModel) => {
+      if (!row.canDelete) {
+        return;
+      }
+      const contextAtRequest = useEditorStore.getState();
+      const confirmed = await confirmDialog({
+        title: `“${row.name}” 레이어를 삭제할까요?`,
+        description: "생성한 도형이 함께 삭제됩니다. 실행 취소로 복원할 수 있습니다.",
+        confirmLabel: "삭제",
+        cancelLabel: "취소",
+        tone: "danger",
+        initialFocus: "cancel",
+      });
+      const currentContext = useEditorStore.getState();
+      if (
+        !confirmed ||
+        currentContext.scene !== contextAtRequest.scene ||
+        currentContext.sessionId !== contextAtRequest.sessionId
+      ) {
+        return;
+      }
+      deleteCreatedFeature(row.id);
+    },
+    [deleteCreatedFeature],
+  );
+
   return {
     toggleRowVisibility,
     toggleRowLock,
     selectFeature,
     reorderRow,
+    deleteRow,
   };
 }
