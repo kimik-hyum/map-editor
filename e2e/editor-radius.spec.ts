@@ -37,6 +37,7 @@ async function openEditorWithMarkers(page: Page): Promise<Page> {
             {
               id: "radius-marker",
               name: "반경 기준 마커",
+              locked: true,
               geometry: { type: "Point", coordinates: [126.98, 37.57] },
             },
             {
@@ -47,8 +48,9 @@ async function openEditorWithMarkers(page: Page): Promise<Page> {
                 coordinates: [
                   [
                     [126.96, 37.55],
-                    [126.97, 37.55],
-                    [126.97, 37.56],
+                    [127, 37.55],
+                    [127, 37.59],
+                    [126.96, 37.59],
                     [126.96, 37.55],
                   ],
                 ],
@@ -166,6 +168,10 @@ test("마커 미선택 상태에서 반경 도구 진입 후 지도 마커를 �
 
   const popup = editorPage.getByRole("dialog", { name: "반경 입력" });
   await expect(popup).toBeHidden();
+  const radiusStatus = editorPage
+    .getByRole("status")
+    .filter({ hasText: "마커 한 개를 선택하세요" });
+  await expect(radiusStatus).toBeVisible();
   expect((await readRadiusSnapshot(editorPage)).activeMode).toBe("radius");
 
   const mapBox = await editorPage.getByLabel("OSM map editor").boundingBox();
@@ -182,6 +188,7 @@ test("마커 미선택 상태에서 반경 도구 진입 후 지도 마커를 �
     .poll(async () => (await readRadiusSnapshot(editorPage)).selectedFeatureIds)
     .toEqual(["radius-marker"]);
   await expect(popup).toBeVisible();
+  await expect(radiusStatus).toHaveCount(0);
   await expect(popup).toContainText("기준: 반경 기준 마커");
   await popup.getByRole("textbox", { name: "반경" }).fill("2");
   await popup.getByRole("button", { name: "원형 폴리곤 추가" }).click();
@@ -189,4 +196,40 @@ test("마커 미선택 상태에서 반경 도구 진입 후 지도 마커를 �
   const created = await readRadiusSnapshot(editorPage);
   expect(created.lastFeature?.name).toBe("반경 2 km");
   expect(created.lastFeature?.geometry.type).toBe("Polygon");
+});
+
+test("날짜변경선을 넘는 원은 오류를 안내하고 scene에 추가하지 않는다", async ({
+  page,
+}) => {
+  const editorPage = await openEditorWithMarkers(page);
+  await page.evaluate(() => {
+    window.open("", "map-editor-child")?.postMessage(
+      {
+        type: "MAP_EDITOR_INIT",
+        sessionId: "radius-dateline-e2e",
+        scene: {
+          version: 2,
+          viewport: { center: [179, 0], zoom: 4 },
+          features: [
+            {
+              id: "dateline-marker",
+              name: "날짜변경선 마커",
+              geometry: { type: "Point", coordinates: [179, 0] },
+            },
+          ],
+        },
+      },
+      window.location.origin,
+    );
+  });
+
+  await editorPage.getByRole("button", { name: "날짜변경선 마커 선택" }).click();
+  const before = await readRadiusSnapshot(editorPage);
+  await editorPage.getByRole("button", { name: "반경", exact: true }).click();
+  const popup = editorPage.getByRole("dialog", { name: "반경 입력" });
+  await popup.getByRole("textbox", { name: "반경" }).fill("1000");
+
+  await expect(popup).toContainText("날짜변경선 또는 극점");
+  await expect(popup.getByRole("button", { name: "원형 폴리곤 추가" })).toBeDisabled();
+  expect((await readRadiusSnapshot(editorPage)).layerCount).toBe(before.layerCount);
 });

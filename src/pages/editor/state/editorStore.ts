@@ -213,7 +213,8 @@ function setLayerLockedInScene(
         deletable:
           !locked &&
           layer.features.length === 1 &&
-          layer.features[0]?.state.lifecycle === FeatureLifecycle.Created,
+          layer.features[0]?.state.lifecycle === FeatureLifecycle.Created &&
+          layer.features[0]?.behavior?.deletable !== false,
         draggable: !locked,
       },
     };
@@ -371,6 +372,7 @@ function replaceFeatureGeometry(
   feature: EditorScene["layers"][number]["features"][number],
   geometry: GeoJsonGeometry,
   kind: GeometryKind,
+  deletable?: boolean,
 ) {
   return {
     ...feature,
@@ -383,6 +385,9 @@ function replaceFeatureGeometry(
           ? FeatureLifecycle.Created
           : FeatureLifecycle.Updated,
     },
+    ...(deletable === undefined
+      ? {}
+      : { behavior: { ...feature.behavior, deletable } }),
   };
 }
 
@@ -399,16 +404,27 @@ function mergeFeaturesInScene(
     return scene;
   }
 
+  const targetFeature = scene.layers
+    .flatMap((layer) => layer.features)
+    .find((feature) => feature.id === targetId);
+  const otherFeature = scene.layers
+    .flatMap((layer) => layer.features)
+    .find((feature) => feature.id === otherId);
+  if (!targetFeature || !otherFeature) {
+    return scene;
+  }
+
+  // 로컬 생성 target이 부모 원본을 흡수하면 결과도 원본 데이터를 포함합니다.
+  // feature 수준에 삭제 금지를 고정해 잠금 해제 후에도 직접 삭제로 원본 보호를 우회하지 못하게 합니다.
+  const consumesProtectedSource =
+    otherFeature.state.lifecycle !== FeatureLifecycle.Created ||
+    otherFeature.behavior?.deletable === false;
+
   const kind = geometryKindFromGeometry(geometry);
-  let targetFound = false;
-  let otherFound = false;
   const layers: EditorScene["layers"] = [];
 
   for (const layer of scene.layers) {
     const hadOther = layer.features.some((feature) => feature.id === otherId);
-    if (hadOther) {
-      otherFound = true;
-    }
 
     let features = hadOther
       ? layer.features.filter((feature) => feature.id !== otherId)
@@ -416,10 +432,14 @@ function mergeFeaturesInScene(
 
     const hasTarget = features.some((feature) => feature.id === targetId);
     if (hasTarget) {
-      targetFound = true;
       features = features.map((feature) =>
         feature.id === targetId
-          ? replaceFeatureGeometry(feature, geometry, kind)
+          ? replaceFeatureGeometry(
+              feature,
+              geometry,
+              kind,
+              consumesProtectedSource ? false : undefined,
+            )
           : feature,
       );
     }
@@ -436,14 +456,18 @@ function mergeFeaturesInScene(
 
     layers.push(
       hasTarget
-        ? { ...layer, geometryKinds: [kind], features }
+        ? {
+            ...layer,
+            geometryKinds: [kind],
+            behavior: consumesProtectedSource
+              ? { ...layer.behavior, deletable: false }
+              : layer.behavior,
+            features,
+          }
         : { ...layer, features },
     );
   }
 
-  if (!targetFound || !otherFound) {
-    return scene;
-  }
   return { ...scene, layers };
 }
 

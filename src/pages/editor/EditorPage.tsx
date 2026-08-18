@@ -33,9 +33,7 @@ export function EditorPage() {
   const activation = getToolActivation(activeMode);
   const cursorHint = confirmationOpen
     ? null
-    : (drawTool.hint ??
-      radiusTool.hint ??
-      (editAffordance ? EDIT_HINTS[editAffordance] : null));
+    : (drawTool.hint ?? (editAffordance ? EDIT_HINTS[editAffordance] : null));
 
   // 좌측 rail의 경계 도구가 활성일 때만, 거기서 고른 종류(행정동/법정동/우편번호)의
   // 경계를 현재 줌·화면으로 받아 그린다. 다른 모드로 바꾸면 비운다.
@@ -109,6 +107,15 @@ export function EditorPage() {
           </div>
         ) : null}
         <MapCursorTooltip text={cursorHint} containerRef={mapElementRef} />
+        {radiusTool.hint ? (
+          <p
+            aria-live="polite"
+            className="pointer-events-none absolute left-1/2 top-4 z-40 m-0 -translate-x-1/2 rounded-lg border border-teal-200 bg-white/95 px-3 py-2 text-xs font-extrabold text-teal-800 shadow-md"
+            role="status"
+          >
+            {radiusTool.hint}
+          </p>
+        ) : null}
         <DrawFinishButton
           enabled={drawTool.canFinish}
           onFinish={drawTool.finish}

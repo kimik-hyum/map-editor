@@ -52,6 +52,7 @@ export function canDeleteCreatedFeature(
 ): boolean {
   return (
     feature.state.lifecycle === FeatureLifecycle.Created &&
+    feature.behavior?.deletable !== false &&
     layer.behavior.deletable &&
     layer.behavior.lock === LockState.Unlocked
   );

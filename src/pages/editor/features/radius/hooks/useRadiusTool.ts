@@ -7,6 +7,7 @@ import { EditorMode, type EditorScene } from "@/pages/editor/types/editorTypes";
 import {
   createRadiusCircleGeometry,
   DEFAULT_RADIUS_KM,
+  getRadiusCircleGeometryError,
   resolveRadiusTarget,
   validateRadiusInput,
 } from "../model/radiusToolModel";
@@ -27,12 +28,21 @@ export function useRadiusTool(map: OpenLayersMap | null) {
   const radiusActive = getToolActivation(activeMode).radius;
   const targetFeatureId = targetResult.target?.featureId ?? null;
 
-  const previewGeometry = useMemo(() => {
-    if (!radiusActive || !popupOpen || !targetResult.target || !validation.valid) {
+  const circleDraft = useMemo(() => {
+    if (!targetResult.target || !validation.valid) {
       return null;
     }
-    return createRadiusCircleGeometry(targetResult.target.center, validation.valueKm);
-  }, [popupOpen, radiusActive, targetResult.target, validation]);
+    const geometry = createRadiusCircleGeometry(
+      targetResult.target.center,
+      validation.valueKm,
+    );
+    return { geometry, error: getRadiusCircleGeometryError(geometry) };
+  }, [targetResult.target, validation]);
+
+  const previewGeometry =
+    radiusActive && popupOpen && circleDraft?.error === null
+      ? circleDraft.geometry
+      : null;
 
   useEffect(() => {
     if (!map) {
@@ -97,6 +107,9 @@ export function useRadiusTool(map: OpenLayersMap | null) {
       currentTarget.target.center,
       currentValidation.valueKm,
     );
+    if (getRadiusCircleGeometryError(geometry)) {
+      return false;
+    }
     current.addFeatures([
       {
         name: `반경 ${currentValidation.label} km`,
@@ -131,9 +144,13 @@ export function useRadiusTool(map: OpenLayersMap | null) {
     draft,
     setDraft,
     target: targetResult.target,
-    error: validation.error,
+    error: validation.error ?? circleDraft?.error ?? null,
     canApply:
-      radiusActive && popupOpen && targetResult.target !== null && validation.valid,
+      radiusActive &&
+      popupOpen &&
+      targetResult.target !== null &&
+      validation.valid &&
+      circleDraft?.error === null,
     hint: radiusActive && targetResult.target === null ? targetResult.error : null,
     openInput,
     onOpenChange,

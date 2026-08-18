@@ -124,4 +124,16 @@ describe("canDeleteCreatedFeature", () => {
     expect(canDeleteCreatedFeature(locked, created)).toBe(false);
     expect(canDeleteCreatedFeature(denied, created)).toBe(false);
   });
+
+  it("원본을 흡수해 feature 수준 삭제가 금지된 생성물은 거부한다", () => {
+    const protectedCreated = {
+      ...created,
+      behavior: { deletable: false },
+    };
+    const deletable = {
+      ...layer,
+      behavior: { ...layer.behavior, deletable: true },
+    };
+    expect(canDeleteCreatedFeature(deletable, protectedCreated)).toBe(false);
+  });
 });

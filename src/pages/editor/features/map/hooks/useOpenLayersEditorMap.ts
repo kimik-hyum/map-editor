@@ -32,6 +32,7 @@ import {
   unionGeometries,
 } from "@/pages/editor/features/geometry-ops";
 import { getToolActivation } from "@/pages/editor/features/modes";
+import { canUseAsRadiusTarget } from "@/pages/editor/features/radius";
 import {
   deriveSelectionTargets,
   getChangedSelectionIds,
@@ -40,6 +41,8 @@ import {
 } from "@/pages/editor/features/selection";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import {
+  canSelectLayer,
+  EditorMode,
   isPolygonalGeometry,
   type EditorScene,
   type GeoJsonGeometry,
@@ -221,6 +224,15 @@ export function useOpenLayersEditorMap() {
 
     const selection = attachEditorSelection(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
+      canPickFeature: (currentScene, layerId, featureId) => {
+        if (useEditorStore.getState().activeMode !== EditorMode.Radius) {
+          return canSelectLayer(currentScene, layerId);
+        }
+        const layer = currentScene.layers.find((candidate) => candidate.id === layerId);
+        return Boolean(
+          layer?.behavior.selectable && canUseAsRadiusTarget(currentScene, featureId),
+        );
+      },
       onSelect: (featureId, modifiers) => {
         // 정점 추가 직후 짧은 시간 내 따라오는 단일클릭은 선택을 흔들지 않도록 무시한다(만료 후 자동 해제).
         if (performance.now() < suppressSelectUntilRef.current) {

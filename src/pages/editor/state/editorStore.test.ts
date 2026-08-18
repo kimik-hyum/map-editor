@@ -736,6 +736,34 @@ describe("editorStore - 병합/제거", () => {
     expect(useEditorStore.getState().past).toHaveLength(0);
   });
 
+  it("생성 target이 부모 원본을 흡수하면 결과를 직접 삭제할 수 없게 고정한다", () => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_A));
+    useEditorStore.getState().addFeatures([
+      {
+        name: "임시 결과",
+        geometry: GEOMETRY_B as EditorPolygonInputGeometry,
+      },
+    ]);
+    const createdId = useEditorStore.getState().selectedFeatureIds[0];
+    const createdLayerId = useEditorStore.getState().scene?.layers[1]?.id ?? "";
+
+    useEditorStore.getState().mergeFeatures(createdId, "feature-1", MULTI_POLYGON);
+
+    const mergedLayer = useEditorStore.getState().scene?.layers[0];
+    expect(mergedLayer?.features[0]?.id).toBe(createdId);
+    expect(mergedLayer?.behavior.deletable).toBe(false);
+    expect(mergedLayer?.features[0]?.behavior?.deletable).toBe(false);
+
+    useEditorStore.getState().deleteCreatedFeature(createdId);
+    expect(useEditorStore.getState().scene?.layers).toHaveLength(1);
+
+    // 잠금 토글로도 원본을 흡수한 결과의 삭제 권한이 되살아나지 않습니다.
+    useEditorStore.getState().setLayerLocked(createdLayerId, true);
+    useEditorStore.getState().setLayerLocked(createdLayerId, false);
+    expect(useEditorStore.getState().scene?.layers[0]?.behavior.deletable).toBe(false);
+  });
+
   it("제거는 결과 geometry로 target을 교체한다(cutter는 store가 모름, undo 1단계)", () => {
     useEditorStore.getState().subtractFeature("feature-1", GEOMETRY_B);
 

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { normalizeSceneInput } from "@/pages/editor/messaging/normalizeSceneInput";
 import {
+  canUseAsRadiusTarget,
   createRadiusCircleGeometry,
+  getRadiusCircleGeometryError,
   MAX_RADIUS_KM,
   resolveRadiusCircleSteps,
   resolveRadiusTarget,
@@ -62,6 +64,11 @@ describe("resolveRadiusTarget", () => {
     });
   });
 
+  it("지도 선택 후보에서도 잠긴 Point는 허용하고 폴리곤은 거부한다", () => {
+    expect(canUseAsRadiusTarget(scene, "marker")).toBe(true);
+    expect(canUseAsRadiusTarget(scene, "polygon")).toBe(false);
+  });
+
   it("미선택·다중 선택·Point가 아닌 선택을 구분한다", () => {
     expect(resolveRadiusTarget(scene, []).error).toContain("마커 한 개");
     expect(resolveRadiusTarget(scene, ["marker", "polygon"]).error).toContain(
@@ -114,5 +121,20 @@ describe("createRadiusCircleGeometry", () => {
     expect(resolveRadiusCircleSteps(MAX_RADIUS_KM)).toBeGreaterThan(
       resolveRadiusCircleSteps(1),
     );
+  });
+
+  it("일반 위치의 원은 round-trip 가능한 좌표 범위를 유지한다", () => {
+    const geometry = createRadiusCircleGeometry([126.98, 37.56], 1_000);
+    expect(getRadiusCircleGeometryError(geometry)).toBeNull();
+  });
+
+  it("날짜변경선을 넘는 원은 다음 INIT 전에 명시적으로 거부한다", () => {
+    const geometry = createRadiusCircleGeometry([179, 0], 1_000);
+    expect(getRadiusCircleGeometryError(geometry)).toContain("날짜변경선");
+  });
+
+  it("극점 주변에서 경도 jump가 생기는 원도 거부한다", () => {
+    const geometry = createRadiusCircleGeometry([0, 89], 1_000);
+    expect(getRadiusCircleGeometryError(geometry)).toContain("극점");
   });
 });
