@@ -64,6 +64,21 @@ export function subtractGeometry(
   return result === undefined ? undefined : fromTurf(result);
 }
 
+// 두 폴리곤이 실제로 공유하는 면만 남깁니다. 반환값을 차집합과 같은 세 상태로 구분합니다:
+// - geometry: 교집합 결과
+// - null: 정상적으로 겹치는 면이 없음
+// - undefined: Turf 연산 실패 → 호출부에서 no-op
+export function intersectGeometries(
+  a: PolygonalGeometry,
+  b: PolygonalGeometry,
+): PolygonalGeometry | null | undefined {
+  const result = safeTurf<TurfPolygonFeature | null | undefined>(
+    () => intersect(featureCollection([toTurf(a), toTurf(b)])),
+    undefined,
+  );
+  return result === undefined ? undefined : fromTurf(result);
+}
+
 // 두 폴리곤이 공유하는 면적(㎡). 겹치지 않거나 변끼리 닿기만 하거나 연산이 실패하면 0입니다.
 export function overlapAreaSquareMeters(
   a: PolygonalGeometry,

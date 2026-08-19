@@ -280,8 +280,10 @@ describe("editorStore - 도형 추가(붙여넣기·그리기)", () => {
   it("추가된 도형은 Created lifecycle이다", () => {
     useEditorStore.getState().addFeatures([{ geometry: inputGeometry }]);
 
-    const added = useEditorStore.getState().scene?.layers[1]?.features[0];
+    const addedLayer = useEditorStore.getState().scene?.layers[1];
+    const added = addedLayer?.features[0];
     expect(added?.state.lifecycle).toBe(FeatureLifecycle.Created);
+    expect(addedLayer?.behavior.deletable).toBe(true);
   });
 
   it("Path와 Point도 각각 새 레이어 하나로 추가한다", () => {
@@ -322,6 +324,56 @@ describe("editorStore - 도형 추가(붙여넣기·그리기)", () => {
 
     expect(useEditorStore.getState().scene).toBe(before);
     expect(useEditorStore.getState().past).toHaveLength(0);
+  });
+});
+
+describe("editorStore - 로컬 생성 레이어 삭제", () => {
+  const inputGeometry = GEOMETRY_B as EditorPolygonInputGeometry;
+
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_A));
+  });
+
+  it("생성 레이어를 제거하고 선택을 정리하며 undo/redo 한 단계로 처리한다", () => {
+    useEditorStore
+      .getState()
+      .addFeatures([{ name: "임시 결과", geometry: inputGeometry }]);
+    const createdId = useEditorStore.getState().selectedFeatureIds[0];
+
+    useEditorStore.getState().deleteCreatedFeature(createdId);
+
+    expect(layerIds()).toEqual(["layer-1"]);
+    expect(useEditorStore.getState().selectedFeatureIds).toEqual([]);
+    expect(useEditorStore.getState().past).toHaveLength(2);
+
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().scene?.layers).toHaveLength(2);
+    useEditorStore.getState().redo();
+    expect(layerIds()).toEqual(["layer-1"]);
+  });
+
+  it("부모 원본은 layer의 deletable 값이 true여도 삭제하지 않는다", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().deleteCreatedFeature("feature-1");
+
+    expect(useEditorStore.getState().scene).toBe(before);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+  });
+
+  it("잠긴 생성 레이어는 삭제하지 않고, 잠금을 풀면 다시 삭제할 수 있다", () => {
+    useEditorStore.getState().addFeatures([{ geometry: inputGeometry }]);
+    const createdId = useEditorStore.getState().selectedFeatureIds[0];
+    const createdLayerId = useEditorStore.getState().scene?.layers[1]?.id ?? "";
+    useEditorStore.getState().setLayerLocked(createdLayerId, true);
+    const before = useEditorStore.getState().scene;
+
+    useEditorStore.getState().deleteCreatedFeature(createdId);
+    expect(useEditorStore.getState().scene).toBe(before);
+
+    useEditorStore.getState().setLayerLocked(createdLayerId, false);
+    useEditorStore.getState().deleteCreatedFeature(createdId);
+    expect(layerIds()).toEqual(["layer-1"]);
   });
 });
 
@@ -682,6 +734,34 @@ describe("editorStore - 병합/제거", () => {
 
     expect(useEditorStore.getState().scene).toBe(before);
     expect(useEditorStore.getState().past).toHaveLength(0);
+  });
+
+  it("생성 target이 부모 원본을 흡수하면 결과를 직접 삭제할 수 없게 고정한다", () => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_A));
+    useEditorStore.getState().addFeatures([
+      {
+        name: "임시 결과",
+        geometry: GEOMETRY_B as EditorPolygonInputGeometry,
+      },
+    ]);
+    const createdId = useEditorStore.getState().selectedFeatureIds[0];
+    const createdLayerId = useEditorStore.getState().scene?.layers[1]?.id ?? "";
+
+    useEditorStore.getState().mergeFeatures(createdId, "feature-1", MULTI_POLYGON);
+
+    const mergedLayer = useEditorStore.getState().scene?.layers[0];
+    expect(mergedLayer?.features[0]?.id).toBe(createdId);
+    expect(mergedLayer?.behavior.deletable).toBe(false);
+    expect(mergedLayer?.features[0]?.behavior?.deletable).toBe(false);
+
+    useEditorStore.getState().deleteCreatedFeature(createdId);
+    expect(useEditorStore.getState().scene?.layers).toHaveLength(1);
+
+    // 잠금 토글로도 원본을 흡수한 결과의 삭제 권한이 되살아나지 않습니다.
+    useEditorStore.getState().setLayerLocked(createdLayerId, true);
+    useEditorStore.getState().setLayerLocked(createdLayerId, false);
+    expect(useEditorStore.getState().scene?.layers[0]?.behavior.deletable).toBe(false);
   });
 
   it("제거는 결과 geometry로 target을 교체한다(cutter는 store가 모름, undo 1단계)", () => {

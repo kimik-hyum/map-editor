@@ -7,21 +7,24 @@ type GeometryOpOverlayHandle = {
   element: HTMLElement;
   name: string;
   canSubtract: boolean;
+  canIntersect?: boolean;
 };
 
 type GeometryOpMarkersProps = {
   overlays: GeometryOpOverlayHandle[];
-  // 후보 도형 id를 받아 선택 도형과 병합/제거합니다.
+  // 후보 도형 id를 받아 선택 도형과 병합/제거/교집합 연산합니다.
   onMerge: (featureId: string) => void;
   onSubtract: (featureId: string) => void;
+  onIntersect?: (featureId: string) => void;
 };
 
-// 각 후보 폴리곤의 ol/Overlay 요소 안에 병합/제거 마커를 portal로 렌더합니다.
+// 각 후보 폴리곤의 ol/Overlay 요소 안에 불리언 연산 마커를 portal로 렌더합니다.
 // 위치 추적(팬·줌)은 OL이 매 프레임 처리하므로 여기서는 내용만 그립니다.
 export function GeometryOpMarkers({
   overlays,
   onMerge,
   onSubtract,
+  onIntersect,
 }: GeometryOpMarkersProps) {
   return (
     <>
@@ -29,7 +32,9 @@ export function GeometryOpMarkers({
         createPortal(
           <GeometryOpMarker
             canSubtract={handle.canSubtract}
+            canIntersect={Boolean(handle.canIntersect && onIntersect)}
             name={handle.name}
+            onIntersect={() => onIntersect?.(handle.featureId)}
             onMerge={() => onMerge(handle.featureId)}
             onSubtract={() => onSubtract(handle.featureId)}
           />,

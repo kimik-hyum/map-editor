@@ -37,7 +37,7 @@ export const editorModeOptions: EditorModeOption[] = [
   {
     id: EditorMode.Radius,
     label: "반경",
-    description: "마커 기준 반경 커팅",
+    description: "마커 중심 원형 폴리곤 추가",
     icon: CircleDot,
   },
 ];

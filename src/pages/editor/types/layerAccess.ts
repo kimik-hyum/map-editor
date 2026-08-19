@@ -1,5 +1,11 @@
-import { EditabilityState, LockState, VisibilityState } from "./enums";
-import type { EditorScene } from "./scene";
+import type { DeepReadonly } from "./deepReadonly";
+import {
+  EditabilityState,
+  FeatureLifecycle,
+  LockState,
+  VisibilityState,
+} from "./enums";
+import type { EditorFeature, EditorLayer, EditorScene } from "./scene";
 
 // 레이어 접근 정책을 한곳에 모은 순수 scene 판정입니다.
 // OpenLayers/React에 의존하지 않으므로 어댑터와 기능이 함께 import할 수 있습니다.
@@ -34,6 +40,20 @@ export function canEditLayerVertices(scene: EditorScene, layerId: string): boole
   return (
     layer.view.visibility !== VisibilityState.Hidden &&
     layer.behavior.editability === EditabilityState.Editable &&
+    layer.behavior.lock === LockState.Unlocked
+  );
+}
+
+// 부모가 준 원본(Clean/Updated)은 보호하고, 에디터에서 새로 만든 도형만 삭제합니다.
+// 레이어 권한과 잠금도 함께 확인해 UI와 store가 같은 정책을 사용하게 합니다.
+export function canDeleteCreatedFeature(
+  layer: DeepReadonly<EditorLayer>,
+  feature: DeepReadonly<EditorFeature>,
+): boolean {
+  return (
+    feature.state.lifecycle === FeatureLifecycle.Created &&
+    feature.behavior?.deletable !== false &&
+    layer.behavior.deletable &&
     layer.behavior.lock === LockState.Unlocked
   );
 }

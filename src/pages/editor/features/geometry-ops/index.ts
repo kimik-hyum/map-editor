@@ -1,5 +1,10 @@
 export { GeometryOpMarkers } from "./components/GeometryOpMarkers";
-export { hasAreaOverlap, subtractGeometry, unionGeometries } from "./model/booleanOps";
+export {
+  hasAreaOverlap,
+  intersectGeometries,
+  subtractGeometry,
+  unionGeometries,
+} from "./model/booleanOps";
 export {
   buildGeometryOpMarkerInputs,
   deriveGeometryOpTargets,

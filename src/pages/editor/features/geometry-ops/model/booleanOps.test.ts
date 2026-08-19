@@ -4,6 +4,7 @@ import {
   bboxesOverlap,
   geometryBbox,
   hasAreaOverlap,
+  intersectGeometries,
   overlapAreaSquareMeters,
   subtractGeometry,
   unionGeometries,
@@ -80,6 +81,37 @@ describe("subtractGeometry", () => {
   });
 });
 
+describe("intersectGeometries", () => {
+  it("겹치는 두 폴리곤에서 공유 면만 Polygon으로 반환한다", () => {
+    const result = intersectGeometries(A, OVERLAP);
+    expect(result?.type).toBe("Polygon");
+    const resultArea = result ? overlapAreaSquareMeters(result, result) : 0;
+    const sourceArea = overlapAreaSquareMeters(A, A);
+    expect(resultArea).toBeGreaterThan(0);
+    expect(resultArea).toBeLessThan(sourceArea);
+  });
+
+  it("떨어지거나 변만 닿는 폴리곤은 빈 결과(null)다", () => {
+    expect(intersectGeometries(A, DISJOINT)).toBeNull();
+    expect(intersectGeometries(A, EDGE_TOUCH)).toBeNull();
+  });
+
+  it("Turf 실패를 빈 교집합과 구분해 undefined로 반환한다", () => {
+    const broken = {
+      type: "Polygon",
+      coordinates: [
+        [
+          [Number.NaN, Number.NaN],
+          [1, 0],
+          [1, 1],
+          [Number.NaN, Number.NaN],
+        ],
+      ],
+    } as PolygonalGeometry;
+    expect(intersectGeometries(broken, A)).toBeUndefined();
+  });
+});
+
 describe("overlapAreaSquareMeters / hasAreaOverlap", () => {
   it("겹치면 면적이 0보다 크다", () => {
     expect(overlapAreaSquareMeters(A, OVERLAP)).toBeGreaterThan(0);
@@ -127,6 +159,7 @@ describe("잘못된 입력 안전성", () => {
   it("연산이 예외를 던지지 않고 안전한 기본값으로 떨어진다", () => {
     expect(() => unionGeometries(broken, A)).not.toThrow();
     expect(() => subtractGeometry(broken, A)).not.toThrow();
+    expect(() => intersectGeometries(broken, A)).not.toThrow();
     expect(() => overlapAreaSquareMeters(broken, A)).not.toThrow();
     expect(overlapAreaSquareMeters(broken, A)).toBe(0);
   });

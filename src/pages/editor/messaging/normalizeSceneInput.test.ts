@@ -80,10 +80,12 @@ describe("normalizeSceneInput", () => {
     const [editable, locked] = scene.layers;
     expect(editable.behavior.editability).toBe(EditabilityState.Editable);
     expect(editable.behavior.lock).toBe(LockState.Unlocked);
+    expect(editable.behavior.deletable).toBe(false); // 부모 원본은 보호
     expect(editable.roles).toEqual([LayerRole.Editable]);
     expect(locked.behavior.editability).toBe(EditabilityState.Readonly);
     expect(locked.behavior.lock).toBe(LockState.Locked);
     expect(locked.behavior.selectable).toBe(true);
+    expect(locked.behavior.deletable).toBe(false);
     expect(locked.roles).toEqual([LayerRole.Reference]);
   });
 
@@ -176,6 +178,7 @@ describe("addFeaturesToScene", () => {
     expect(result.scene.layers[1].features[0].state.lifecycle).toBe(
       FeatureLifecycle.Created,
     );
+    expect(result.scene.layers[1].behavior.deletable).toBe(true);
   });
 
   it("여러 도형을 한 번에 서로 다른 id로 추가한다", () => {

@@ -110,7 +110,7 @@ const HIDDEN_OVERRIDE: Partial<EditorLayer> = {
 };
 
 describe("deriveGeometryOpTargets", () => {
-  it("폴리곤 1개 선택: 다른 폴리곤은 병합 후보, 겹치는 것만 제거 후보", () => {
+  it("폴리곤 1개 선택: 다른 폴리곤은 병합 후보, 겹치는 것만 제거·교집합 후보", () => {
     const s = scene([
       layer("layer-a", [feature("a", square(0, 0, 2, 2))]),
       layer("layer-b", [feature("b", square(1, 1, 3, 3))]), // a와 겹침
@@ -121,6 +121,7 @@ describe("deriveGeometryOpTargets", () => {
     expect(result.targetId).toBe("a");
     expect(result.mergeCandidateIds.sort()).toEqual(["b", "c"]); // 떨어진 것도 병합 후보
     expect(result.subtractCandidateIds).toEqual(["b"]); // 겹치는 것만 제거 후보
+    expect(result.intersectCandidateIds).toEqual(["b"]); // 겹치는 것만 교집합 후보
   });
 
   it("선택이 2개 이상이면 비어 있다(단일 선택 기반 기능)", () => {
@@ -151,6 +152,7 @@ describe("deriveGeometryOpTargets", () => {
     const result = deriveGeometryOpTargets(s, new Set(["a"]));
     expect(result.mergeCandidateIds).toEqual(["d"]);
     expect(result.subtractCandidateIds).toEqual(["d"]);
+    expect(result.intersectCandidateIds).toEqual(["d"]);
   });
 
   it("선택한 target이 잠기면 편집 대상에서 즉시 제외된다", () => {
@@ -167,11 +169,13 @@ describe("deriveGeometryOpTargets", () => {
       targetId: "a",
       mergeCandidateIds: ["b"],
       subtractCandidateIds: ["b"],
+      intersectCandidateIds: ["b"],
     });
     expect(deriveGeometryOpTargets(lockedScene, new Set(["a"]))).toEqual({
       targetId: null,
       mergeCandidateIds: [],
       subtractCandidateIds: [],
+      intersectCandidateIds: [],
     });
   });
 
@@ -190,6 +194,7 @@ describe("deriveGeometryOpTargets", () => {
     const result = deriveGeometryOpTargets(s, new Set(["a"]), new Set(["a", "b"]));
     expect(result.mergeCandidateIds).toEqual(["b"]);
     expect(result.subtractCandidateIds).toEqual(["b"]);
+    expect(result.intersectCandidateIds).toEqual(["b"]);
   });
 
   it("선택한 target이 화면 밖이면(visibleFeatureIds에 없음) 비어 있다", () => {
@@ -202,6 +207,7 @@ describe("deriveGeometryOpTargets", () => {
     expect(result.targetId).toBeNull();
     expect(result.mergeCandidateIds).toEqual([]);
     expect(result.subtractCandidateIds).toEqual([]);
+    expect(result.intersectCandidateIds).toEqual([]);
   });
 
   it("visibleFeatureIds 생략 시 viewport 제한 없이 전체에서 후보를 찾는다", () => {
@@ -225,6 +231,7 @@ describe("deriveGeometryOpTargets", () => {
     const result = deriveGeometryOpTargets(s, new Set(["a"]));
     expect(result.mergeCandidateIds).toEqual(["d"]);
     expect(result.subtractCandidateIds).toEqual(["d"]);
+    expect(result.intersectCandidateIds).toEqual(["d"]);
   });
 
   it("선택한 target이 도형별 숨김이면 비어 있다", () => {
@@ -239,12 +246,13 @@ describe("deriveGeometryOpTargets", () => {
     expect(deriveGeometryOpTargets(s, new Set(["a"])).targetId).toBeNull();
   });
 
-  it("병합 후보가 없으면(다른 폴리곤 없음) 두 목록 모두 비어 있다", () => {
+  it("병합 후보가 없으면(다른 폴리곤 없음) 세 목록 모두 비어 있다", () => {
     const s = scene([layer("layer-a", [feature("a", square(0, 0, 2, 2))])]);
     const result = deriveGeometryOpTargets(s, new Set(["a"]));
     expect(result.targetId).toBe("a");
     expect(result.mergeCandidateIds).toEqual([]);
     expect(result.subtractCandidateIds).toEqual([]);
+    expect(result.intersectCandidateIds).toEqual([]);
   });
 });
 
@@ -262,6 +270,8 @@ describe("buildGeometryOpMarkerInputs", () => {
     const byId = new Map(inputs.map((input) => [input.featureId, input]));
     expect(byId.get("b")?.canSubtract).toBe(true); // 겹침 → 제거 가능
     expect(byId.get("c")?.canSubtract).toBe(false); // 떨어짐 → 병합만
+    expect(byId.get("b")?.canIntersect).toBe(true); // 겹침 → 교집합 가능
+    expect(byId.get("c")?.canIntersect).toBe(false); // 떨어짐 → 교집합 불가
     expect(byId.get("b")?.name).toBe("b"); // 이름을 칩 윗행에 표시
   });
 

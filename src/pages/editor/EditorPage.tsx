@@ -7,6 +7,7 @@ import { GeometryOpMarkers } from "./features/geometry-ops";
 import { LayerPanel } from "./features/layers";
 import { useOpenLayersEditorMap } from "./features/map";
 import { EditorModePanel, getToolActivation } from "./features/modes";
+import { useRadiusTool } from "./features/radius";
 import { useRegionBoundaries, useRegionBoundaryOps } from "./features/regions";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
@@ -23,6 +24,7 @@ const EDIT_HINTS: Record<EditAffordanceKind, string> = {
 export function EditorPage() {
   const { mapElementRef, map, editAffordance, geometryOp } = useOpenLayersEditorMap();
   const drawTool = useDrawTool(map);
+  const radiusTool = useRadiusTool(map);
   const isSceneReady = useEditorStore((state) => state.scene !== null);
   const activeMode = useEditorStore((state) => state.activeMode);
   const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
@@ -69,6 +71,7 @@ export function EditorPage() {
           boundaryOperationError={regionOps.error}
           boundaryStatus={regionStatus}
           confirmDiscardDraw={drawTool.confirmDiscardSketch}
+          radiusTool={radiusTool}
         />
       </aside>
       <main className="relative min-h-0 min-w-0">
@@ -104,6 +107,15 @@ export function EditorPage() {
           </div>
         ) : null}
         <MapCursorTooltip text={cursorHint} containerRef={mapElementRef} />
+        {radiusTool.hint ? (
+          <p
+            aria-live="polite"
+            className="pointer-events-none absolute left-1/2 top-4 z-40 m-0 -translate-x-1/2 rounded-lg border border-teal-200 bg-white/95 px-3 py-2 text-xs font-extrabold text-teal-800 shadow-md"
+            role="status"
+          >
+            {radiusTool.hint}
+          </p>
+        ) : null}
         <DrawFinishButton
           enabled={drawTool.canFinish}
           onFinish={drawTool.finish}
@@ -118,6 +130,7 @@ export function EditorPage() {
         />
         <GeometryOpMarkers
           overlays={geometryOp.overlays}
+          onIntersect={geometryOp.onIntersect}
           onMerge={geometryOp.onMerge}
           onSubtract={geometryOp.onSubtract}
         />

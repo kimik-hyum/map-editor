@@ -153,6 +153,50 @@ describe("createLayerPanelViewModel", () => {
     expect(viewModel.rows[0].isLocked).toBe(true);
   });
 
+  it("잠금 해제된 로컬 생성 레이어에만 삭제 액션을 노출한다", () => {
+    const created = createFeature({
+      id: "created",
+      state: {
+        selection: SelectionState.None,
+        lifecycle: FeatureLifecycle.Created,
+        validation: ValidationState.Valid,
+        issues: [],
+      },
+    });
+    const lockedCreated = createFeature({
+      id: "locked-created",
+      state: {
+        selection: SelectionState.None,
+        lifecycle: FeatureLifecycle.Created,
+        validation: ValidationState.Valid,
+        issues: [],
+      },
+    });
+    const scene = createScene([
+      createFeatureLayer({}, createFeature({ id: "original" })),
+      createFeatureLayer({}, created),
+      createFeatureLayer(
+        {
+          behavior: {
+            lock: LockState.Locked,
+            editability: EditabilityState.Readonly,
+            selectable: true,
+            deletable: false,
+            draggable: false,
+          },
+        },
+        lockedCreated,
+      ),
+    ]);
+
+    const byId = new Map(
+      createLayerPanelViewModel(scene).rows.map((row) => [row.id, row]),
+    );
+    expect(byId.get("original")?.canDelete).toBe(false);
+    expect(byId.get("created")?.canDelete).toBe(true);
+    expect(byId.get("locked-created")?.canDelete).toBe(false);
+  });
+
   it("표시 상태를 행에 반영한다(숨김·흐림)", () => {
     const scene = createScene([
       createFeatureLayer(

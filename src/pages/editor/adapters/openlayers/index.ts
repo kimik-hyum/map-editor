@@ -5,6 +5,7 @@ export * from "./attachFeatureDraw";
 export * from "./attachGeometryOpOverlays";
 export * from "./attachRegionBoundaryHover";
 export * from "./attachRegionBoundaryLayer";
+export * from "./attachRadiusPreview";
 export * from "./attachVertexDetail";
 export * from "./attachVertexModify";
 export * from "./createOpenLayersFeature";

@@ -18,7 +18,6 @@ describe("getToolActivation", () => {
   it.each([
     [EditorMode.Draw, "draw"],
     [EditorMode.Boundary, "boundary"],
-    [EditorMode.Radius, "radius"],
   ] as const)("%s 모드는 자기 controller만 활성화한다", (mode, activeKey) => {
     const activation = getToolActivation(mode);
     expect(activation[activeKey]).toBe(true);
@@ -27,5 +26,17 @@ describe("getToolActivation", () => {
         .filter(([key]) => key !== activeKey)
         .every(([, value]) => value === false),
     ).toBe(true);
+  });
+
+  it("Radius 모드는 기준 마커 선택과 반경 controller만 활성화한다", () => {
+    expect(getToolActivation(EditorMode.Radius)).toEqual({
+      selection: true,
+      vertexEdit: false,
+      affordance: false,
+      geometryOps: false,
+      draw: false,
+      boundary: false,
+      radius: true,
+    });
   });
 });
