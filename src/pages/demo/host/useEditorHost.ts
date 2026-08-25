@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { sampleSceneInput } from "../fixtures/sampleEditorScene";
-import {
-  createInitMessage,
-  getMessageType,
-  isAllowedParentOrigin,
-} from "@/pages/editor/messaging";
+import { createInitMessage, getMessageType } from "@/pages/editor/messaging";
 import { EditorMessageType } from "@/pages/editor/types/editorTypes";
 
 export type EditorHostStatus = "idle" | "opening" | "connected" | "closed" | "error";
@@ -18,6 +14,7 @@ export function useEditorHost() {
   const [status, setStatus] = useState<EditorHostStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const childRef = useRef<Window | null>(null);
+  const childOriginRef = useRef<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const closeTimerRef = useRef<number | null>(null);
 
@@ -30,7 +27,10 @@ export function useEditorHost() {
 
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
-      if (event.source !== childRef.current || !isAllowedParentOrigin(event.origin)) {
+      if (
+        event.source !== childRef.current ||
+        event.origin !== childOriginRef.current
+      ) {
         return;
       }
 
@@ -43,7 +43,7 @@ export function useEditorHost() {
         sessionIdRef.current = sessionId;
         childRef.current?.postMessage(
           createInitMessage(sessionId, sampleSceneInput),
-          event.origin,
+          childOriginRef.current,
         );
         setStatus("connected");
         return;
@@ -64,7 +64,12 @@ export function useEditorHost() {
   }, [clearCloseTimer]);
 
   const openEditor = useCallback(() => {
-    const child = window.open("/editor", EDITOR_WINDOW_NAME, EDITOR_WINDOW_FEATURES);
+    const editorUrl = new URL("/editor", window.location.href);
+    const child = window.open(
+      editorUrl.href,
+      EDITOR_WINDOW_NAME,
+      EDITOR_WINDOW_FEATURES,
+    );
 
     if (!child) {
       setStatus("error");
@@ -73,6 +78,7 @@ export function useEditorHost() {
     }
 
     childRef.current = child;
+    childOriginRef.current = editorUrl.origin;
     sessionIdRef.current = null;
     setErrorMessage(null);
     setStatus("opening");
@@ -82,6 +88,7 @@ export function useEditorHost() {
       if (childRef.current?.closed) {
         clearCloseTimer();
         childRef.current = null;
+        childOriginRef.current = null;
         setStatus("closed");
       }
     }, 500);

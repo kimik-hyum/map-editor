@@ -4,7 +4,6 @@ export {
   createReadyMessage,
   getMessageType,
   isAllowedParentOrigin,
-  resolveParentTargetOrigin,
 } from "./editorMessageChannel";
 export { editorSceneInputSchema, parseInitMessage } from "./editorSceneSchema";
 export type { ParseInitMessageResult } from "./editorSceneSchema";
