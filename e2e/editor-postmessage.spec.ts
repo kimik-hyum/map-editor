@@ -77,4 +77,28 @@ test("데모가 새 창 에디터에 postMessage로 scene을 전달하고 에디
   expect(initData?.scene?.id).toBe("sample-seoul-editor-scene");
   expect(initData?.scene?.name).toBe("서울 샘플 편집 씬");
   expect(initData?.scene?.features?.length ?? 0).toBeGreaterThan(0);
+
+  // 두 origin 모두 allowlist에 있지만, 첫 INIT 이후 opener가 다른 origin으로 이동하면 거부한다.
+  await page.goto("http://localhost:4174/demo");
+  await page.evaluate(() => {
+    window.open("", "map-editor-child")?.postMessage(
+      {
+        type: "MAP_EDITOR_INIT",
+        sessionId: "hijack-session",
+        scene: {
+          version: 2,
+          features: [
+            {
+              name: "다른 origin이 주입한 도형",
+              geometry: { type: "Point", coordinates: [127, 37.5] },
+            },
+          ],
+        },
+      },
+      "http://127.0.0.1:4174",
+    );
+  });
+
+  await expect(editorPage.getByText("권역 A")).toBeVisible();
+  await expect(editorPage.getByText("다른 origin이 주입한 도형")).toHaveCount(0);
 });
