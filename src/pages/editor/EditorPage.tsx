@@ -66,8 +66,11 @@ export function EditorPage() {
   });
 
   return (
-    <div className="grid h-screen grid-cols-[88px_minmax(0,1fr)] overflow-hidden">
-      <aside className="min-w-0 border-r border-line bg-white" aria-label="편집 도구">
+    <div className="grid h-screen grid-cols-[88px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] overflow-hidden">
+      <aside
+        className="min-h-0 min-w-0 border-r border-line bg-white"
+        aria-label="편집 도구"
+      >
         <EditorModePanel
           boundaryOperationError={regionOps.error}
           boundaryStatus={regionStatus}
@@ -78,7 +81,7 @@ export function EditorPage() {
       <main className="relative min-h-0 min-w-0">
         <section
           ref={mapElementRef}
-          className="peer h-screen w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
+          className="peer h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
           aria-label="OSM map editor"
           aria-describedby={activation.draw ? "draw-keyboard-instructions" : undefined}
           aria-keyshortcuts={
@@ -108,12 +111,6 @@ export function EditorPage() {
           </div>
         ) : null}
         <MapCursorTooltip text={cursorHint} containerRef={mapElementRef} />
-        <EditorSessionActions
-          hasPendingToolAction={
-            drawTool.isDrawing || radiusTool.popupOpen || regionOps.busy
-          }
-          messaging={messaging}
-        />
         {radiusTool.hint ? (
           <p
             aria-live="polite"
@@ -159,6 +156,12 @@ export function EditorPage() {
           </div>
         )}
       </main>
+      <EditorSessionActions
+        hasPendingToolAction={
+          drawTool.isDrawing || radiusTool.popupOpen || regionOps.busy
+        }
+        messaging={messaging}
+      />
     </div>
   );
 }

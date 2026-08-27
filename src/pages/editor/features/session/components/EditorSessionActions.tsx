@@ -26,11 +26,11 @@ export function EditorSessionActions({
   return (
     <section
       aria-label="편집 완료"
-      className="absolute right-4 top-4 z-40 flex max-w-[min(460px,calc(100%-32px))] items-center gap-3 rounded-xl border border-slate-200 bg-white/95 p-2.5 shadow-lg backdrop-blur-sm"
+      className="col-span-2 row-start-2 z-40 flex w-full items-center justify-between gap-6 border-t border-slate-200 bg-white px-5 py-3 shadow-[0_-4px_16px_rgba(15,23,42,0.06)]"
     >
       <p
         aria-live="polite"
-        className={`m-0 min-w-0 flex-1 text-xs font-bold leading-4 ${
+        className={`m-0 min-w-0 flex-1 text-sm font-bold leading-5 ${
           actions.submitBlockedReason ? "text-amber-700" : "text-slate-500"
         }`}
       >
