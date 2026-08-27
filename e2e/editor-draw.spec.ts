@@ -679,7 +679,9 @@ test("지도 크기가 바뀌면 커서 툴팁을 새 경계 안으로 다시 �
   const map = editorPage.getByLabel("OSM map editor");
   const tooltip = editorPage.locator('main > [role="status"]');
 
-  await editorPage.mouse.move(760, 580);
+  // 축소 후에도 포인터가 새 하단 완료 바가 아니라 지도 안에 남는 좌표를 사용합니다.
+  // 지도 밖으로 나가면 툴팁이 숨는 것이 정상이라 재배치 검증 대상이 아닙니다.
+  await editorPage.mouse.move(760, 500);
   await expect(tooltip).toBeVisible();
   await editorPage.setViewportSize({ width: 800, height: 600 });
 
