@@ -3,6 +3,7 @@ export { DocsArticle } from "./DocsArticle";
 export { DocsButton } from "./DocsButton";
 export { DocsCard, DocsCardGrid } from "./DocsCard";
 export { DocsCode } from "./DocsCode";
+export { DocsCodeBlock } from "./DocsCodeBlock";
 export { DocsEyebrow } from "./DocsEyebrow";
 export { DocsHeading } from "./DocsHeading";
 export { DocsHero } from "./DocsHero";

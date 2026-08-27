@@ -37,6 +37,7 @@
 - Geometry utilities: `@turf/area`, `@turf/length`, `@turf/bbox`, `@turf/helpers`, `@turf/intersect`, `@turf/union`, `@turf/difference`.
 - Drag and drop: `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/modifiers` (패널 스택 재정렬용).
 - UI primitives: `@base-ui/react`, `lucide-react`, `react-rnd`.
+- Documentation syntax highlighting: `prism-react-renderer`.
 - Git hooks: `husky`.
 
 ## Component Rules
