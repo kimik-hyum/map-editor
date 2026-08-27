@@ -1,11 +1,16 @@
 import {
   EditorMessageType,
+  type DeepReadonly,
+  type EditorCancelMessage,
   type EditorErrorMessage,
   type EditorInitMessageInput,
   type EditorReadyMessage,
+  type EditorScene,
   type EditorSceneInput,
+  type EditorSubmitMessage,
   type EditorValidationIssue,
 } from "../types/editorTypes";
+import { serializeSceneOutput } from "./serializeSceneOutput";
 
 // 부모(호스트) 창과 에디터가 주고받는 postMessage 채널의 origin 정책과 메시지 빌더입니다.
 
@@ -75,6 +80,21 @@ export function createInitMessage(
   scene: EditorSceneInput,
 ): EditorInitMessageInput {
   return { type: EditorMessageType.Init, sessionId, scene };
+}
+
+export function createSubmitMessage(
+  sessionId: string,
+  scene: DeepReadonly<EditorScene>,
+): EditorSubmitMessage {
+  return {
+    type: EditorMessageType.Submit,
+    sessionId,
+    scene: serializeSceneOutput(scene),
+  };
+}
+
+export function createCancelMessage(sessionId: string): EditorCancelMessage {
+  return { type: EditorMessageType.Cancel, sessionId };
 }
 
 export function createErrorMessage(

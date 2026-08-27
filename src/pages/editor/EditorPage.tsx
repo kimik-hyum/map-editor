@@ -9,6 +9,7 @@ import { useOpenLayersEditorMap } from "./features/map";
 import { EditorModePanel, getToolActivation } from "./features/modes";
 import { useRadiusTool } from "./features/radius";
 import { useRegionBoundaries, useRegionBoundaryOps } from "./features/regions";
+import { EditorSessionActions } from "./features/session";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
 import { useEditorHistoryShortcuts } from "./state/historyShortcuts";
@@ -50,7 +51,7 @@ export function EditorPage() {
     scopeKey: boundaryKind,
   });
 
-  useEditorMessaging();
+  const messaging = useEditorMessaging();
   // 그리기 중에는 정점 로컬 history를, sketch가 없으면 전역 scene history를 사용합니다.
   useEditorHistoryShortcuts({
     isInProgress: drawTool.isDrawingInProgress,
@@ -107,6 +108,10 @@ export function EditorPage() {
           </div>
         ) : null}
         <MapCursorTooltip text={cursorHint} containerRef={mapElementRef} />
+        <EditorSessionActions
+          hasPendingToolAction={drawTool.isDrawing || radiusTool.popupOpen}
+          messaging={messaging}
+        />
         {radiusTool.hint ? (
           <p
             aria-live="polite"
