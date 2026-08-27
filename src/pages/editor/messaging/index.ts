@@ -1,11 +1,21 @@
 export {
+  createCancelMessage,
   createErrorMessage,
   createInitMessage,
   createReadyMessage,
+  createSubmitMessage,
   getMessageType,
   isAllowedParentOrigin,
-  resolveParentTargetOrigin,
 } from "./editorMessageChannel";
-export { editorSceneSchema, parseInitMessage } from "./editorSceneSchema";
+export {
+  parseEditorCompletionMessage,
+  type EditorCompletionMessage,
+} from "./editorCompletionSchema";
+export { editorSceneInputSchema, parseInitMessage } from "./editorSceneSchema";
 export type { ParseInitMessageResult } from "./editorSceneSchema";
-export { useEditorMessaging } from "./useEditorMessaging";
+export { normalizeSceneInput } from "./normalizeSceneInput";
+export { serializeSceneOutput } from "./serializeSceneOutput";
+export {
+  useEditorMessaging,
+  type EditorMessagingController,
+} from "./useEditorMessaging";

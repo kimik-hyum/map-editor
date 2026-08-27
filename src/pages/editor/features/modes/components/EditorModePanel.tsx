@@ -4,9 +4,18 @@ import type { LucideIcon } from "lucide-react";
 import { type RefObject, useRef, useState } from "react";
 import { MovingHighlight, MovingHighlightItem } from "@/shared/ui/MovingHighlight";
 import { cn } from "@/shared/utils/cn";
+import {
+  type RegionBoundaryStatus,
+  useRegionKinds,
+} from "@/pages/editor/features/regions";
+import { RadiusInputPopup } from "@/pages/editor/features/radius/components/RadiusInputPopup";
+import type { RadiusToolController } from "@/pages/editor/features/radius";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import { EditorMode } from "@/pages/editor/types/editorTypes";
-import { boundaryKindOptions } from "../model/boundaryKindModel";
+import {
+  createBoundaryKindOptions,
+  fallbackBoundaryKindOptions,
+} from "../model/boundaryKindModel";
 import { drawShapeOptions } from "../model/drawShapeModel";
 import { editorModeOptions } from "../model/editorModeModel";
 import { BoundaryKindPopup } from "./BoundaryKindPopup";
@@ -14,11 +23,27 @@ import { DrawShapePopup } from "./DrawShapePopup";
 
 // 좌측 도구 rail입니다. 활성 도구(EditorMode)가 맵 클릭의 의미를 결정합니다(기본: 선택).
 // 그리기·경계 도구는 버튼 옆에 하위 옵션 팝업을 띄우고, 선택된 옵션을 버튼 아이콘·이름에 반영합니다.
-export function EditorModePanel() {
+type EditorModePanelProps = {
+  boundaryStatus: RegionBoundaryStatus;
+  boundaryOperationError: string | null;
+  confirmDiscardDraw: () => Promise<boolean>;
+  radiusTool: RadiusToolController;
+};
+
+export function EditorModePanel({
+  boundaryStatus,
+  boundaryOperationError,
+  confirmDiscardDraw,
+  radiusTool,
+}: EditorModePanelProps) {
   const activeMode = useEditorStore((state) => state.activeMode);
   const setActiveMode = useEditorStore((state) => state.setActiveMode);
   const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
   const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
+  const { data: regionKinds } = useRegionKinds();
+  const boundaryKindOptions = regionKinds
+    ? createBoundaryKindOptions(regionKinds)
+    : fallbackBoundaryKindOptions;
 
   const activeBoundaryOption = boundaryKindOptions.find(
     (option) => option.id === activeBoundaryKind,
@@ -29,6 +54,7 @@ export function EditorModePanel() {
 
   const boundaryAnchorRef = useRef<HTMLButtonElement>(null);
   const drawAnchorRef = useRef<HTMLButtonElement>(null);
+  const radiusAnchorRef = useRef<HTMLButtonElement>(null);
   const [boundaryPopupOpen, setBoundaryPopupOpen] = useState(false);
   const [drawPopupOpen, setDrawPopupOpen] = useState(false);
 
@@ -47,9 +73,28 @@ export function EditorModePanel() {
             const next = value[0] as EditorMode | undefined;
 
             if (next) {
-              setActiveMode(next);
-              setBoundaryPopupOpen(next === EditorMode.Boundary);
-              setDrawPopupOpen(next === EditorMode.Draw);
+              void (async () => {
+                const context = useEditorStore.getState();
+                if (
+                  activeMode === EditorMode.Draw &&
+                  next !== EditorMode.Draw &&
+                  !(await confirmDiscardDraw())
+                ) {
+                  return;
+                }
+
+                const currentContext = useEditorStore.getState();
+                if (
+                  currentContext.sessionId !== context.sessionId ||
+                  currentContext.scene !== context.scene
+                ) {
+                  return;
+                }
+
+                setActiveMode(next);
+                setBoundaryPopupOpen(next === EditorMode.Boundary);
+                setDrawPopupOpen(next === EditorMode.Draw);
+              })();
               return;
             }
 
@@ -58,6 +103,8 @@ export function EditorModePanel() {
               setBoundaryPopupOpen(true);
             } else if (activeMode === EditorMode.Draw) {
               setDrawPopupOpen(true);
+            } else if (activeMode === EditorMode.Radius) {
+              radiusTool.openInput();
             }
           }}
         >
@@ -72,6 +119,8 @@ export function EditorModePanel() {
             } else if (tool.id === EditorMode.Draw) {
               subOption = activeDrawOption;
               anchorRef = drawAnchorRef;
+            } else if (tool.id === EditorMode.Radius) {
+              anchorRef = radiusAnchorRef;
             }
 
             const Icon = subOption?.icon ?? tool.icon;
@@ -111,13 +160,28 @@ export function EditorModePanel() {
 
       <BoundaryKindPopup
         anchor={boundaryAnchorRef}
+        boundaryStatus={boundaryStatus}
         onOpenChange={setBoundaryPopupOpen}
+        operationError={boundaryOperationError}
         open={boundaryPopupOpen && activeMode === EditorMode.Boundary}
       />
       <DrawShapePopup
         anchor={drawAnchorRef}
+        confirmDiscardDraw={confirmDiscardDraw}
         onOpenChange={setDrawPopupOpen}
         open={drawPopupOpen && activeMode === EditorMode.Draw}
+      />
+      <RadiusInputPopup
+        anchor={radiusAnchorRef}
+        canApply={radiusTool.canApply}
+        draft={radiusTool.draft}
+        error={radiusTool.error}
+        markerName={radiusTool.target?.name ?? null}
+        onApply={radiusTool.apply}
+        onCancel={radiusTool.cancel}
+        onDraftChange={radiusTool.setDraft}
+        onOpenChange={radiusTool.onOpenChange}
+        open={radiusTool.popupOpen && activeMode === EditorMode.Radius}
       />
     </>
   );

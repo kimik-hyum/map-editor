@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  EditabilityState,
   type EditorScene,
   type GeoJsonGeometry,
+  LockState,
   VisibilityState,
 } from "@/pages/editor/types/editorTypes";
 import {
@@ -158,36 +160,56 @@ function triangle(id: string, featureHidden = false) {
 }
 
 describe("projectSelectedVertices", () => {
-  // 보이는 편집 레이어(선택 피처 + 미선택 피처), 숨긴 레이어, 보이는 레이어의 숨긴 피처.
+  const editableBehavior = {
+    editability: EditabilityState.Editable,
+    lock: LockState.Unlocked,
+  };
+  // 보이는 편집 레이어(선택 피처 + 미선택 피처), 숨긴 레이어, 보이는 레이어의 숨긴 피처,
+  // 읽기 전용 레이어(선택돼도 핸들 제외).
   const scene = {
     layers: [
       {
         id: "visible",
         view: { visibility: VisibilityState.Visible },
+        behavior: editableBehavior,
         features: [triangle("selected-visible"), triangle("not-selected")],
       },
       {
         id: "hidden-layer",
         view: { visibility: VisibilityState.Hidden },
+        behavior: editableBehavior,
         features: [triangle("selected-in-hidden-layer")],
       },
       {
         id: "visible-2",
         view: { visibility: VisibilityState.Visible },
+        behavior: editableBehavior,
         features: [triangle("selected-hidden-feature", true)],
+      },
+      {
+        id: "readonly-layer",
+        view: { visibility: VisibilityState.Visible },
+        behavior: { editability: EditabilityState.Readonly, lock: LockState.Locked },
+        features: [triangle("selected-readonly")],
       },
     ],
   } as unknown as EditorScene;
 
-  it("선택 + 보이는 레이어 + 보이는 피처만 정점을 만든다", () => {
+  it("선택 + 보이는 편집 레이어 + 보이는 피처만 정점을 만든다", () => {
     const selected = new Set([
       "selected-visible",
       "selected-in-hidden-layer",
       "selected-hidden-feature",
+      "selected-readonly",
     ]);
     const result = projectSelectedVertices(scene, selected);
-    // 삼각형(닫힘 좌표 제외) 3정점만: 나머지는 미선택/숨긴 레이어/숨긴 피처로 제외.
+    // 삼각형(닫힘 좌표 제외) 3정점만: 나머지는 미선택/숨긴 레이어/숨긴 피처/읽기 전용 레이어로 제외.
     expect(result).toHaveLength(3);
+  });
+
+  it("읽기 전용 레이어의 피처는 선택돼도 핸들 정점을 만들지 않는다(하이라이트 전용)", () => {
+    const result = projectSelectedVertices(scene, new Set(["selected-readonly"]));
+    expect(result).toEqual([]);
   });
 
   it("선택이 없으면 빈 배열", () => {

@@ -47,7 +47,7 @@ async function openEditorViaDemo(page: Page): Promise<Page> {
   ]);
 
   await editorPage.waitForLoadState();
-  await expect(editorPage.getByText("편집 대상 권역")).toBeVisible();
+  await expect(editorPage.getByText("권역 A")).toBeVisible();
 
   return editorPage;
 }
@@ -83,35 +83,6 @@ test("에디터 지도에 샘플 폴리곤이 렌더링된다", async ({ page })
       { timeout: 5000 },
     )
     .toBeGreaterThanOrEqual(3);
-});
-
-test("레이어 눈 아이콘으로 레이어 표시 상태를 토글하고 지도 인스턴스를 유지한다", async ({
-  page,
-}) => {
-  const editorPage = await openEditorViaDemo(page);
-
-  const mapViewport = editorPage.locator(".ol-viewport");
-  const hideButton = editorPage.getByRole("button", { name: "레이어 숨기기" }).first();
-
-  await expect(mapViewport).toBeVisible();
-  await mapViewport.evaluate((element) => {
-    element.setAttribute("data-map-stability-check", "stable");
-  });
-  await expect(hideButton).toBeVisible();
-  await expect(hideButton).toHaveAttribute("aria-pressed", "true");
-
-  await hideButton.click();
-
-  const showButton = editorPage.getByRole("button", { name: "레이어 보이기" }).first();
-
-  await expect(showButton).toBeVisible();
-  await expect(showButton).toHaveAttribute("aria-pressed", "false");
-  await expect(mapViewport).toHaveAttribute("data-map-stability-check", "stable");
-
-  await showButton.click();
-
-  await expect(hideButton).toHaveAttribute("aria-pressed", "true");
-  await expect(mapViewport).toHaveAttribute("data-map-stability-check", "stable");
 });
 
 test("도형 눈 아이콘으로 표시 상태를 토글하고 지도 인스턴스를 유지한다", async ({

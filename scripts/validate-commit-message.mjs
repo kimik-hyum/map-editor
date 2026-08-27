@@ -49,11 +49,10 @@ const subject = match[3];
 const body = bodyLines.join("\n").trim();
 const koreanContent = [subject, body].filter(Boolean).join("\n");
 const hasHangul = /[가-힣]/.test(koreanContent);
-const hasLatinLetters = /[A-Za-z]/.test(koreanContent);
 
-if (!hasHangul || hasLatinLetters) {
+if (!hasHangul) {
   console.error(
-    "커밋 타입 뒤의 메시지는 한글로 작성해주세요. 영문 알파벳은 사용할 수 없습니다.",
+    "커밋 타입 뒤의 메시지는 한글을 최소 1자 이상 포함해야 합니다. 영문 알파벳 혼용은 허용됩니다.",
   );
   process.exit(1);
 }

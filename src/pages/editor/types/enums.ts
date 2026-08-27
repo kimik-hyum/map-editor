@@ -32,8 +32,8 @@ export enum GeometryKind {
 
 // 도형 종류 enum을 화면에 표시할 때 사용하는 공통 한글 라벨입니다.
 export const geometryKindLabels = {
-  [GeometryKind.Point]: "점",
-  [GeometryKind.MultiPoint]: "여러 점",
+  [GeometryKind.Point]: "마커",
+  [GeometryKind.MultiPoint]: "여러 마커",
   [GeometryKind.Polygon]: "폴리곤",
   [GeometryKind.MultiPolygon]: "멀티 폴리곤",
   [GeometryKind.Path]: "패스",
@@ -124,27 +124,9 @@ export enum EditorMode {
   Draw = "draw",
   // 행정동·법정동·우편 경계를 선택해 생성/더하기/빼기 합니다.(하위 옵션으로 구분)
   Boundary = "boundary",
-  // 마커(좌표) 기준 반경으로 폴리곤을 커팅합니다.
+  // 선택한 마커(좌표)를 중심으로 지정 반경의 원형 폴리곤을 추가합니다.
   Radius = "radius",
 }
-
-// 경계 도구에서 고르는 경계 데이터의 종류입니다.
-// 좌측 rail의 경계 도구를 선택하면 뜨는 작은 팝업이 이 값을 바꿉니다.
-export enum BoundaryKind {
-  // 행정 구역 기준 경계입니다.
-  AdminDong = "adminDong",
-  // 법정 구역 기준 경계입니다.
-  LegalDong = "legalDong",
-  // 우편번호 기준 경계입니다.
-  PostalCode = "postalCode",
-}
-
-// 경계 종류 enum을 화면에 표시할 때 사용하는 공통 한글 라벨입니다.
-export const boundaryKindLabels = {
-  [BoundaryKind.AdminDong]: "행정동",
-  [BoundaryKind.LegalDong]: "법정동",
-  [BoundaryKind.PostalCode]: "우편번호",
-} satisfies Record<BoundaryKind, string>;
 
 // 원본 대비 도형이 어떤 변경 상태인지 나타냅니다.
 export enum FeatureLifecycle {

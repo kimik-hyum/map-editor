@@ -1,18 +1,54 @@
 import { describe, expect, it } from "vitest";
-import { BoundaryKind, boundaryKindLabels } from "@/pages/editor/types/editorTypes";
-import { boundaryKindOptions } from "./boundaryKindModel";
+import {
+  createBoundaryKindOptions,
+  fallbackBoundaryKindOptions,
+} from "./boundaryKindModel";
 
-describe("boundaryKindOptions", () => {
-  it("모든 BoundaryKind를 한 번씩 포함한다", () => {
-    const ids = boundaryKindOptions.map((option) => option.id);
+describe("createBoundaryKindOptions", () => {
+  it("서버 카탈로그의 kind·label을 sort_order 순서로 메뉴로 만든다", () => {
+    const options = createBoundaryKindOptions([
+      {
+        kind: "sigungu",
+        label: "시군구",
+        level: 1,
+        min_zoom: 0,
+        sort_order: 0,
+        selectable: false,
+      },
+      {
+        kind: "custom",
+        label: "사용자 경계",
+        level: 4,
+        min_zoom: 15,
+        sort_order: 9,
+        selectable: true,
+      },
+      {
+        kind: "adminDong",
+        label: "행정동 서버 라벨",
+        level: 2,
+        min_zoom: 12,
+        sort_order: 1,
+        selectable: true,
+      },
+    ]);
 
-    expect(ids.length).toBe(Object.values(BoundaryKind).length);
-    expect(new Set(ids)).toEqual(new Set(Object.values(BoundaryKind)));
+    expect(options.map((option) => option.id)).toEqual(["adminDong", "custom"]);
+    expect(options.map((option) => option.label)).toEqual([
+      "행정동 서버 라벨",
+      "사용자 경계",
+    ]);
+    expect(options.map((option) => option.description)).toEqual([
+      "z12부터 표시",
+      "z15부터 표시",
+    ]);
   });
 
-  it("라벨은 boundaryKindLabels를 단일 출처로 사용한다", () => {
-    for (const option of boundaryKindOptions) {
-      expect(option.label).toBe(boundaryKindLabels[option.id]);
-    }
+  it("서버 조회 실패 때도 최소 KR fallback을 제공한다", () => {
+    expect(fallbackBoundaryKindOptions.map((option) => option.id)).toEqual([
+      "adminDong",
+      "legalDong",
+      "postalCode",
+    ]);
   });
 });

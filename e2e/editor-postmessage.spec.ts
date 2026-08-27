@@ -41,7 +41,7 @@ test("데모가 새 창 에디터에 postMessage로 scene을 전달하고 에디
   await expect(page.getByText("연결됨")).toBeVisible();
 
   // 수신한 scene이 실제로 에디터에 렌더링됐는지(동기화 지점) — 레이어 패널의 레이어 이름.
-  await expect(editorPage.getByText("편집 대상 권역")).toBeVisible();
+  await expect(editorPage.getByText("권역 A")).toBeVisible();
 
   // 1) 데모(부모)가 MAP_EDITOR_READY를 수신했는지
   const parentMessages = await page.evaluate(
@@ -61,7 +61,7 @@ test("데모가 새 창 에디터에 postMessage로 scene을 전달하고 에디
 
   const initData = initMessage?.data as {
     sessionId?: string;
-    scene?: { id?: string; name?: string; layers?: unknown[] };
+    scene?: { id?: string; name?: string; features?: unknown[] };
   };
   console.log(
     "[editor 수신 INIT]",
@@ -69,12 +69,36 @@ test("데모가 새 창 에디터에 postMessage로 scene을 전달하고 에디
       sessionId: initData?.sessionId,
       sceneId: initData?.scene?.id,
       sceneName: initData?.scene?.name,
-      layerCount: initData?.scene?.layers?.length,
+      featureCount: initData?.scene?.features?.length,
     }),
   );
 
   expect(initData?.sessionId).toBeTruthy();
   expect(initData?.scene?.id).toBe("sample-seoul-editor-scene");
   expect(initData?.scene?.name).toBe("서울 샘플 편집 씬");
-  expect(initData?.scene?.layers?.length ?? 0).toBeGreaterThan(0);
+  expect(initData?.scene?.features?.length ?? 0).toBeGreaterThan(0);
+
+  // 두 origin 모두 allowlist에 있지만, 첫 INIT 이후 opener가 다른 origin으로 이동하면 거부한다.
+  await page.goto("http://localhost:4174/demo");
+  await page.evaluate(() => {
+    window.open("", "map-editor-child")?.postMessage(
+      {
+        type: "MAP_EDITOR_INIT",
+        sessionId: "hijack-session",
+        scene: {
+          version: 2,
+          features: [
+            {
+              name: "다른 origin이 주입한 도형",
+              geometry: { type: "Point", coordinates: [127, 37.5] },
+            },
+          ],
+        },
+      },
+      "http://127.0.0.1:4174",
+    );
+  });
+
+  await expect(editorPage.getByText("권역 A")).toBeVisible();
+  await expect(editorPage.getByText("다른 origin이 주입한 도형")).toHaveCount(0);
 });

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  BoundaryKind,
   EditabilityState,
   FeatureLifecycle,
   GeometryKind,
@@ -10,6 +9,7 @@ import {
   ValidationState,
   VisibilityState,
   type DeepReadonly,
+  type EditorPolygonInputGeometry,
   type EditorScene,
   type GeoJsonGeometry,
 } from "../types/editorTypes";
@@ -21,20 +21,20 @@ describe("editorStore - 경계 종류", () => {
   });
 
   it("기본 경계 종류는 행정동이다", () => {
-    expect(useEditorStore.getState().activeBoundaryKind).toBe(BoundaryKind.AdminDong);
+    expect(useEditorStore.getState().activeBoundaryKind).toBe("adminDong");
   });
 
   it("setActiveBoundaryKind로 경계 종류를 바꾼다", () => {
-    useEditorStore.getState().setActiveBoundaryKind(BoundaryKind.PostalCode);
+    useEditorStore.getState().setActiveBoundaryKind("postalCode");
 
-    expect(useEditorStore.getState().activeBoundaryKind).toBe(BoundaryKind.PostalCode);
+    expect(useEditorStore.getState().activeBoundaryKind).toBe("postalCode");
   });
 
   it("resetScene은 경계 종류를 기본값으로 되돌린다", () => {
-    useEditorStore.getState().setActiveBoundaryKind(BoundaryKind.LegalDong);
+    useEditorStore.getState().setActiveBoundaryKind("legalDong");
     useEditorStore.getState().resetScene();
 
-    expect(useEditorStore.getState().activeBoundaryKind).toBe(BoundaryKind.AdminDong);
+    expect(useEditorStore.getState().activeBoundaryKind).toBe("adminDong");
   });
 });
 
@@ -251,6 +251,240 @@ describe("editorStore - 편집 히스토리", () => {
   // reconcileSelection(사라진 피처 선택 정리)은 delete/create 액션(#11·#12)이 생기면 테스트를 추가한다.
 });
 
+describe("editorStore - 도형 추가(붙여넣기·그리기)", () => {
+  // 공통 추가 프리미티브의 기본 검증에는 테스트 helper의 GEOMETRY_B(Polygon)를 사용한다.
+  const inputGeometry = GEOMETRY_B as EditorPolygonInputGeometry;
+
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_A));
+  });
+
+  it("새 도형을 추가하고 past 스냅샷을 쌓으며 dirty가 된다", () => {
+    useEditorStore.getState().addFeatures([{ geometry: inputGeometry }]);
+
+    const state = useEditorStore.getState();
+    expect(state.scene?.layers).toHaveLength(2);
+    expect(state.past).toHaveLength(1);
+    expect(state.dirty).toBe(true);
+  });
+
+  it("추가된 도형을 곧바로 선택 상태로 만든다", () => {
+    useEditorStore.getState().addFeatures([{ geometry: inputGeometry }]);
+
+    const state = useEditorStore.getState();
+    const addedId = state.scene?.layers[1]?.features[0]?.id;
+    expect(state.selectedFeatureIds).toEqual([addedId]);
+  });
+
+  it("추가된 도형은 Created lifecycle이다", () => {
+    useEditorStore.getState().addFeatures([{ geometry: inputGeometry }]);
+
+    const addedLayer = useEditorStore.getState().scene?.layers[1];
+    const added = addedLayer?.features[0];
+    expect(added?.state.lifecycle).toBe(FeatureLifecycle.Created);
+    expect(addedLayer?.behavior.deletable).toBe(true);
+  });
+
+  it("Path와 Point도 각각 새 레이어 하나로 추가한다", () => {
+    useEditorStore.getState().addFeatures([
+      {
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [126.9, 37.5],
+            [127, 37.6],
+          ],
+        },
+      },
+    ]);
+    useEditorStore
+      .getState()
+      .addFeatures([{ geometry: { type: "Point", coordinates: [126.95, 37.55] } }]);
+
+    const layers = useEditorStore.getState().scene?.layers ?? [];
+    expect(layers).toHaveLength(3);
+    expect(layers[1].features[0].geometryKind).toBe(GeometryKind.Path);
+    expect(layers[2].features[0].geometryKind).toBe(GeometryKind.Point);
+    expect(useEditorStore.getState().past).toHaveLength(2);
+  });
+
+  it("undo 한 번이면 추가가 함께 취소된다", () => {
+    useEditorStore.getState().addFeatures([{ geometry: inputGeometry }]);
+    useEditorStore.getState().undo();
+
+    const state = useEditorStore.getState();
+    expect(state.scene?.layers).toHaveLength(1);
+    expect(state.dirty).toBe(false);
+  });
+
+  it("빈 입력은 아무것도 바꾸지 않는다(no-op)", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().addFeatures([]);
+
+    expect(useEditorStore.getState().scene).toBe(before);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+  });
+});
+
+describe("editorStore - 로컬 생성 레이어 삭제", () => {
+  const inputGeometry = GEOMETRY_B as EditorPolygonInputGeometry;
+
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_A));
+  });
+
+  it("생성 레이어를 제거하고 선택을 정리하며 undo/redo 한 단계로 처리한다", () => {
+    useEditorStore
+      .getState()
+      .addFeatures([{ name: "임시 결과", geometry: inputGeometry }]);
+    const createdId = useEditorStore.getState().selectedFeatureIds[0];
+
+    useEditorStore.getState().deleteCreatedFeature(createdId);
+
+    expect(layerIds()).toEqual(["layer-1"]);
+    expect(useEditorStore.getState().selectedFeatureIds).toEqual([]);
+    expect(useEditorStore.getState().past).toHaveLength(2);
+
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().scene?.layers).toHaveLength(2);
+    useEditorStore.getState().redo();
+    expect(layerIds()).toEqual(["layer-1"]);
+  });
+
+  it("부모 원본은 layer의 deletable 값이 true여도 삭제하지 않는다", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().deleteCreatedFeature("feature-1");
+
+    expect(useEditorStore.getState().scene).toBe(before);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+  });
+
+  it("잠긴 생성 레이어는 삭제하지 않고, 잠금을 풀면 다시 삭제할 수 있다", () => {
+    useEditorStore.getState().addFeatures([{ geometry: inputGeometry }]);
+    const createdId = useEditorStore.getState().selectedFeatureIds[0];
+    const createdLayerId = useEditorStore.getState().scene?.layers[1]?.id ?? "";
+    useEditorStore.getState().setLayerLocked(createdLayerId, true);
+    const before = useEditorStore.getState().scene;
+
+    useEditorStore.getState().deleteCreatedFeature(createdId);
+    expect(useEditorStore.getState().scene).toBe(before);
+
+    useEditorStore.getState().setLayerLocked(createdLayerId, false);
+    useEditorStore.getState().deleteCreatedFeature(createdId);
+    expect(layerIds()).toEqual(["layer-1"]);
+  });
+});
+
+describe("editorStore - 도형 이름 변경", () => {
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_A));
+  });
+
+  it("이름을 정규화해 feature와 1:1 레이어에 반영하고 undo/redo한다", () => {
+    useEditorStore.getState().renameFeature("feature-1", "  배송 권역  ");
+
+    const state = useEditorStore.getState();
+    expect(state.scene?.layers[0]).toMatchObject({
+      name: "배송 권역",
+      features: [
+        {
+          name: "배송 권역",
+          state: { lifecycle: FeatureLifecycle.Updated },
+          feature: { properties: {} },
+        },
+      ],
+    });
+    expect(state.past).toHaveLength(1);
+    expect(state.dirty).toBe(true);
+
+    state.undo();
+    expect(useEditorStore.getState().scene?.layers[0]).toMatchObject({
+      name: "레이어",
+      features: [{ name: "도형" }],
+    });
+    useEditorStore.getState().redo();
+    expect(useEditorStore.getState().scene?.layers[0]?.features[0]?.name).toBe(
+      "배송 권역",
+    );
+  });
+
+  it("같은 이름·빈 이름·없는 도형은 no-op이다", () => {
+    const before = useEditorStore.getState().scene;
+
+    useEditorStore.getState().renameFeature("feature-1", "도형");
+    useEditorStore.getState().renameFeature("feature-1", "   ");
+    useEditorStore.getState().renameFeature("ghost", "새 이름");
+
+    expect(useEditorStore.getState().scene).toBe(before);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+    expect(useEditorStore.getState().dirty).toBe(false);
+  });
+
+  it("잠긴 도형은 거부하고 잠금을 풀면 부모 원본 이름도 변경한다", () => {
+    useEditorStore.getState().setLayerLocked("layer-1", true);
+    const lockedScene = useEditorStore.getState().scene;
+
+    useEditorStore.getState().renameFeature("feature-1", "잠긴 이름");
+    expect(useEditorStore.getState().scene).toBe(lockedScene);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+
+    useEditorStore.getState().setLayerLocked("layer-1", false);
+    useEditorStore.getState().renameFeature("feature-1", "수정된 원본");
+    expect(useEditorStore.getState().scene?.layers[0]?.features[0]?.name).toBe(
+      "수정된 원본",
+    );
+  });
+
+  it("이름 입력 pending은 권한을 확인하고 시작·종료한다", () => {
+    useEditorStore.getState().beginFeatureRename("feature-1");
+    expect(useEditorStore.getState().renamingFeatureId).toBe("feature-1");
+
+    useEditorStore
+      .getState()
+      .addFeatures([{ geometry: GEOMETRY_B as EditorPolygonInputGeometry }]);
+    const otherFeatureId = useEditorStore.getState().selectedFeatureIds[0];
+    useEditorStore.getState().beginFeatureRename(otherFeatureId);
+    expect(useEditorStore.getState().renamingFeatureId).toBe("feature-1");
+
+    useEditorStore.getState().endFeatureRename();
+    expect(useEditorStore.getState().renamingFeatureId).toBeNull();
+
+    useEditorStore.getState().setLayerLocked("layer-1", true);
+    useEditorStore.getState().beginFeatureRename("feature-1");
+    expect(useEditorStore.getState().renamingFeatureId).toBeNull();
+  });
+
+  it("새 scene을 받으면 같은 feature id의 이전 이름 입력 pending도 초기화한다", () => {
+    useEditorStore.getState().beginFeatureRename("feature-1");
+    expect(useEditorStore.getState().renamingFeatureId).toBe("feature-1");
+
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_B));
+    expect(useEditorStore.getState().renamingFeatureId).toBeNull();
+  });
+
+  it("undo/redo로 이름 편집 대상이 사라지면 pending을 정리한다", () => {
+    const inputGeometry = GEOMETRY_B as EditorPolygonInputGeometry;
+    useEditorStore.getState().addFeatures([{ geometry: inputGeometry }]);
+    const createdId = useEditorStore.getState().selectedFeatureIds[0];
+
+    useEditorStore.getState().beginFeatureRename(createdId);
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().renamingFeatureId).toBeNull();
+
+    useEditorStore.getState().redo();
+    useEditorStore.getState().deleteCreatedFeature(createdId);
+    useEditorStore.getState().undo();
+    useEditorStore.getState().beginFeatureRename(createdId);
+    expect(useEditorStore.getState().renamingFeatureId).toBe(createdId);
+
+    useEditorStore.getState().redo();
+    expect(useEditorStore.getState().renamingFeatureId).toBeNull();
+  });
+});
+
 describe("editorStore - 스냅샷 불변성(타입)", () => {
   it("scene 스냅샷과 히스토리 스택 타입은 readonly다(컴파일 타임 잠금)", () => {
     type Store = ReturnType<typeof useEditorStore.getState>;
@@ -284,5 +518,394 @@ describe("editorStore - 스냅샷 불변성(타입)", () => {
     const assertFuture: AssertFutureReadonly = true;
 
     expect([assertScene, assertPast, assertFuture]).toEqual([true, true, true]);
+  });
+});
+
+describe("editorStore - 도형 포커스 요청", () => {
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+  });
+
+  it("요청마다 번호가 증가해 같은 도형 연속 요청도 구분된다", () => {
+    useEditorStore.getState().requestFeatureFocus("a");
+    const first = useEditorStore.getState().featureFocusRequest;
+    useEditorStore.getState().requestFeatureFocus("a");
+    const second = useEditorStore.getState().featureFocusRequest;
+
+    expect(first).toMatchObject({ featureId: "a", requestId: 1 });
+    expect(second).toMatchObject({ featureId: "a", requestId: 2 });
+  });
+
+  it("resetScene은 포커스 요청을 비운다", () => {
+    useEditorStore.getState().requestFeatureFocus("a");
+    useEditorStore.getState().resetScene();
+
+    expect(useEditorStore.getState().featureFocusRequest).toBeNull();
+  });
+
+  it("처리한 요청 번호를 소비하면 요청이 비워진다", () => {
+    useEditorStore.getState().requestFeatureFocus("a");
+    const request = useEditorStore.getState().featureFocusRequest;
+
+    useEditorStore.getState().consumeFeatureFocusRequest(request?.requestId ?? 0);
+
+    expect(useEditorStore.getState().featureFocusRequest).toBeNull();
+  });
+
+  it("처리 중 새 요청이 들어왔으면 이전 번호 소비는 무시된다", () => {
+    useEditorStore.getState().requestFeatureFocus("a");
+    const stale = useEditorStore.getState().featureFocusRequest;
+    useEditorStore.getState().requestFeatureFocus("b");
+
+    useEditorStore.getState().consumeFeatureFocusRequest(stale?.requestId ?? 0);
+
+    expect(useEditorStore.getState().featureFocusRequest).toMatchObject({
+      featureId: "b",
+    });
+  });
+});
+
+describe("editorStore - 도형 잠금 토글", () => {
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_A));
+  });
+
+  it("잠그면 권한과 역할이 읽기 전용·참고로 함께 바뀐다", () => {
+    useEditorStore.getState().setLayerLocked("layer-1", true);
+
+    const layer = useEditorStore.getState().scene?.layers[0];
+    expect(layer?.behavior.lock).toBe(LockState.Locked);
+    expect(layer?.behavior.editability).toBe(EditabilityState.Readonly);
+    expect(layer?.behavior.deletable).toBe(false);
+    expect(layer?.roles).toEqual([LayerRole.Reference]);
+  });
+
+  it("해제하면 편집 가능 권한·역할로 되돌아간다", () => {
+    useEditorStore.getState().setLayerLocked("layer-1", true);
+    useEditorStore.getState().setLayerLocked("layer-1", false);
+
+    const layer = useEditorStore.getState().scene?.layers[0];
+    expect(layer?.behavior.lock).toBe(LockState.Unlocked);
+    expect(layer?.behavior.editability).toBe(EditabilityState.Editable);
+    expect(layer?.roles).toEqual([LayerRole.Editable]);
+  });
+
+  it("같은 상태로의 토글은 아무것도 바꾸지 않는다", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().setLayerLocked("layer-1", false);
+
+    expect(useEditorStore.getState().scene).toBe(before);
+  });
+
+  it("잠금 토글은 히스토리에 쌓이지 않는다(silent)", () => {
+    const pastBefore = useEditorStore.getState().past.length;
+    useEditorStore.getState().setLayerLocked("layer-1", true);
+
+    expect(useEditorStore.getState().past.length).toBe(pastBefore);
+  });
+
+  it("선택 상태는 잠금 토글에 영향받지 않는다", () => {
+    useEditorStore.getState().setSelectedFeatureIds(["feature-1"]);
+    useEditorStore.getState().setLayerLocked("layer-1", true);
+
+    expect(useEditorStore.getState().selectedFeatureIds).toEqual(["feature-1"]);
+  });
+});
+
+// 1레이어 = 1도형 평탄 스택: 두 레이어 각각에 도형 하나씩 둔 씬.
+function sampleTwoFeatureScene(): EditorScene {
+  const baseLayer = sampleScene(GEOMETRY_A).layers[0];
+  return {
+    version: 1,
+    layers: [
+      baseLayer,
+      {
+        ...baseLayer,
+        id: "layer-2",
+        name: "레이어 2",
+        view: { ...baseLayer.view, zIndex: 20 },
+        features: [
+          {
+            ...baseLayer.features[0],
+            id: "feature-2",
+            name: "도형 2",
+            feature: {
+              ...baseLayer.features[0].feature,
+              id: "feature-2",
+              geometry: GEOMETRY_A,
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function geometryOf(featureId: string): DeepReadonly<GeoJsonGeometry> | undefined {
+  const scene = useEditorStore.getState().scene;
+  for (const layer of scene?.layers ?? []) {
+    for (const feature of layer.features) {
+      if (feature.id === featureId) {
+        return feature.feature.geometry;
+      }
+    }
+  }
+  return undefined;
+}
+
+describe("editorStore - 다중 이동 배치 커밋", () => {
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleTwoFeatureScene());
+  });
+
+  it("여러 피처를 한 스냅샷(=undo 1단계)으로 묶어 커밋한다", () => {
+    useEditorStore.getState().updateFeaturesGeometry([
+      { featureId: "feature-1", geometry: GEOMETRY_B },
+      { featureId: "feature-2", geometry: GEOMETRY_B },
+    ]);
+
+    const state = useEditorStore.getState();
+    expect(state.past).toHaveLength(1);
+    expect(state.dirty).toBe(true);
+    expect(geometryOf("feature-1")).toEqual(GEOMETRY_B);
+    expect(geometryOf("feature-2")).toEqual(GEOMETRY_B);
+  });
+
+  it("undo 한 번이면 묶인 피처가 모두 함께 복원된다", () => {
+    useEditorStore.getState().updateFeaturesGeometry([
+      { featureId: "feature-1", geometry: GEOMETRY_B },
+      { featureId: "feature-2", geometry: GEOMETRY_B },
+    ]);
+    useEditorStore.getState().undo();
+
+    expect(geometryOf("feature-1")).toEqual(GEOMETRY_A);
+    expect(geometryOf("feature-2")).toEqual(GEOMETRY_A);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+    expect(useEditorStore.getState().dirty).toBe(false);
+  });
+
+  it("실제로 바뀐 피처가 없으면 히스토리·dirty를 만들지 않는다", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().updateFeaturesGeometry([
+      { featureId: "feature-1", geometry: GEOMETRY_A },
+      { featureId: "feature-2", geometry: GEOMETRY_A },
+    ]);
+
+    const state = useEditorStore.getState();
+    expect(state.scene).toBe(before);
+    expect(state.past).toHaveLength(0);
+    expect(state.dirty).toBe(false);
+  });
+
+  it("일부만 실제로 바뀌어도 한 스냅샷으로 쌓인다", () => {
+    useEditorStore.getState().updateFeaturesGeometry([
+      { featureId: "feature-1", geometry: GEOMETRY_B },
+      { featureId: "feature-2", geometry: GEOMETRY_A },
+    ]);
+
+    const state = useEditorStore.getState();
+    expect(state.past).toHaveLength(1);
+    expect(geometryOf("feature-1")).toEqual(GEOMETRY_B);
+    expect(geometryOf("feature-2")).toEqual(GEOMETRY_A);
+  });
+
+  it("빈 묶음은 아무것도 바꾸지 않는다(no-op)", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().updateFeaturesGeometry([]);
+
+    expect(useEditorStore.getState().scene).toBe(before);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+  });
+});
+
+describe("editorStore - 쌓임 값 일괄 갱신", () => {
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_A));
+  });
+
+  it("여러 레이어의 쌓임 값을 한 번에 바꾼다", () => {
+    useEditorStore.getState().updateLayerZIndexes([{ layerId: "layer-1", zIndex: 70 }]);
+
+    expect(useEditorStore.getState().scene?.layers[0]?.view.zIndex).toBe(70);
+  });
+
+  it("같은 값이면 아무것도 바꾸지 않는다", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().updateLayerZIndexes([{ layerId: "layer-1", zIndex: 10 }]);
+
+    expect(useEditorStore.getState().scene).toBe(before);
+  });
+
+  it("쌓임 값 갱신은 히스토리에 쌓이지 않는다(silent)", () => {
+    const pastBefore = useEditorStore.getState().past.length;
+    useEditorStore.getState().updateLayerZIndexes([{ layerId: "layer-1", zIndex: 70 }]);
+
+    expect(useEditorStore.getState().past.length).toBe(pastBefore);
+  });
+});
+
+const MULTI_POLYGON: GeoJsonGeometry = {
+  type: "MultiPolygon",
+  coordinates: [
+    [
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 0],
+      ],
+    ],
+    [
+      [
+        [5, 5],
+        [6, 5],
+        [6, 6],
+        [5, 5],
+      ],
+    ],
+  ],
+};
+
+function layerIds(): string[] {
+  return useEditorStore.getState().scene?.layers.map((layer) => layer.id) ?? [];
+}
+
+function geometryKindOf(featureId: string): string | undefined {
+  for (const layer of useEditorStore.getState().scene?.layers ?? []) {
+    for (const feature of layer.features) {
+      if (feature.id === featureId) {
+        return feature.geometryKind;
+      }
+    }
+  }
+  return undefined;
+}
+
+describe("editorStore - 병합/제거", () => {
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleTwoFeatureScene());
+  });
+
+  it("병합은 target을 결과로 바꾸고 other 피처/레이어를 제거한다(undo 1단계)", () => {
+    useEditorStore.getState().mergeFeatures("feature-1", "feature-2", GEOMETRY_B);
+
+    const state = useEditorStore.getState();
+    expect(state.past).toHaveLength(1);
+    expect(state.dirty).toBe(true);
+    expect(layerIds()).toEqual(["layer-1"]); // other(layer-2) 드롭
+    expect(geometryOf("feature-1")).toEqual(GEOMETRY_B);
+    expect(geometryOf("feature-2")).toBeUndefined();
+  });
+
+  it("병합 결과가 MultiPolygon이면 geometryKind와 layer.geometryKinds가 함께 갱신된다", () => {
+    useEditorStore.getState().mergeFeatures("feature-1", "feature-2", MULTI_POLYGON);
+
+    expect(geometryKindOf("feature-1")).toBe("multiPolygon");
+    expect(useEditorStore.getState().scene?.layers[0]?.geometryKinds).toEqual([
+      "multiPolygon",
+    ]);
+  });
+
+  it("외부 경계처럼 geometry만 교체해도 MultiPolygon 종류 메타데이터를 함께 갱신한다", () => {
+    useEditorStore.getState().updateFeatureGeometry("feature-1", MULTI_POLYGON);
+
+    expect(geometryKindOf("feature-1")).toBe("multiPolygon");
+    expect(useEditorStore.getState().scene?.layers[0]?.geometryKinds).toEqual([
+      "multiPolygon",
+    ]);
+    expect(useEditorStore.getState().past).toHaveLength(1);
+  });
+
+  it("병합 후 undo 한 번이면 other 피처와 레이어가 함께 복원된다", () => {
+    useEditorStore.getState().mergeFeatures("feature-1", "feature-2", GEOMETRY_B);
+    useEditorStore.getState().undo();
+
+    expect(layerIds()).toEqual(["layer-1", "layer-2"]);
+    expect(geometryOf("feature-1")).toEqual(GEOMETRY_A);
+    expect(geometryOf("feature-2")).toEqual(GEOMETRY_A);
+  });
+
+  it("선택된 other가 병합으로 사라지면 선택에서 정리된다", () => {
+    useEditorStore.getState().setSelectedFeatureIds(["feature-1", "feature-2"]);
+    useEditorStore.getState().mergeFeatures("feature-1", "feature-2", GEOMETRY_B);
+
+    expect(useEditorStore.getState().selectedFeatureIds).toEqual(["feature-1"]);
+  });
+
+  it("target/other 중 하나라도 없으면 아무것도 바꾸지 않는다(no-op)", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().mergeFeatures("feature-1", "ghost", GEOMETRY_B);
+
+    expect(useEditorStore.getState().scene).toBe(before);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+  });
+
+  it("생성 target이 부모 원본을 흡수하면 결과를 직접 삭제할 수 없게 고정한다", () => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_A));
+    useEditorStore.getState().addFeatures([
+      {
+        name: "임시 결과",
+        geometry: GEOMETRY_B as EditorPolygonInputGeometry,
+      },
+    ]);
+    const createdId = useEditorStore.getState().selectedFeatureIds[0];
+    const createdLayerId = useEditorStore.getState().scene?.layers[1]?.id ?? "";
+
+    useEditorStore.getState().mergeFeatures(createdId, "feature-1", MULTI_POLYGON);
+
+    const mergedLayer = useEditorStore.getState().scene?.layers[0];
+    expect(mergedLayer?.features[0]?.id).toBe(createdId);
+    expect(mergedLayer?.behavior.deletable).toBe(false);
+    expect(mergedLayer?.features[0]?.behavior?.deletable).toBe(false);
+
+    useEditorStore.getState().deleteCreatedFeature(createdId);
+    expect(useEditorStore.getState().scene?.layers).toHaveLength(1);
+
+    // 잠금 토글로도 원본을 흡수한 결과의 삭제 권한이 되살아나지 않습니다.
+    useEditorStore.getState().setLayerLocked(createdLayerId, true);
+    useEditorStore.getState().setLayerLocked(createdLayerId, false);
+    expect(useEditorStore.getState().scene?.layers[0]?.behavior.deletable).toBe(false);
+  });
+
+  it("제거는 결과 geometry로 target을 교체한다(cutter는 store가 모름, undo 1단계)", () => {
+    useEditorStore.getState().subtractFeature("feature-1", GEOMETRY_B);
+
+    const state = useEditorStore.getState();
+    expect(state.past).toHaveLength(1);
+    expect(geometryOf("feature-1")).toEqual(GEOMETRY_B);
+    expect(layerIds()).toEqual(["layer-1", "layer-2"]); // 레이어 보존
+  });
+
+  it("제거 결과가 비면(null) target 피처와 레이어가 삭제되고 선택이 정리된다", () => {
+    useEditorStore.getState().setSelectedFeatureIds(["feature-1"]);
+    useEditorStore.getState().subtractFeature("feature-1", null);
+
+    const state = useEditorStore.getState();
+    expect(state.past).toHaveLength(1);
+    expect(layerIds()).toEqual(["layer-2"]);
+    expect(geometryOf("feature-1")).toBeUndefined();
+    expect(state.selectedFeatureIds).toEqual([]);
+  });
+
+  it("없는 target 제거는 아무것도 바꾸지 않는다(no-op)", () => {
+    const before = useEditorStore.getState().scene;
+    useEditorStore.getState().subtractFeature("ghost", GEOMETRY_B);
+
+    expect(useEditorStore.getState().scene).toBe(before);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+  });
+
+  it("제거 결과가 기존 geometry와 같으면 히스토리를 만들지 않는다(겹침 없는 difference 등)", () => {
+    const before = useEditorStore.getState().scene;
+    // feature-1은 GEOMETRY_A. 같은 값으로 호출하면 실제 변화가 없어 no-op이어야 한다.
+    useEditorStore.getState().subtractFeature("feature-1", GEOMETRY_A);
+
+    expect(useEditorStore.getState().scene).toBe(before);
+    expect(useEditorStore.getState().past).toHaveLength(0);
   });
 });

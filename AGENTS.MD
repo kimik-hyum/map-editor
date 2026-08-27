@@ -1,5 +1,12 @@
 # Project Decisions
 
+## 규칙 문서의 단일 출처
+
+- 이 파일(`AGENTS.MD`)을 저장소 전역 작업 규칙과 프로젝트 결정의 단일 출처로 사용한다.
+- 루트 `CLAUDE.md`는 이 파일을 불러오기 위한 호환 래퍼로만 유지하며, 별도의 프로젝트 규칙을 중복 작성하지 않는다.
+- 하위 도메인의 추가 규칙은 해당 디렉터리의 `AGENTS.MD`에 두고, 같은 위치의 `CLAUDE.md`는 그 파일을 불러오는 역할만 맡는다.
+- 규칙이 충돌하면 더 가까운 디렉터리의 `AGENTS.MD`를 우선하되, 전역 Git·머지 규칙은 루트 `AGENTS.MD`를 따른다.
+
 - App base: Vite + React + TypeScript.
 - Routing: React Router (`react-router`) in declarative SPA mode.
 - Async state: TanStack Query (`@tanstack/react-query`) with root provider in `src/app/AppProviders.tsx`.
@@ -27,15 +34,24 @@
 - Formatting: `prettier`.
 - Linting: `@biomejs/biome`.
 - Map/editor: `ol`.
-- Geometry utilities: `@turf/area`, `@turf/length`, `@turf/bbox`, `@turf/helpers`.
+- Geometry utilities: `@turf/area`, `@turf/length`, `@turf/bbox`, `@turf/helpers`, `@turf/intersect`, `@turf/union`, `@turf/difference`.
+- Drag and drop: `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/modifiers` (패널 스택 재정렬용).
+- UI primitives: `@base-ui/react`, `lucide-react`, `react-rnd`.
 - Git hooks: `husky`.
+
+## Component Rules
+
+- 컴포넌트 파일(`.tsx`) 하나에는 컴포넌트 하나만 두고, 파일명은 컴포넌트명과 같게 한다.
+- 목록의 행처럼 보조 컴포넌트가 필요하면 같은 파일의 내부 함수로 두지 말고 별도 파일로 분리한다.
+- 훅 규칙 때문에 반복 항목을 컴포넌트로 추출해야 할 때도 같은 원칙을 따른다(추출한 행 컴포넌트는 자기 파일을 가진다).
+- 예외: 한 묶음으로 제공하는 compound 컴포넌트(`SegmentedTabs`, `MovingHighlight`)는 한 파일에서 함께 정의·export할 수 있다.
 
 ## Git Rules
 
 - 커밋 메시지는 Conventional Commit 타입을 사용한다. 예: `feat: 편집기 추가`, `chore: 설정 변경`.
 - 허용 타입: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
-- 타입과 선택적 scope를 제외한 메시지 본문은 한글로 작성한다.
-- 타입 뒤 메시지에 영문 알파벳이 포함되면 Husky `commit-msg` 훅에서 거부된다.
+- 타입과 선택적 scope를 제외한 메시지 본문은 한글을 최소 1자 이상 포함해야 한다.
+- 타입 뒤 메시지에는 영문 알파벳을 혼용할 수 있지만, 한글 없이 영문만 작성하면 Husky `commit-msg` 훅에서 거부된다.
 - 브랜치는 작업 성격을 앞에 두고 `/` 뒤에 짧은 설명 키워드를 kebab-case로 작성한다.
 - 브랜치 예시: `feat/layer-panel`, `fix/post-message-validation`, `docs/editor-roadmap`, `packages/turf-validation`, `refactor/openlayers-adapter`, `test/editor-store`.
 - 브랜치 이름에는 작업자나 도구 이름을 붙이지 않는다.

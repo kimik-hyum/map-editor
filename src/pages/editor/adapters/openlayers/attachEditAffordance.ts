@@ -66,11 +66,13 @@ function collectSelectedGeometries(
 export function attachEditAffordance(
   map: OpenLayersMap,
   options: EditAffordanceOptions,
-): () => void {
+) {
   const hitPx = options.hitPx ?? DEFAULT_HIT_PX;
   let frameId = 0;
   let pendingPixel: number[] | null = null;
   let last: EditAffordance = null;
+  // 비활성 모드(Select 외)에서는 affordance 판정을 멈추고 힌트를 내린다.
+  let active = true;
 
   const emit = (affordance: EditAffordance) => {
     if (affordance !== last) {
@@ -81,6 +83,10 @@ export function attachEditAffordance(
 
   const compute = () => {
     frameId = 0;
+    if (!active) {
+      emit(null);
+      return;
+    }
     const pixel = pendingPixel;
     const scene = options.getScene();
     const selectedIds = options.getSelectedIds();
@@ -111,6 +117,9 @@ export function attachEditAffordance(
   };
 
   const moveKey = map.on("pointermove", (event) => {
+    if (!active) {
+      return;
+    }
     if (event.dragging) {
       // 드래그(편집/팬) 중에는 힌트를 내린다.
       pendingPixel = null;
@@ -128,11 +137,26 @@ export function attachEditAffordance(
   };
   viewport.addEventListener("pointerleave", handlePointerLeave);
 
-  return () => {
+  const setActive = (next: boolean) => {
+    active = next;
+    if (!next) {
+      // 즉시 힌트를 내리고 예약된 계산을 취소한다.
+      pendingPixel = null;
+      if (frameId !== 0) {
+        cancelAnimationFrame(frameId);
+        frameId = 0;
+      }
+      emit(null);
+    }
+  };
+
+  const detach = () => {
     unByKey(moveKey);
     viewport.removeEventListener("pointerleave", handlePointerLeave);
     if (frameId !== 0) {
       cancelAnimationFrame(frameId);
     }
   };
+
+  return { setActive, detach };
 }

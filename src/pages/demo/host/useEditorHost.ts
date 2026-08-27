@@ -1,13 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { sampleEditorScene } from "../fixtures/sampleEditorScene";
+import { sampleSceneInput } from "../fixtures/sampleEditorScene";
 import {
   createInitMessage,
   getMessageType,
-  isAllowedParentOrigin,
+  parseEditorCompletionMessage,
 } from "@/pages/editor/messaging";
-import { EditorMessageType } from "@/pages/editor/types/editorTypes";
+import {
+  EditorMessageType,
+  type EditorSceneInput,
+} from "@/pages/editor/types/editorTypes";
 
-export type EditorHostStatus = "idle" | "opening" | "connected" | "closed" | "error";
+export type EditorHostStatus =
+  | "idle"
+  | "opening"
+  | "connected"
+  | "submitted"
+  | "cancelled"
+  | "closed"
+  | "error";
 
 const EDITOR_WINDOW_NAME = "map-editor-child";
 const EDITOR_WINDOW_FEATURES = "width=1280,height=860";
@@ -17,7 +27,9 @@ const EDITOR_WINDOW_FEATURES = "width=1280,height=860";
 export function useEditorHost() {
   const [status, setStatus] = useState<EditorHostStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [submittedScene, setSubmittedScene] = useState<EditorSceneInput | null>(null);
   const childRef = useRef<Window | null>(null);
+  const childOriginRef = useRef<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const closeTimerRef = useRef<number | null>(null);
 
@@ -28,9 +40,20 @@ export function useEditorHost() {
     }
   }, []);
 
+  const closeChild = useCallback(() => {
+    clearCloseTimer();
+    childRef.current?.close();
+    childRef.current = null;
+    childOriginRef.current = null;
+    sessionIdRef.current = null;
+  }, [clearCloseTimer]);
+
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
-      if (event.source !== childRef.current || !isAllowedParentOrigin(event.origin)) {
+      if (
+        event.source !== childRef.current ||
+        event.origin !== childOriginRef.current
+      ) {
         return;
       }
 
@@ -42,8 +65,8 @@ export function useEditorHost() {
         const sessionId = sessionIdRef.current ?? crypto.randomUUID();
         sessionIdRef.current = sessionId;
         childRef.current?.postMessage(
-          createInitMessage(sessionId, sampleEditorScene),
-          event.origin,
+          createInitMessage(sessionId, sampleSceneInput),
+          childOriginRef.current,
         );
         setStatus("connected");
         return;
@@ -53,6 +76,27 @@ export function useEditorHost() {
         const message = (event.data as { message?: string }).message;
         setErrorMessage(message ?? "에디터에서 오류를 반환했습니다.");
         setStatus("error");
+        return;
+      }
+
+      if (
+        messageType === EditorMessageType.Submit ||
+        messageType === EditorMessageType.Cancel
+      ) {
+        const message = parseEditorCompletionMessage(event.data);
+        if (!message || message.sessionId !== sessionIdRef.current) {
+          return;
+        }
+
+        if (message.type === EditorMessageType.Submit) {
+          setSubmittedScene(message.scene);
+          setStatus("submitted");
+        } else {
+          setSubmittedScene(null);
+          setStatus("cancelled");
+        }
+        // 메시지를 검증하고 결과를 보관한 뒤 부모가 자신이 연 팝업을 닫습니다.
+        closeChild();
       }
     }
 
@@ -61,10 +105,15 @@ export function useEditorHost() {
       window.removeEventListener("message", handleMessage);
       clearCloseTimer();
     };
-  }, [clearCloseTimer]);
+  }, [clearCloseTimer, closeChild]);
 
   const openEditor = useCallback(() => {
-    const child = window.open("/editor", EDITOR_WINDOW_NAME, EDITOR_WINDOW_FEATURES);
+    const editorUrl = new URL("/editor", window.location.href);
+    const child = window.open(
+      editorUrl.href,
+      EDITOR_WINDOW_NAME,
+      EDITOR_WINDOW_FEATURES,
+    );
 
     if (!child) {
       setStatus("error");
@@ -73,8 +122,10 @@ export function useEditorHost() {
     }
 
     childRef.current = child;
+    childOriginRef.current = editorUrl.origin;
     sessionIdRef.current = null;
     setErrorMessage(null);
+    setSubmittedScene(null);
     setStatus("opening");
 
     clearCloseTimer();
@@ -82,10 +133,11 @@ export function useEditorHost() {
       if (childRef.current?.closed) {
         clearCloseTimer();
         childRef.current = null;
+        childOriginRef.current = null;
         setStatus("closed");
       }
     }, 500);
   }, [clearCloseTimer]);
 
-  return { status, errorMessage, openEditor };
+  return { status, errorMessage, submittedScene, openEditor };
 }

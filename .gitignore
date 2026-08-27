@@ -8,6 +8,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+.env
+.env.*
+!.env.example
 dist
 dist-ssr
 playwright-report
@@ -17,6 +20,7 @@ test-results
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+.claude/
 .idea
 .DS_Store
 *.suo

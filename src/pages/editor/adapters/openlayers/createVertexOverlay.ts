@@ -6,7 +6,10 @@ import { fromLonLat } from "ol/proj";
 import VectorSource from "ol/source/Vector";
 import { Circle as CircleStyle, Fill, Stroke, Style } from "ol/style";
 import { editorDefaultTheme } from "@/pages/editor/theme/editorTheme";
-import { VisibilityState } from "@/pages/editor/types/editorTypes";
+import {
+  canEditLayerVertices,
+  VisibilityState,
+} from "@/pages/editor/types/editorTypes";
 import type {
   EditorCoordinate,
   EditorScene,
@@ -244,6 +247,11 @@ function collectSelectedProjectedVertices(
   for (const editorLayer of scene.layers) {
     if (editorLayer.view.visibility === VisibilityState.Hidden) {
       continue; // 숨긴 레이어는 본 레이어처럼 정점도 표시하지 않음
+    }
+    // 정점 핸들은 정점 편집이 가능한 레이어에만 그린다.
+    // (패널에서 읽기 전용/참고 도형을 선택하면 하이라이트만 — 못 끄는 헛핸들 방지)
+    if (!canEditLayerVertices(scene, editorLayer.id)) {
+      continue;
     }
     for (const feature of editorLayer.features) {
       if (!selectedIds.has(feature.id)) {

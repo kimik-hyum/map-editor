@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   EditabilityState,
+  FeatureLifecycle,
   type EditorScene,
   LockState,
   VisibilityState,
 } from "./editorTypes";
-import { canEditLayerVertices, canSelectLayer } from "./layerAccess";
+import {
+  canDeleteCreatedFeature,
+  canEditLayerVertices,
+  canRenameFeature,
+  canSelectLayer,
+} from "./layerAccess";
 
 function sceneWithLayer(state: {
   visibility: VisibilityState;
@@ -82,5 +88,83 @@ describe("canEditLayerVertices", () => {
     expect(canEditLayerVertices(sceneWithLayer(editableVisible), "missing")).toBe(
       false,
     );
+  });
+});
+
+describe("canDeleteCreatedFeature", () => {
+  const layer = sceneWithLayer(editableVisible).layers[0];
+  const created = {
+    state: { lifecycle: FeatureLifecycle.Created },
+  } as Parameters<typeof canDeleteCreatedFeature>[1];
+  const original = {
+    state: { lifecycle: FeatureLifecycle.Clean },
+  } as Parameters<typeof canDeleteCreatedFeature>[1];
+
+  it("삭제 권한이 있는 잠금 해제 레이어의 로컬 생성물만 허용한다", () => {
+    const deletable = {
+      ...layer,
+      behavior: { ...layer.behavior, deletable: true },
+    };
+    expect(canDeleteCreatedFeature(deletable, created)).toBe(true);
+    expect(canDeleteCreatedFeature(deletable, original)).toBe(false);
+  });
+
+  it("로컬 생성물이어도 잠겼거나 삭제 권한이 없으면 거부한다", () => {
+    const locked = {
+      ...layer,
+      behavior: {
+        ...layer.behavior,
+        lock: LockState.Locked,
+        deletable: false,
+      },
+    };
+    const denied = {
+      ...layer,
+      behavior: { ...layer.behavior, deletable: false },
+    };
+    expect(canDeleteCreatedFeature(locked, created)).toBe(false);
+    expect(canDeleteCreatedFeature(denied, created)).toBe(false);
+  });
+
+  it("원본을 흡수해 feature 수준 삭제가 금지된 생성물은 거부한다", () => {
+    const protectedCreated = {
+      ...created,
+      behavior: { deletable: false },
+    };
+    const deletable = {
+      ...layer,
+      behavior: { ...layer.behavior, deletable: true },
+    };
+    expect(canDeleteCreatedFeature(deletable, protectedCreated)).toBe(false);
+  });
+});
+
+describe("canRenameFeature", () => {
+  const editableLayer = sceneWithLayer(editableVisible).layers[0];
+  const cleanFeature = {
+    state: { lifecycle: FeatureLifecycle.Clean },
+  } as Parameters<typeof canRenameFeature>[1];
+
+  it("잠금 해제된 편집 가능 원본도 이름을 바꿀 수 있다", () => {
+    expect(canRenameFeature(editableLayer, cleanFeature)).toBe(true);
+  });
+
+  it("잠금·읽기 전용·삭제 상태에서는 이름을 바꿀 수 없다", () => {
+    const lockedLayer = {
+      ...editableLayer,
+      behavior: { ...editableLayer.behavior, lock: LockState.Locked },
+    };
+    const readonlyFeature = {
+      ...cleanFeature,
+      behavior: { editability: EditabilityState.Readonly },
+    };
+    const deletedFeature = {
+      ...cleanFeature,
+      state: { lifecycle: FeatureLifecycle.Deleted },
+    } as Parameters<typeof canRenameFeature>[1];
+
+    expect(canRenameFeature(lockedLayer, cleanFeature)).toBe(false);
+    expect(canRenameFeature(editableLayer, readonlyFeature)).toBe(false);
+    expect(canRenameFeature(editableLayer, deletedFeature)).toBe(false);
   });
 });

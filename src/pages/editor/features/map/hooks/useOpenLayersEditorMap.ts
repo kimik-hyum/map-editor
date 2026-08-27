@@ -4,13 +4,18 @@ import { unByKey } from "ol/Observable";
 import {
   attachEditAffordance,
   attachEditorSelection,
+  attachFeatureTranslate,
+  attachGeometryOpOverlays,
   attachVertexDetail,
   attachVertexModify,
   createOpenLayersMap,
   createVertexDetailOverlayLayer,
   createVertexOverlayLayer,
   type EditAffordance,
+  centerViewOnFeature,
   type EditorRenderState,
+  type GeometryOpOverlayHandle,
+  getViewportFeatureIds,
   invalidateFeatureStyles,
   type ProjectedVertex,
   projectSelectedVertices,
@@ -18,12 +23,106 @@ import {
   syncOpenLayersMapScene,
   syncVertexOverlay,
 } from "@/pages/editor/adapters/openlayers";
-import { getChangedSelectionIds } from "@/pages/editor/features/selection";
+import {
+  buildGeometryOpMarkerInputs,
+  deriveGeometryOpTargets,
+  type GeometryOpTargets,
+  intersectGeometries,
+  subtractGeometry,
+  unionGeometries,
+} from "@/pages/editor/features/geometry-ops";
+import { getToolActivation } from "@/pages/editor/features/modes";
+import { canUseAsRadiusTarget } from "@/pages/editor/features/radius";
+import {
+  deriveSelectionTargets,
+  getChangedSelectionIds,
+  isToggleSelectionModifier,
+  resolveSelection,
+} from "@/pages/editor/features/selection";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
-import type { EditorScene } from "@/pages/editor/types/editorTypes";
+import {
+  canSelectLayer,
+  EditorMode,
+  isPolygonalGeometry,
+  type EditorScene,
+  type GeoJsonGeometry,
+  type PolygonalGeometry,
+} from "@/pages/editor/types/editorTypes";
 
 // 호버 시 커서로부터 이 픽셀 반경 안의 정점을 상세로 드러냅니다(편집 grab 허용보다 크게).
 const VERTEX_DETAIL_RADIUS_PX = 28;
+
+const EMPTY_GEOMETRY_OP_TARGETS: GeometryOpTargets = {
+  targetId: null,
+  mergeCandidateIds: [],
+  subtractCandidateIds: [],
+  intersectCandidateIds: [],
+};
+
+// scene에서 피처의 폴리곤 geometry를 찾습니다(폴리곤이 아니면 null). 불리언 연산 입력 조회용.
+function getPolygonalGeometryFromScene(
+  scene: EditorScene | null,
+  featureId: string,
+): PolygonalGeometry | null {
+  if (!scene) {
+    return null;
+  }
+  for (const layer of scene.layers) {
+    for (const feature of layer.features) {
+      if (feature.id === featureId) {
+        const geometry = feature.feature.geometry as GeoJsonGeometry;
+        return isPolygonalGeometry(geometry) ? geometry : null;
+      }
+    }
+  }
+  return null;
+}
+
+// 병합(union): 두 폴리곤을 합친 결과로 target을 교체하고 other를 제거합니다(store 액션 호출).
+function applyMerge(targetId: string, otherId: string) {
+  const scene = useEditorStore.getState().scene as EditorScene | null;
+  const target = getPolygonalGeometryFromScene(scene, targetId);
+  const other = getPolygonalGeometryFromScene(scene, otherId);
+  if (!target || !other) {
+    return;
+  }
+  const result = unionGeometries(target, other);
+  if (result) {
+    useEditorStore.getState().mergeFeatures(targetId, otherId, result);
+  }
+}
+
+// 제거(difference): target에서 cutter와 겹친 부분을 뺍니다.
+// undefined = 연산 실패 → no-op(실패가 target 삭제로 둔갑하지 않게). null = 빈 결과 → store가 target 삭제.
+function applySubtract(targetId: string, cutterId: string) {
+  const scene = useEditorStore.getState().scene as EditorScene | null;
+  const target = getPolygonalGeometryFromScene(scene, targetId);
+  const cutter = getPolygonalGeometryFromScene(scene, cutterId);
+  if (!target || !cutter) {
+    return;
+  }
+  const result = subtractGeometry(target, cutter);
+  if (result === undefined) {
+    return;
+  }
+  useEditorStore.getState().subtractFeature(targetId, result);
+}
+
+// 교집합(intersection): target을 두 폴리곤이 실제로 공유하는 면으로 교체합니다.
+// other는 차집합의 cutter처럼 그대로 유지합니다. 후보가 stale해 겹침이 사라졌거나
+// Turf 연산이 실패한 경우 target을 삭제하지 않고 안전하게 no-op으로 둡니다.
+function applyIntersect(targetId: string, otherId: string) {
+  const scene = useEditorStore.getState().scene as EditorScene | null;
+  const target = getPolygonalGeometryFromScene(scene, targetId);
+  const other = getPolygonalGeometryFromScene(scene, otherId);
+  if (!target || !other) {
+    return;
+  }
+  const result = intersectGeometries(target, other);
+  if (result) {
+    useEditorStore.getState().updateFeatureGeometry(targetId, result);
+  }
+}
 
 export function useOpenLayersEditorMap() {
   const mapElementRef = useRef<HTMLElement | null>(null);
@@ -38,20 +137,70 @@ export function useOpenLayersEditorMap() {
   const renderStateRef = useRef<EditorRenderState>({
     selectedIds: new Set<string>(),
     hoveredId: null,
+    geometryOpFeatureIds: new Set<string>(),
   });
-  // 현재 선택된 도형의 전체 투영 정점. 호버 상세에서 커서 반경 질의에 사용합니다.
+  // 정점 편집(정점편집·삽입/삭제·힌트·정점 오버레이) 대상 id. "정확히 1개의 편집 가능 도형"일 때만 채워진다.
+  // 다중 선택·읽기전용·잠금·숨김이면 비어 있어 정점 편집 바인딩이 붙지 않는다(하이라이트는 selectedIds 전체).
+  const vertexEditTargetIdsRef = useRef<Set<string>>(new Set());
+  // Cmd/Ctrl+몸통 드래그 이동 대상 id. 선택된 것 중 편집 가능(보임+편집가능+잠금해제)인 도형 "전부"(다중 이동 허용).
+  const translateTargetIdsRef = useRef<Set<string>>(new Set());
+  // 현재 편집 대상 도형의 전체 투영 정점. 호버 상세에서 커서 반경 질의에 사용합니다.
   const selectedVerticesRef = useRef<ProjectedVertex[]>([]);
   // 정점 편집(Modify) 핸들. 선택 변경/씬 재빌드 때 선택 도형으로 재바인딩합니다.
   const modifyRef = useRef<ReturnType<typeof attachVertexModify> | null>(null);
+  // Cmd/Ctrl+몸통 드래그 이동(Translate) 핸들. Modify보다 먼저 등록해 정점 히트는 Modify가 가져간다.
+  const translateRef = useRef<ReturnType<typeof attachFeatureTranslate> | null>(null);
+  // 선택/affordance/상세 핸들. 모드 전환 시 setActive로 켜고 끈다.
+  const selectionRef = useRef<ReturnType<typeof attachEditorSelection> | null>(null);
+  const affordanceRef = useRef<ReturnType<typeof attachEditAffordance> | null>(null);
+  const detailRef = useRef<ReturnType<typeof attachVertexDetail> | null>(null);
   // 외곽선 클릭으로 정점을 추가한 직후 짧은 시간 동안 따라오는 selection 단일클릭을 무시한다(만료 시각, ms).
   const suppressSelectUntilRef = useRef(0);
+  // 불리언 연산 후보(병합/제거/교집합 대상). 마커 클릭 시점에 최신 target을 읽도록 ref로도 둔다.
+  const geometryOpTargetsRef = useRef<GeometryOpTargets>(EMPTY_GEOMETRY_OP_TARGETS);
+  // 후보 도형 위 ol/Overlay 마커 핸들. OL이 팬/줌 위치 추적을 맡는다.
+  const geometryOpOverlaysRef = useRef<ReturnType<
+    typeof attachGeometryOpOverlays
+  > | null>(null);
+
+  // 생성된 OL Map 인스턴스를 외부(예: 경계 레이어)에서 쓸 수 있게 노출한다.
+  const [map, setMap] = useState<OpenLayersMap | null>(null);
 
   const scene = useEditorStore((state) => state.scene);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
   const hoveredFeatureId = useEditorStore((state) => state.hoveredFeatureId);
+  const activeMode = useEditorStore((state) => state.activeMode);
+  const featureFocusRequest = useEditorStore((state) => state.featureFocusRequest);
 
   // 커서 위치 기준 편집 동작(정점 위=삭제, 외곽선=추가, 그 외=없음). 툴팁 분기에 사용.
   const [editAffordance, setEditAffordance] = useState<EditAffordance>(null);
+  // 도형 위 불리언 연산 마커의 ol/Overlay 핸들(EditorPage가 portal 렌더).
+  // 선택 도형을 뺀 후보마다 +(병합), 겹치면 교집합/-(제거). 위치 추적은 OL이 담당.
+  const [geometryOpOverlays, setGeometryOpOverlays] = useState<
+    GeometryOpOverlayHandle[]
+  >([]);
+  // 팬/줌으로 화면 범위가 바뀔 때마다 증가시켜, 불리언 연산 후보를 "화면 안"으로 다시 한정한다.
+  const [viewportTick, setViewportTick] = useState(0);
+
+  // 마커 클릭 핸들러: 선택 도형(target)과 클릭한 후보(otherId) 사이의 연산을 바로 적용한다.
+  const handleGeometryOpMerge = (otherId: string) => {
+    const targetId = geometryOpTargetsRef.current.targetId;
+    if (targetId) {
+      applyMerge(targetId, otherId);
+    }
+  };
+  const handleGeometryOpSubtract = (cutterId: string) => {
+    const targetId = geometryOpTargetsRef.current.targetId;
+    if (targetId) {
+      applySubtract(targetId, cutterId);
+    }
+  };
+  const handleGeometryOpIntersect = (otherId: string) => {
+    const targetId = geometryOpTargetsRef.current.targetId;
+    if (targetId) {
+      applyIntersect(targetId, otherId);
+    }
+  };
 
   useEffect(() => {
     if (!mapElementRef.current || mapRef.current) {
@@ -60,6 +209,7 @@ export function useOpenLayersEditorMap() {
 
     const map = createOpenLayersMap({ target: mapElementRef.current });
     mapRef.current = map;
+    setMap(map);
 
     const vertexLayer = createVertexOverlayLayer();
     map.addLayer(vertexLayer);
@@ -69,24 +219,68 @@ export function useOpenLayersEditorMap() {
     map.addLayer(detailLayer);
     detailLayerRef.current = detailLayer;
 
-    const detachSelection = attachEditorSelection(map, {
+    // 후보 도형 위 불리언 연산 마커는 ol/Overlay로 지도 좌표에 고정한다(OL이 팬/줌 위치 추적).
+    geometryOpOverlaysRef.current = attachGeometryOpOverlays(map);
+
+    const selection = attachEditorSelection(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
-      onSelect: (featureIds) => {
+      canPickFeature: (currentScene, layerId, featureId) => {
+        if (useEditorStore.getState().activeMode !== EditorMode.Radius) {
+          return canSelectLayer(currentScene, layerId);
+        }
+        const layer = currentScene.layers.find((candidate) => candidate.id === layerId);
+        return Boolean(
+          layer?.behavior.selectable && canUseAsRadiusTarget(currentScene, featureId),
+        );
+      },
+      onSelect: (featureId, modifiers) => {
         // 정점 추가 직후 짧은 시간 내 따라오는 단일클릭은 선택을 흔들지 않도록 무시한다(만료 후 자동 해제).
         if (performance.now() < suppressSelectUntilRef.current) {
           suppressSelectUntilRef.current = 0;
           return;
         }
-        useEditorStore.getState().setSelectedFeatureIds(featureIds);
+        // 교체/토글/해제 정책은 순수 함수가 결정한다(Cmd/Ctrl이면 토글, 빈 곳 보조키는 no-op).
+        const additive = isToggleSelectionModifier(modifiers);
+        const current = useEditorStore.getState().selectedFeatureIds;
+        const next = resolveSelection(current, featureId, additive);
+        // 같은 참조(보조키+빈 곳)면 store를 건드리지 않는다.
+        if (next !== current) {
+          useEditorStore.getState().setSelectedFeatureIds([...next]);
+        }
       },
       onHover: (featureId) => useEditorStore.getState().setHoveredFeatureId(featureId),
     });
 
-    const detachDetail = attachVertexDetail(map, {
+    const detail = attachVertexDetail(map, {
       layer: detailLayer,
       getVertices: () => selectedVerticesRef.current,
       radiusPx: VERTEX_DETAIL_RADIUS_PX,
     });
+
+    // Cmd/Ctrl+몸통 드래그 = 도형 통째 이동. Modify보다 "먼저" 추가해야 정점/외곽선은 Modify가 우선 잡는다.
+    const translate = attachFeatureTranslate(map, {
+      getScene: () => useEditorStore.getState().scene as EditorScene | null,
+      onDragStart: () => {
+        // 이동 중에는 정점 핸들/상세를 치운다(끝나면 onDragEnd에서 복구).
+        vertexLayerRef.current?.getSource()?.clear(true);
+        detailLayerRef.current?.getSource()?.clear(true);
+      },
+      // 한 드래그로 움직인 도형들을 한 커밋(=undo 1단계)으로 묶는다.
+      onCommit: (updates) => useEditorStore.getState().updateFeaturesGeometry(updates),
+      onDragEnd: () => {
+        if (!vertexLayerRef.current) {
+          return;
+        }
+        // 이동이 끝나면 정점 핸들을 복구한다 — 단일 편집 대상일 때만 채워지므로 다중 이동 후엔 자동으로 비워진다.
+        syncVertexOverlay(
+          vertexLayerRef.current,
+          useEditorStore.getState().scene as EditorScene | null,
+          vertexEditTargetIdsRef.current,
+          readVertexViewInfo(map),
+        );
+      },
+    });
+    translateRef.current = translate;
 
     const modify = attachVertexModify(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
@@ -108,7 +302,7 @@ export function useOpenLayersEditorMap() {
         syncVertexOverlay(
           vertexLayerRef.current,
           useEditorStore.getState().scene as EditorScene | null,
-          renderStateRef.current.selectedIds,
+          vertexEditTargetIdsRef.current,
           readVertexViewInfo(map),
         );
       },
@@ -116,35 +310,58 @@ export function useOpenLayersEditorMap() {
     modifyRef.current = modify;
 
     // 커서가 선택 도형의 정점 위/외곽선/그 외 중 어디인지 판정해 툴팁 분기에 사용.
-    const detachAffordance = attachEditAffordance(map, {
+    const affordance = attachEditAffordance(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
-      getSelectedIds: () => useEditorStore.getState().selectedFeatureIds,
+      // 편집 힌트는 "정점 편집 대상(정확히 1개의 편집 가능 도형)"에 대해서만 — 다중 선택이면 비어 있어 힌트가 없다.
+      getSelectedIds: () => Array.from(vertexEditTargetIdsRef.current),
       onChange: setEditAffordance,
     });
+
+    selectionRef.current = selection;
+    detailRef.current = detail;
+    affordanceRef.current = affordance;
 
     const moveEndKey = map.on("moveend", () => {
       if (!vertexLayerRef.current) {
         return;
       }
+      // 편집 비활성 모드에서는 팬/줌 후에도 정점 핸들을 되살리지 않는다.
+      if (!getToolActivation(useEditorStore.getState().activeMode).vertexEdit) {
+        return;
+      }
       syncVertexOverlay(
         vertexLayerRef.current,
         useEditorStore.getState().scene as EditorScene | null,
-        renderStateRef.current.selectedIds,
+        vertexEditTargetIdsRef.current,
         readVertexViewInfo(map),
       );
     });
 
+    // 팬/줌이 끝나면 화면 범위가 바뀌므로 병합/제거 후보 effect를 다시 돌린다(화면 안 한정 갱신).
+    const viewportMoveEndKey = map.on("moveend", () => {
+      setViewportTick((tick) => tick + 1);
+    });
+
     return () => {
-      detachSelection();
-      detachDetail();
+      selection.detach();
+      detail.detach();
+      translate.detach();
       modify.detach();
-      detachAffordance();
+      affordance.detach();
+      geometryOpOverlaysRef.current?.detach();
       unByKey(moveEndKey);
+      unByKey(viewportMoveEndKey);
       map.setTarget(undefined);
       mapRef.current = null;
+      setMap(null);
       vertexLayerRef.current = null;
       detailLayerRef.current = null;
       modifyRef.current = null;
+      translateRef.current = null;
+      selectionRef.current = null;
+      affordanceRef.current = null;
+      detailRef.current = null;
+      geometryOpOverlaysRef.current = null;
     };
   }, []);
 
@@ -154,21 +371,45 @@ export function useOpenLayersEditorMap() {
       return;
     }
 
+    // 씬(콘텐츠 레이어) 렌더는 모드와 무관하게 항상 동기화한다.
     syncOpenLayersMapScene(map, scene as EditorScene | null, renderStateRef.current);
-    selectedVerticesRef.current = projectSelectedVertices(
-      scene as EditorScene | null,
+
+    // scene이 바뀌면 편집 대상을 다시 계산한다(편집 가능 여부가 바뀔 수 있음).
+    // 정점 편집은 1개일 때만, 몸통 이동은 편집 가능한 선택 전부.
+    const { vertexEditTargetIds, translateTargetIds } = deriveSelectionTargets(
+      scene,
       renderStateRef.current.selectedIds,
     );
+    vertexEditTargetIdsRef.current = vertexEditTargetIds;
+    translateTargetIdsRef.current = translateTargetIds;
+
+    // 정점 핸들/편집 바인딩은 편집 활성 모드에서만, 그리고 "정점 편집 대상"에만 갱신한다.
+    const editing = getToolActivation(useEditorStore.getState().activeMode).vertexEdit;
+    selectedVerticesRef.current = projectSelectedVertices(
+      scene as EditorScene | null,
+      vertexEditTargetIds,
+    );
     detailLayerRef.current?.getSource()?.clear(true);
-    if (vertexLayerRef.current) {
+    if (editing && vertexLayerRef.current) {
       syncVertexOverlay(
         vertexLayerRef.current,
         scene as EditorScene | null,
-        renderStateRef.current.selectedIds,
+        vertexEditTargetIds,
         readVertexViewInfo(map),
       );
+    } else {
+      vertexLayerRef.current?.getSource()?.clear(true);
     }
-    modifyRef.current?.sync(renderStateRef.current.selectedIds);
+    if (editing) {
+      modifyRef.current?.sync(vertexEditTargetIds);
+      // 몸통 이동은 편집 가능한 선택 전부를 대상으로 한다(다중 이동).
+      translateRef.current?.sync(translateTargetIds);
+    }
+    // scene 변경으로 정점 편집 대상이 사라지면(예: 선택된 도형을 잠금/숨김) 편집 힌트도 즉시 내린다.
+    // (선택은 그대로라 selectedFeatureIds 이펙트가 돌지 않으므로 여기서 처리해야 한다.)
+    if (vertexEditTargetIds.size === 0) {
+      setEditAffordance(null);
+    }
   }, [scene]);
 
   useEffect(() => {
@@ -185,23 +426,42 @@ export function useOpenLayersEditorMap() {
     }
 
     renderStateRef.current.selectedIds = next;
-    selectedVerticesRef.current = projectSelectedVertices(
-      useEditorStore.getState().scene as EditorScene | null,
+    // 선택 하이라이트는 "선택 전체"에 대해, 모드와 무관하게 갱신한다(다중 선택 모두 강조).
+    invalidateFeatureStyles(map, changedIds);
+
+    // 편집 대상을 다시 계산한다. 정점 편집은 1개일 때만, 몸통 이동은 편집 가능한 선택 전부.
+    const currentScene = useEditorStore.getState().scene as EditorScene | null;
+    const { vertexEditTargetIds, translateTargetIds } = deriveSelectionTargets(
+      currentScene,
       next,
     );
+    vertexEditTargetIdsRef.current = vertexEditTargetIds;
+    translateTargetIdsRef.current = translateTargetIds;
+
+    // 정점 핸들/편집 바인딩은 편집 활성 모드에서만, 그리고 "정점 편집 대상"에만 갱신한다.
+    const editing = getToolActivation(useEditorStore.getState().activeMode).vertexEdit;
+    selectedVerticesRef.current = projectSelectedVertices(
+      currentScene,
+      vertexEditTargetIds,
+    );
     detailLayerRef.current?.getSource()?.clear(true);
-    invalidateFeatureStyles(map, changedIds);
-    if (vertexLayerRef.current) {
+    if (editing && vertexLayerRef.current) {
       syncVertexOverlay(
         vertexLayerRef.current,
-        useEditorStore.getState().scene as EditorScene | null,
-        next,
+        currentScene,
+        vertexEditTargetIds,
         readVertexViewInfo(map),
       );
+    } else {
+      vertexLayerRef.current?.getSource()?.clear(true);
     }
-    modifyRef.current?.sync(next);
-    // 선택이 비면 편집 힌트도 즉시 내린다(다음 포인터 이동을 기다리지 않도록).
-    if (next.size === 0) {
+    if (editing) {
+      modifyRef.current?.sync(vertexEditTargetIds);
+      // 몸통 이동은 편집 가능한 선택 전부를 대상으로 한다(다중 이동).
+      translateRef.current?.sync(translateTargetIds);
+    }
+    // 정점 편집 대상이 없으면(0개·다중·잠금 등) 편집 힌트를 즉시 내린다 — 1→2개로 바뀌는 순간 stale 툴팁 방지.
+    if (vertexEditTargetIds.size === 0) {
       setEditAffordance(null);
     }
   }, [selectedFeatureIds]);
@@ -224,5 +484,125 @@ export function useOpenLayersEditorMap() {
     invalidateFeatureStyles(map, changedIds);
   }, [hoveredFeatureId]);
 
-  return { mapElementRef, editAffordance };
+  // 패널 등에서 온 "이 도형으로 지도 이동" 요청을 소비한다(요청 번호가 바뀔 때마다 1회).
+  // 줌은 유지하고 중심만 옮긴다. 지도 클릭 선택은 요청을 만들지 않으므로 화면이 튀지 않는다.
+  // 처리 후 요청을 비워 리마운트 때 같은 요청이 재생되지 않게 한다.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !featureFocusRequest) {
+      return;
+    }
+    centerViewOnFeature(
+      map,
+      useEditorStore.getState().scene as EditorScene | null,
+      featureFocusRequest.featureId,
+    );
+    useEditorStore.getState().consumeFeatureFocusRequest(featureFocusRequest.requestId);
+  }, [featureFocusRequest]);
+
+  // 모드별 interaction 게이팅: Select는 선택/편집/affordance를, Radius는 기준 마커
+  // 선택만 켭니다. 나머지 도구에서는 모두 끕니다.
+  // 선택 상태 자체는 유지하고(하이라이트 보존), 편집 off 시 정점 핸들/상세/힌트만 내린다.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) {
+      return;
+    }
+
+    const activation = getToolActivation(activeMode);
+    selectionRef.current?.setActive(activation.selection);
+    modifyRef.current?.setActive(activation.vertexEdit);
+    translateRef.current?.setActive(activation.vertexEdit);
+    affordanceRef.current?.setActive(activation.affordance);
+    detailRef.current?.setActive(activation.vertexEdit);
+
+    // 선택/호버를 멈춘 모드에서는 잔여 호버 하이라이트를 내린다(선택 자체는 유지).
+    if (!activation.selection) {
+      useEditorStore.getState().setHoveredFeatureId(null);
+    }
+
+    if (activation.vertexEdit) {
+      // 편집 활성(예: Select 복귀): 정점 편집 대상(1개)으로 핸들을, 이동 대상(선택 전부)으로 Translate를 복구한다.
+      const currentScene = useEditorStore.getState().scene as EditorScene | null;
+      const { vertexEditTargetIds, translateTargetIds } = deriveSelectionTargets(
+        currentScene,
+        renderStateRef.current.selectedIds,
+      );
+      vertexEditTargetIdsRef.current = vertexEditTargetIds;
+      translateTargetIdsRef.current = translateTargetIds;
+      selectedVerticesRef.current = projectSelectedVertices(
+        currentScene,
+        vertexEditTargetIds,
+      );
+      if (vertexLayerRef.current) {
+        syncVertexOverlay(
+          vertexLayerRef.current,
+          currentScene,
+          vertexEditTargetIds,
+          readVertexViewInfo(map),
+        );
+      }
+      modifyRef.current?.sync(vertexEditTargetIds);
+      translateRef.current?.sync(translateTargetIds);
+    } else {
+      // 편집 비활성: 정점/상세 오버레이와 힌트를 즉시 내린다.
+      vertexLayerRef.current?.getSource()?.clear(true);
+      detailLayerRef.current?.getSource()?.clear(true);
+      setEditAffordance(null);
+    }
+  }, [activeMode]);
+
+  // 도형 위 불리언 연산 마커: 단일 폴리곤 선택 시 다른 폴리곤마다 병합(+),
+  // 실제 면적이 겹치면 교집합·제거(-) 마커를 띄운다.
+  // 선택/scene/모드가 바뀔 때마다 후보를 재도출해 ol/Overlay에 반영한다(위치의 팬·줌 추적은 OL이 담당).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: viewportTick은 의도적 재실행 트리거다 — effect는 getViewportFeatureIds(map)로 실시간 화면 범위를 읽어 본문에서 tick을 직접 참조하지 않지만, 팬/줌(moveend)마다 후보를 다시 화면 안으로 한정하려면 deps에 있어야 한다.
+  useEffect(() => {
+    const map = mapRef.current;
+    const overlays = geometryOpOverlaysRef.current;
+    if (!map || !overlays) {
+      return;
+    }
+
+    // 칩을 반영하고, 칩이 떠 있는 후보의 OL 이름 라벨을 가린다(칩이 이름을 대신 보여줌 → 중복 방지).
+    // 칩이 새로 뜨거나 사라진 도형만 스타일을 다시 평가하게 무효화한다.
+    const applyChips = (handles: GeometryOpOverlayHandle[]) => {
+      setGeometryOpOverlays(handles);
+      const nextChipIds = new Set(handles.map((handle) => handle.featureId));
+      const prevChipIds = renderStateRef.current.geometryOpFeatureIds ?? new Set();
+      const changedIds = getChangedSelectionIds(prevChipIds, nextChipIds);
+      renderStateRef.current.geometryOpFeatureIds = nextChipIds;
+      if (changedIds.length > 0) {
+        invalidateFeatureStyles(map, changedIds);
+      }
+    };
+
+    // 선택 모드가 아니면 마커를 모두 내리고 라벨을 복구한다.
+    if (!getToolActivation(activeMode).geometryOps) {
+      geometryOpTargetsRef.current = EMPTY_GEOMETRY_OP_TARGETS;
+      applyChips(overlays.sync([]));
+      return;
+    }
+
+    // 후보를 "화면 안" 피처로 한정한다(수천 개 로드돼도 보이는 것만 비교/마커 대상).
+    const targets = deriveGeometryOpTargets(
+      scene,
+      new Set(selectedFeatureIds),
+      getViewportFeatureIds(map),
+    );
+    geometryOpTargetsRef.current = targets;
+    applyChips(overlays.sync(buildGeometryOpMarkerInputs(scene, targets)));
+    // viewportTick: 팬/줌으로 화면이 바뀌면 후보를 다시 도출한다.
+  }, [scene, selectedFeatureIds, activeMode, viewportTick]);
+
+  return {
+    mapElementRef,
+    map,
+    editAffordance,
+    geometryOp: {
+      overlays: geometryOpOverlays,
+      onMerge: handleGeometryOpMerge,
+      onSubtract: handleGeometryOpSubtract,
+      onIntersect: handleGeometryOpIntersect,
+    },
+  };
 }

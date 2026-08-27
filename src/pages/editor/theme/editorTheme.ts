@@ -52,12 +52,36 @@ export const editorDefaultTheme = {
       strokeWidth: 3,
     },
   },
+  // 호버/선택 강조 파라미터입니다. 선택은 도형의 원래 색을 바꾸지 않고
+  // (원색 식별 보존) 선 굵기·채움 불투명도·바깥 halo로만 강조합니다.
+  emphasis: {
+    hovered: {
+      fillAlphaMultiplier: 1.5,
+    },
+    selected: {
+      fillAlphaMultiplier: 2.1,
+      strokeWidthDelta: 2,
+      // 본 선 아래에 깔리는 반투명 글로우. 같은 색 도형이 겹쳐도 선택이 구분된다.
+      haloColor: "rgba(79, 70, 229, 0.28)",
+      haloWidthDelta: 6,
+    },
+  },
   // 선택된 도형의 꼭짓점에 표시하는 핸들(동그라미) 스타일입니다.
   vertexHandle: {
     radius: 5,
     fillColor: "#ffffff",
     strokeColor: "#4f46e5",
     strokeWidth: 2,
+  },
+  // Point/MultiPoint 피처의 Lucide MapPin 기반 지도 마커입니다.
+  // 핀 끝이 실제 좌표를 가리키며, 이름 라벨은 핀 위쪽에 분리합니다.
+  pointMarker: {
+    width: 32,
+    selectedWidthDelta: 2,
+    strokeWidth: 2,
+    haloWidthDelta: 10,
+    haloStrokeWidth: 4,
+    labelOffsetY: -46,
   },
   label: {
     backgroundColor: "rgba(255, 255, 255, 0.82)",

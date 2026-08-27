@@ -1,173 +1,144 @@
 import { z } from "zod";
 import { editorDefaultTheme } from "../theme/editorTheme";
 import {
-  EditabilityState,
   EditorMessageType,
-  FeatureLifecycle,
-  GeometryKind,
-  LayerRole,
-  LockState,
-  SelectionState,
   ValidationIssueCode,
-  ValidationState,
-  VisibilityState,
   type EditorInitMessage,
+  type EditorSceneInput,
   type EditorValidationIssue,
 } from "../types/editorTypes";
+import { findDuplicateIds, normalizeSceneInput } from "./normalizeSceneInput";
 
-// postMessage로 들어온 EditorScene/EditorInitMessage의 런타임 구조를 Zod로 검증합니다.
-// 손으로 작성한 도메인 타입이 단일 소스이므로, 검증 통과 결과는 EditorInitMessage로 단언해 사용합니다.
+// 호스트가 보내는 "최소 입력"(EditorSceneInput, v2)의 런타임 구조를 Zod로 검증한 뒤
+// normalizeSceneInput으로 내부 EditorScene(리치 모델)으로 변환합니다.
+// 즉 검증 경계(이 파일)와 기본값 채움(normalizeSceneInput)을 분리합니다.
 
-const coordinateSchema = z.tuple([z.number(), z.number()]);
+const coordinateSchema = z.tuple([
+  z.number().min(-180).max(180),
+  z.number().min(-90).max(90),
+]);
+const multiPointCoordinatesSchema = z.array(coordinateSchema).min(1);
+const lineStringCoordinatesSchema = z.array(coordinateSchema).min(2);
+// 입력에서는 열린 3점을 허용하고 normalizeSceneInput이 마지막에 시작점을 붙여 링을 닫습니다.
+const linearRingCoordinatesSchema = z
+  .array(coordinateSchema)
+  .min(3)
+  .superRefine((ring, context) => {
+    const first = ring[0];
+    const last = ring[ring.length - 1];
+    const closed =
+      first !== undefined &&
+      last !== undefined &&
+      first[0] === last[0] &&
+      first[1] === last[1];
 
+    if (closed && ring.length < 4) {
+      context.addIssue({
+        code: "custom",
+        message: "닫힌 Polygon ring은 최소 4개 좌표가 필요합니다.",
+      });
+    }
+
+    const vertices = closed ? ring.slice(0, -1) : ring;
+    const distinctVertexCount = new Set(
+      vertices.map((coordinate) => `${coordinate[0]},${coordinate[1]}`),
+    ).size;
+    if (distinctVertexCount < 3) {
+      context.addIssue({
+        code: "custom",
+        message: "Polygon ring은 서로 다른 정점이 최소 3개 필요합니다.",
+      });
+    }
+  });
+const polygonCoordinatesSchema = z.array(linearRingCoordinatesSchema).min(1);
+
+// 입력 허용 범위를 실제 렌더링 범위와 맞춰 "통과하지만 안 보이는" geometry를 막습니다.
 const geometrySchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("Point"), coordinates: coordinateSchema }),
-  z.object({ type: z.literal("MultiPoint"), coordinates: z.array(coordinateSchema) }),
-  z.object({ type: z.literal("LineString"), coordinates: z.array(coordinateSchema) }),
+  z.object({
+    type: z.literal("Point"),
+    coordinates: coordinateSchema,
+  }),
+  z.object({
+    type: z.literal("MultiPoint"),
+    coordinates: multiPointCoordinatesSchema,
+  }),
+  z.object({
+    type: z.literal("LineString"),
+    coordinates: lineStringCoordinatesSchema,
+  }),
   z.object({
     type: z.literal("MultiLineString"),
-    coordinates: z.array(z.array(coordinateSchema)),
+    coordinates: z.array(lineStringCoordinatesSchema).min(1),
   }),
   z.object({
     type: z.literal("Polygon"),
-    coordinates: z.array(z.array(coordinateSchema)),
+    coordinates: polygonCoordinatesSchema,
   }),
   z.object({
     type: z.literal("MultiPolygon"),
-    coordinates: z.array(z.array(z.array(coordinateSchema))),
+    coordinates: z.array(polygonCoordinatesSchema).min(1),
   }),
 ]);
-
-const geoJsonFeatureSchema = z.object({
-  type: z.literal("Feature"),
-  id: z.union([z.string(), z.number()]).optional(),
-  geometry: geometrySchema,
-  properties: z.record(z.string(), z.unknown()).optional(),
-});
 
 const themeTokenSchema = z.enum(
   Object.keys(editorDefaultTheme.polygon) as [string, ...string[]],
 );
 
-const editorStyleSchema = z.object({
-  themeToken: themeTokenSchema.optional(),
-  strokeColor: z.string().optional(),
-  strokeWidth: z.number().optional(),
-  fillColor: z.string().optional(),
-  opacity: z.number().optional(),
-  labelColor: z.string().optional(),
-});
-
-const validationIssueSchema = z.object({
-  code: z.enum(ValidationIssueCode),
-  message: z.string().optional(),
-  featureId: z.string().optional(),
-  layerId: z.string().optional(),
-});
-
-const featureSchema = z.object({
-  id: z.string(),
-  name: z.string().optional(),
-  geometryKind: z.enum(GeometryKind),
-  feature: geoJsonFeatureSchema,
-  state: z.object({
-    selection: z.enum(SelectionState),
-    lifecycle: z.enum(FeatureLifecycle),
-    validation: z.enum(ValidationState),
-    issues: z.array(validationIssueSchema),
-  }),
-  view: z.object({ visibility: z.enum(VisibilityState) }).optional(),
-  behavior: z
-    .object({
-      editability: z.enum(EditabilityState).optional(),
-      selectable: z.boolean().optional(),
-      deletable: z.boolean().optional(),
-      draggable: z.boolean().optional(),
-      vertexEditable: z.boolean().optional(),
-    })
-    .optional(),
-  style: editorStyleSchema.optional(),
-});
-
-// LayerRole에서 제거됐지만 과거 v1 payload 호환을 위해 입력은 허용하고 내부에서 버리는 역할입니다.
-// (편집 가능 여부 같은 역량은 LayerRole이 아니라 EditabilityState로 표현되므로 역할 제거가 안전합니다.)
-const REMOVED_LAYER_ROLES = ["readonly"] as const;
-
-const layerRolesSchema = z
-  .array(z.union([z.enum(LayerRole), z.enum(REMOVED_LAYER_ROLES)]))
-  .transform((roles) =>
-    roles.filter(
-      (role): role is LayerRole =>
-        !(REMOVED_LAYER_ROLES as readonly string[]).includes(role),
-    ),
-  );
-
-const layerSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  roles: layerRolesSchema,
-  geometryKinds: z.array(z.enum(GeometryKind)),
-  view: z.object({
-    visibility: z.enum(VisibilityState),
-    opacity: z.number(),
-    zIndex: z.number(),
-    labelVisible: z.boolean(),
-  }),
-  behavior: z.object({
-    lock: z.enum(LockState),
-    editability: z.enum(EditabilityState),
-    selectable: z.boolean(),
-    deletable: z.boolean(),
-    draggable: z.boolean(),
-  }),
-  rules: z
-    .object({
-      preventSelfIntersection: z.boolean().optional(),
-      preventOverlap: z.boolean().optional(),
-      mustStayInsideLayerId: z.string().optional(),
-      snapEnabled: z.boolean().optional(),
-      snapTargetLayerIds: z.array(z.string()).optional(),
-      minAreaSquareMeters: z.number().optional(),
-      maxAreaSquareMeters: z.number().optional(),
-      minLengthMeters: z.number().optional(),
-      maxLengthMeters: z.number().optional(),
-    })
-    .optional(),
-  style: editorStyleSchema.optional(),
-  features: z.array(featureSchema),
-});
-
-export const editorSceneSchema = z.object({
-  version: z.literal(1),
+// INIT 입력의 도형 하나를 검증하는 스키마. 클립보드 붙여넣기도 같은 규칙으로 검증하도록 export 합니다.
+export const featureInputSchema = z.object({
+  geometry: geometrySchema,
   id: z.string().optional(),
   name: z.string().optional(),
-  layers: z.array(layerSchema),
+  locked: z.boolean().optional(),
+  visible: z.boolean().optional(),
+  themeToken: themeTokenSchema.optional(),
+  properties: z.record(z.string(), z.unknown()).optional(),
+});
+
+// 레이어 단계 없이 도형 목록만 받습니다(1레이어 = 1도형으로 내부에서 펼침).
+// 배열 순서 = 그리는 순서(뒤가 위).
+export const editorSceneInputSchema = z.object({
+  version: z.literal(2),
+  features: z.array(featureInputSchema),
+  id: z.string().optional(),
+  name: z.string().optional(),
   viewport: z
-    .object({
-      center: coordinateSchema.optional(),
-      zoom: z.number().optional(),
-      fitLayerIds: z.array(z.string()).optional(),
-      fitFeatureIds: z.array(z.string()).optional(),
-    })
+    .object({ center: coordinateSchema.optional(), zoom: z.number().optional() })
     .optional(),
 });
 
-const initMessageSchema = z.object({
+const initInputSchema = z.object({
   type: z.literal(EditorMessageType.Init),
-  sessionId: z.string(),
-  scene: editorSceneSchema,
+  sessionId: z.string().min(1),
+  scene: editorSceneInputSchema,
 });
 
 export type ParseInitMessageResult =
   | { ok: true; message: EditorInitMessage }
   | { ok: false; message: string; issues: EditorValidationIssue[] };
 
-// 임의의 postMessage 데이터를 EditorInitMessage로 검증합니다.
+// 임의의 postMessage 데이터를 검증 + normalize해 내부 EditorInitMessage로 만듭니다.
 export function parseInitMessage(data: unknown): ParseInitMessageResult {
-  const result = initMessageSchema.safeParse(data);
+  const result = initInputSchema.safeParse(data);
 
   if (result.success) {
-    return { ok: true, message: result.data as EditorInitMessage };
+    const { type, sessionId, scene } = result.data;
+    const normalized = normalizeSceneInput(scene as EditorSceneInput);
+
+    // 피처/레이어 id는 선택·수정의 전역 키이므로 중복이면 거부한다(명시 id 충돌 + 자동 생성 충돌).
+    const duplicates = findDuplicateIds(normalized);
+    if (duplicates.length > 0) {
+      return {
+        ok: false,
+        message: "scene에 중복된 id가 있습니다.",
+        issues: duplicates.map((id) => ({
+          code: ValidationIssueCode.InvalidPayload,
+          message: `중복 id: ${id}`,
+        })),
+      };
+    }
+
+    return { ok: true, message: { type, sessionId, scene: normalized } };
   }
 
   const issues: EditorValidationIssue[] = result.error.issues.map((issue) => ({

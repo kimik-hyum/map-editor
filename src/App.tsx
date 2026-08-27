@@ -5,9 +5,14 @@ import { DemoPage } from "./pages/demo/DemoPage";
 import { DocsLayout } from "./pages/docs/DocsLayout";
 import { DocsScreenPage } from "./pages/docs/DocsScreenPage";
 import { DocsStartPage } from "./pages/docs/DocsStartPage";
-import { EditorLayout } from "./pages/editor/EditorLayout";
 import { ScrollToTop } from "./shared/navigation/ScrollToTop";
 import "./App.css";
+
+const EditorLayout = lazy(() =>
+  import("./pages/editor/EditorLayout").then(({ EditorLayout }) => ({
+    default: EditorLayout,
+  })),
+);
 
 const EditorPage = lazy(() =>
   import("./pages/editor/EditorPage").then(({ EditorPage }) => ({
@@ -43,7 +48,20 @@ export function App() {
           <Route index element={<DemoPage />} />
         </Route>
 
-        <Route path="/editor" element={<EditorLayout />}>
+        <Route
+          path="/editor"
+          element={
+            <Suspense
+              fallback={
+                <div className="flex min-h-screen items-center justify-center font-extrabold text-ink-soft">
+                  불러오는 중...
+                </div>
+              }
+            >
+              <EditorLayout />
+            </Suspense>
+          }
+        >
           <Route index element={<EditorRoute />} />
         </Route>
 
