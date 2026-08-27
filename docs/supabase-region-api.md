@@ -1,5 +1,7 @@
 # Supabase 지역 경계 API — DB 구조 및 응답 규격
 
+현황 갱신: 2026-08-27
+
 maps-editor의 경계(Boundary) 도구가 시군구·행정동·법정동·우편번호 경계를 Supabase에서 내려받기 위한 DB 구조와 응답 규격을 정의한다.
 
 - **저장 좌표계:** EPSG:4326 (WGS84 경위도). 에디터 `EditorCoordinate = [lng, lat]`와 동일하므로 변환 없이 사용.
@@ -201,7 +203,7 @@ floor(zoom) ≥ (선택 kind의 min_zoom)  →  선택한 kind 반환 (detail)
 ## 4. 클라이언트 사용 메모
 
 - 좌표계: 응답은 4326 GeoJSON → OpenLayers에서 `3857`로 표시할 때만 reprojection. 저장/편집은 4326 그대로.
-- 호출: `@supabase/supabase-js`의 `.rpc('regions_by_view', { … })` 또는 anon 키를 헤더에 실은 raw `fetch`. 비동기 상태는 기존 TanStack Query로 래핑. **`region_boundary` 테이블은 직접 조회 불가** — 반드시 RPC 사용. `region_kind`는 직접 읽기 가능.
+- 호출: 현재 클라이언트는 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_ANON_KEY`를 사용한 raw `fetch`를 TanStack Query로 감싼다. **`region_boundary` 테이블은 직접 조회 불가** — 반드시 RPC를 사용하고, `region_kind`만 직접 읽는다.
 - 줌: 소수 줌을 그대로 보내도 된다(서버 `floor`). 클라이언트는 요청 bbox를 **해당 줌 타일 폭 격자로 스냅**해 보낸다 — 작은 팬으로는 재요청이 없고, 사용자 간 요청이 동일 키로 수렴해 이후 HTTP/서버 캐시 도입 시 그대로 캐시 키가 된다.
 - 편집 연산: `regions_by_view`의 표시 geometry는 절대 연산에 쓰지 않는다. `Feature.id`로 `region_by_id`를 호출해 원본 geometry를 받은 뒤 union/subtract를 수행한다.
 - 잘림: 응답의 `truncated=true`는 현재 bbox에서 상한까지만 받은 상태다. 우편번호처럼 밀도가 높은 kind에서 줌인/범위 축소 UI 신호로 사용한다.
@@ -219,4 +221,5 @@ floor(zoom) ≥ (선택 kind의 min_zoom)  →  선택한 kind 반환 (detail)
 - [x] `subdivision_code`(adm1) 추가 — 시도별 증분 적재 스코프 + 글로벌 계층/필터
 - [x] 서울(`subdivision_code='11'`) 경계 데이터 적재: 시군구/행정동/법정동/우편번호 (5179 → 4326, `ST_MakeValid`·`ST_Multi`)
 - [x] maps-editor 측 RPC 연동 및 경계 도구 결선 — 서버 카탈로그 메뉴, bbox 스냅·TanStack Query 캐시, 비선택 `sigungu` 표시, `truncated` 줌인 안내, 원본 기반 복사 병합/제거
+- [x] API 응답 Zod 검증, 카탈로그 실패 fallback, 원본 조회 중 session 교체 시 stale 결과 폐기 E2E
 - [ ] 시도별 증분 적재 운영(다운로드 → staging 검증 → 버전 스왑) + (필요 시) coarse tier 단순화
