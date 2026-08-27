@@ -43,6 +43,25 @@ npm run preview
 
 부모 서비스는 반대로 자신이 연 편집기의 고정된 origin만 메시지 대상으로 사용해야 합니다. 팝업에서 수신한 `event.origin`을 그대로 신뢰하거나 geometry 전송에 `"*"`를 사용하지 않습니다.
 
+## 편집 결과 반환
+
+사용자가 우측 상단의 **저장하고 완료**를 누르면 편집기는 연결된 부모의 정확한 origin으로 `MAP_EDITOR_SUBMIT`을 전송합니다. 반환하는 `scene`은 부모가 보낸 것과 같은 공개 `EditorSceneInput v2` 형식이며, 내부 `layers`, selection, validation, lifecycle 상태는 포함하지 않습니다. `features` 배열은 현재 지도 쌓임 순서이고 새 도형에는 에디터가 만든 ID가 포함됩니다.
+
+```ts
+{
+  type: "MAP_EDITOR_SUBMIT",
+  sessionId: "부모가 INIT에서 보낸 값",
+  scene: {
+    version: 2,
+    features: [
+      { id: "feature-0", geometry: { type: "Point", coordinates: [127, 37.5] } }
+    ]
+  }
+}
+```
+
+**취소**는 `{ type: "MAP_EDITOR_CANCEL", sessionId }`만 전송합니다. 미저장 변경이 있으면 먼저 확인하며, 유효하지 않은 도형이나 완료되지 않은 그리기·반경 작업이 있으면 저장 완료를 막습니다. 부모는 `event.source`, 에디터의 정확한 `event.origin`, 자신이 발급한 `sessionId`를 모두 확인한 뒤 결과를 반영하고 자신이 연 팝업을 닫아야 합니다.
+
 특정 부모만 허용해야 하는 배포에서는 빌드 환경 변수에 콤마로 구분한 정확한 origin을 지정합니다.
 
 ```bash

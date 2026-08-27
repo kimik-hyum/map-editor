@@ -9,6 +9,7 @@ import { useOpenLayersEditorMap } from "./features/map";
 import { EditorModePanel, getToolActivation } from "./features/modes";
 import { useRadiusTool } from "./features/radius";
 import { useRegionBoundaries, useRegionBoundaryOps } from "./features/regions";
+import { EditorSessionActions } from "./features/session";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
 import { useEditorHistoryShortcuts } from "./state/historyShortcuts";
@@ -50,7 +51,7 @@ export function EditorPage() {
     scopeKey: boundaryKind,
   });
 
-  useEditorMessaging();
+  const messaging = useEditorMessaging();
   // 그리기 중에는 정점 로컬 history를, sketch가 없으면 전역 scene history를 사용합니다.
   useEditorHistoryShortcuts({
     isInProgress: drawTool.isDrawingInProgress,
@@ -65,8 +66,11 @@ export function EditorPage() {
   });
 
   return (
-    <div className="grid h-screen grid-cols-[88px_minmax(0,1fr)] overflow-hidden">
-      <aside className="min-w-0 border-r border-line bg-white" aria-label="편집 도구">
+    <div className="grid h-screen grid-cols-[88px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] overflow-hidden">
+      <aside
+        className="min-h-0 min-w-0 border-r border-line bg-white"
+        aria-label="편집 도구"
+      >
         <EditorModePanel
           boundaryOperationError={regionOps.error}
           boundaryStatus={regionStatus}
@@ -77,7 +81,7 @@ export function EditorPage() {
       <main className="relative min-h-0 min-w-0">
         <section
           ref={mapElementRef}
-          className="peer h-screen w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
+          className="peer h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
           aria-label="OSM map editor"
           aria-describedby={activation.draw ? "draw-keyboard-instructions" : undefined}
           aria-keyshortcuts={
@@ -152,6 +156,12 @@ export function EditorPage() {
           </div>
         )}
       </main>
+      <EditorSessionActions
+        hasPendingToolAction={
+          drawTool.isDrawing || radiusTool.popupOpen || regionOps.busy
+        }
+        messaging={messaging}
+      />
     </div>
   );
 }
