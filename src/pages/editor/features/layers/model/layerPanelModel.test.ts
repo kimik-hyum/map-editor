@@ -150,7 +150,15 @@ describe("createLayerPanelViewModel", () => {
 
     const viewModel = createLayerPanelViewModel(scene);
 
-    expect(viewModel.rows[0].isLocked).toBe(true);
+    expect(viewModel.rows[0]).toMatchObject({ isLocked: true, canRename: false });
+  });
+
+  it("잠금 해제된 편집 가능 도형은 원본이어도 이름 변경 액션을 가진다", () => {
+    const scene = createScene([
+      createFeatureLayer({}, createFeature({ id: "editable" })),
+    ]);
+
+    expect(createLayerPanelViewModel(scene).rows[0].canRename).toBe(true);
   });
 
   it("잠금 해제된 로컬 생성 레이어에만 삭제 액션을 노출한다", () => {

@@ -22,8 +22,16 @@ import { FeatureStackRow } from "./FeatureStackRow";
 // 행 클릭 = 선택, 눈/자물쇠 = 토글, 순서 이동 = 끌기 핸들(⠿) 드래그(키보드는 핸들 포커스 후 스페이스+방향키).
 export function LayerPanel() {
   const viewModel = useLayerPanelViewModel();
-  const { toggleRowVisibility, toggleRowLock, selectFeature, reorderRow, deleteRow } =
-    useLayerPanelActions();
+  const {
+    toggleRowVisibility,
+    toggleRowLock,
+    selectFeature,
+    reorderRow,
+    deleteRow,
+    renameRow,
+    beginRenameRow,
+    endRenameRow,
+  } = useLayerPanelActions();
 
   // 드래그는 끌기 핸들에서만 시작된다. 약간의 이동 거리 제한으로 단순 클릭과 구분한다.
   const sensors = useSensors(
@@ -82,7 +90,15 @@ export function LayerPanel() {
                 {viewModel.rows.map((row) => (
                   <FeatureStackRow
                     key={row.id}
+                    isRenaming={viewModel.renamingFeatureId === row.id}
+                    renameBlocked={
+                      viewModel.renamingFeatureId !== null &&
+                      viewModel.renamingFeatureId !== row.id
+                    }
                     onDelete={deleteRow}
+                    onCancelRename={endRenameRow}
+                    onRename={renameRow}
+                    onStartRename={beginRenameRow}
                     row={row}
                     onSelect={selectFeature}
                     onToggleLock={toggleRowLock}

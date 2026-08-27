@@ -30,6 +30,7 @@ export function EditorPage() {
   const activeMode = useEditorStore((state) => state.activeMode);
   const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
   const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
+  const renameInProgress = useEditorStore((state) => state.renamingFeatureId !== null);
   const confirmationOpen = useConfirmationDialogOpen();
   const activation = getToolActivation(activeMode);
   const cursorHint = confirmationOpen
@@ -158,7 +159,10 @@ export function EditorPage() {
       </main>
       <EditorSessionActions
         hasPendingToolAction={
-          drawTool.isDrawing || radiusTool.popupOpen || regionOps.busy
+          drawTool.isDrawing ||
+          radiusTool.popupOpen ||
+          regionOps.busy ||
+          renameInProgress
         }
         messaging={messaging}
       />

@@ -1,6 +1,7 @@
 export * from "./scene";
 export * from "./deepReadonly";
 export * from "./enums";
+export * from "./featureName";
 export * from "./geometry";
 export * from "./geometryKind";
 export * from "./layerAccess";

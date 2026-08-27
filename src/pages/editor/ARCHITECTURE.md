@@ -139,7 +139,7 @@ flowchart TB
 - `features/*/model`에서 React, Zustand, OpenLayers를 import하지 않는다.
 - `adapters/openlayers`에서 React hook을 import하지 않는다.
 - store의 `scene`은 `EditorScene -> EditorLayer[] -> EditorFeature[]` 구조를 유지한다. 운용은 "1레이어 = 1도형" 평탄 스택이며(입력 = 도형 목록, 정규화가 1:1로 펼침), 패널·순서·잠금 기능은 이 평탄 모델을 전제로 설계한다.
-- geometry 변경만 history에 쌓는다. 선택, 호버, 패널 표시, 레이어 visibility 같은 view/UI 변경은 별도 정책이 없는 한 silent로 둔다.
+- 부모에게 반환되는 도메인 데이터 변경(geometry·이름·도형 추가/삭제·불리언 연산)은 history에 쌓는다. 선택, 호버, 패널 표시, 레이어 visibility 같은 view/UI 변경은 별도 정책이 없는 한 silent로 둔다.
 - scene 스냅샷은 읽기 전용 소비를 기본으로 보고, mutation은 store action 내부 경계에서만 수행한다.
 - 다른 상태에서 파생되는 값(예: 모드별 interaction 활성 플래그)은 store에 저장하지 않고 순수 함수로 계산한다(파생 상태 중복 금지).
 - 어댑터는 OpenLayers Interaction 클래스를 외부로 직접 노출하지 않고 기능별 핸들로 감싼다. 모든 attach 핸들은 `detach`를 제공하고, 동적 활성화나 재바인딩이 필요할 때만 `setActive` 또는 `sync`를 추가한다.

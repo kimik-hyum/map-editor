@@ -131,7 +131,7 @@ export function useEditorSessionActions({
 
   const isReady = scene !== null && sessionId !== null;
   const submitBlockedReason = hasPendingToolAction
-    ? "진행 중인 도형 작업을 먼저 완료하거나 취소하세요."
+    ? "진행 중인 편집을 먼저 완료하거나 취소하세요."
     : invalidFeatureCount > 0
       ? `오류가 있는 도형 ${invalidFeatureCount}개를 수정해야 완료할 수 있습니다.`
       : null;
