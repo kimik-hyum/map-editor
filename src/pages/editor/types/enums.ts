@@ -118,7 +118,7 @@ export enum SelectionState {
 // 좌측 모드 패널과 editorStore가 공유하는 단일 모드 개념이며, 화면 표시용 카탈로그는
 // features/modes/model/editorModeModel.ts의 editorModeOptions가 담당합니다.
 export enum EditorMode {
-  // 도형 선택·정점 편집(기본). 클릭=선택, editable 도형 더블클릭=정점 편집.
+  // 도형 선택·정점 편집(기본). 클릭=선택, editable 도형 단일 선택=정점 편집.
   Select = "select",
   // 폴리곤·패스를 새로 그립니다.
   Draw = "draw",
