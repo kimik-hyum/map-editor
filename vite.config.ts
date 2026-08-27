@@ -11,7 +11,10 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  server: {
+    allowedHosts: [".trycloudflare.com"],
+  },
   preview: {
-    allowedHosts: ["parenting-john-index-passion.trycloudflare.com"],
+    allowedHosts: [".trycloudflare.com"],
   },
 });

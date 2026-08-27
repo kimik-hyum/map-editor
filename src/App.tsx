@@ -3,8 +3,10 @@ import { Navigate, Route, Routes } from "react-router";
 import { DemoLayout } from "./pages/demo/DemoLayout";
 import { DemoPage } from "./pages/demo/DemoPage";
 import { DocsLayout } from "./pages/docs/DocsLayout";
-import { DocsPage } from "./pages/docs/DocsPage";
+import { DocsScreenPage } from "./pages/docs/DocsScreenPage";
+import { DocsStartPage } from "./pages/docs/DocsStartPage";
 import { EditorLayout } from "./pages/editor/EditorLayout";
+import { ScrollToTop } from "./shared/navigation/ScrollToTop";
 import "./App.css";
 
 const EditorPage = lazy(() =>
@@ -29,20 +31,24 @@ function EditorRoute() {
 
 export function App() {
   return (
-    <Routes>
-      <Route path="/" element={<DocsLayout />}>
-        <Route index element={<DocsPage />} />
-      </Route>
+    <>
+      <ScrollToTop />
+      <Routes>
+        <Route path="/" element={<DocsLayout />}>
+          <Route index element={<DocsStartPage />} />
+          <Route path="screen" element={<DocsScreenPage />} />
+        </Route>
 
-      <Route path="/demo" element={<DemoLayout />}>
-        <Route index element={<DemoPage />} />
-      </Route>
+        <Route path="/demo" element={<DemoLayout />}>
+          <Route index element={<DemoPage />} />
+        </Route>
 
-      <Route path="/editor" element={<EditorLayout />}>
-        <Route index element={<EditorRoute />} />
-      </Route>
+        <Route path="/editor" element={<EditorLayout />}>
+          <Route index element={<EditorRoute />} />
+        </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }

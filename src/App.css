@@ -1,3 +1,11 @@
+/* 사이드 메뉴 등 #앵커 이동을 애니메이션으로 처리합니다.
+   모션을 줄이도록 설정한 사용자는 기본(즉시 이동)을 유지합니다. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 :root {
   background-color: var(--color-surface);
   color: var(--color-ink);

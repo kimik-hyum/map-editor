@@ -1,4 +1,11 @@
-import { Link } from "react-router";
+import {
+  Callout,
+  DocsArticle,
+  DocsButton,
+  DocsCode,
+  DocsHero,
+  DocsSection,
+} from "@/pages/docs/components";
 import { useEditorHost, type EditorHostStatus } from "./host/useEditorHost";
 
 const statusLabels: Record<EditorHostStatus, string> = {
@@ -9,45 +16,46 @@ const statusLabels: Record<EditorHostStatus, string> = {
   error: "오류",
 };
 
+// 데모는 문서형 페이지라 docs 디자인 시스템(타이포·섹션 프리미티브)을 재사용합니다.
 export function DemoPage() {
   const { status, errorMessage, openEditor } = useEditorHost();
 
   return (
-    <main className="m-0 min-h-[calc(100vh-65px)] max-w-none px-12 py-14">
-      <p className="mb-2.5 mt-0 text-[13px] font-extrabold uppercase text-brand">
-        Host Demo
-      </p>
-      <h1 className="m-0 text-[clamp(40px,7vw,72px)] leading-[1.1] text-ink">
-        postMessage 예시 페이지
-      </h1>
-      <p className="mt-[18px] max-w-[640px] text-lg leading-[1.7] text-ink-soft">
-        이 페이지는 부모 서비스 역할을 합니다. 새 창으로 편집기를 열면 편집기가{" "}
-        <code className="font-bold">MAP_EDITOR_READY</code>를 보내고, 이 페이지가{" "}
-        <code className="font-bold">MAP_EDITOR_INIT</code>으로 샘플 scene을 전달합니다.
-      </p>
+    <DocsArticle>
+      <DocsHero
+        description={
+          <>
+            이 페이지는 부모 서비스 역할을 합니다. 새 창으로 편집기를 열면 편집기가{" "}
+            <DocsCode>MAP_EDITOR_READY</DocsCode>를 보내고, 이 페이지가{" "}
+            <DocsCode>MAP_EDITOR_INIT</DocsCode>으로 샘플 scene을 전달합니다.
+          </>
+        }
+        eyebrow="Host Demo"
+        id="host-overview"
+        title="postMessage 예시 페이지"
+      />
 
-      <div className="mt-7 flex items-center gap-4">
-        <button
-          className="rounded-lg bg-brand px-5 py-2.5 font-extrabold text-white transition-colors hover:bg-teal-800"
-          onClick={openEditor}
-          type="button"
-        >
-          편집기 새 창으로 열기
-        </button>
-        <span className="text-sm font-bold text-ink-soft" aria-live="polite">
-          상태: {statusLabels[status]}
-        </span>
-      </div>
+      <DocsSection id="launch-editor">
+        <div className="flex flex-wrap items-center gap-4">
+          <DocsButton onClick={openEditor}>편집기 새 창으로 열기</DocsButton>
+          {/* 실행 상태를 읽어 주는 라이브 영역이라 타이포 컴포넌트 대신 span을 유지합니다. */}
+          <span aria-live="polite" className="text-sm font-bold text-ink-soft">
+            상태: {statusLabels[status]}
+          </span>
+        </div>
 
-      {errorMessage ? (
-        <p className="mt-3 max-w-[640px] rounded-md bg-rose-50 px-3 py-2 text-sm font-bold text-rose-700">
-          {errorMessage}
-        </p>
-      ) : null}
+        {errorMessage ? (
+          <Callout className="mt-5 max-w-[640px]" tone="error">
+            {errorMessage}
+          </Callout>
+        ) : null}
 
-      <Link className="mt-7 inline-flex font-extrabold text-brand" to="/">
-        Docs로 돌아가기
-      </Link>
-    </main>
+        <div className="mt-9">
+          <DocsButton to="/" variant="secondary">
+            Docs로 돌아가기
+          </DocsButton>
+        </div>
+      </DocsSection>
+    </DocsArticle>
   );
 }
