@@ -85,8 +85,8 @@ const nextDocs: NextDoc[] = [
     title: "도형 편집 방법",
   },
   {
-    badge: "준비 중",
     description: "부모 서비스와 scene을 주고받는 postMessage 규약을 정리합니다.",
+    href: "/integration",
     icon: Send,
     title: "postMessage 연동",
   },

@@ -1,5 +1,8 @@
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { useLocation } from "react-router";
+
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 // 라우트(pathname) 전환 시 페이지를 즉시 맨 위로 되돌립니다.
 // 같은 페이지 안 #앵커 이동(해시만 변경)에는 개입하지 않고,
@@ -8,7 +11,7 @@ export function ScrollToTop() {
   const { pathname } = useLocation();
   const previousPathname = useRef(pathname);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (previousPathname.current === pathname) {
       return;
     }

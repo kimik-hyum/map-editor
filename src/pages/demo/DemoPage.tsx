@@ -3,6 +3,7 @@ import {
   DocsArticle,
   DocsButton,
   DocsCode,
+  DocsCodeBlock,
   DocsHero,
   DocsSection,
 } from "@/pages/docs/components";
@@ -63,12 +64,14 @@ export function DemoPage() {
               내부 레이어 상태를 제외한 <DocsCode>EditorSceneInput v2</DocsCode>
               형식입니다.
             </p>
-            <pre
-              className="max-h-[460px] overflow-auto rounded-xl bg-slate-950 p-4 text-xs leading-5 text-slate-100"
-              data-testid="submitted-scene"
-            >
-              {JSON.stringify(submittedScene, null, 2)}
-            </pre>
+            <span data-testid="submitted-scene" hidden>
+              {JSON.stringify(submittedScene)}
+            </span>
+            <DocsCodeBlock
+              code={JSON.stringify(submittedScene, null, 2)}
+              language="json"
+              title="MAP_EDITOR_SUBMIT.scene"
+            />
           </section>
         ) : null}
 

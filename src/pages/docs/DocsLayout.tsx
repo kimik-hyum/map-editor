@@ -1,4 +1,4 @@
-import { PanelsTopLeft, Rocket } from "lucide-react";
+import { Cable, PanelsTopLeft, Rocket } from "lucide-react";
 import { Outlet } from "react-router";
 import { AppPageContent } from "@/shared/layout/AppPageContent";
 import { AppNavigation } from "@/shared/navigation/AppNavigation";
@@ -26,6 +26,20 @@ const docsMenuGroups: AppSideMenuGroup[] = [
       { href: "#tools", label: "도구 레일" },
     ],
     to: "/screen",
+  },
+  {
+    icon: Cable,
+    label: "부모창 연동",
+    sections: [
+      { href: "#integration-overview", label: "연동 개요" },
+      { href: "#host-flow", label: "부모창 역할" },
+      { href: "#scene-input", label: "입력 scene" },
+      { href: "#runtime-schema", label: "런타임 검증" },
+      { href: "#host-code", label: "전체 예제" },
+      { href: "#use-result", label: "결과 사용" },
+      { href: "#message-reference", label: "메시지 계약" },
+    ],
+    to: "/integration",
   },
 ];
 
