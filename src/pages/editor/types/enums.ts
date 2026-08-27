@@ -4,8 +4,6 @@ export enum EditorMessageType {
   Ready = "MAP_EDITOR_READY",
   // 부모 창이 에디터에 초기 씬, 레이어, 도형 데이터를 전달합니다.
   Init = "MAP_EDITOR_INIT",
-  // 편집 중 도형이나 레이어 상태가 변경되었음을 알립니다.
-  Change = "MAP_EDITOR_CHANGE",
   // 사용자가 편집 결과를 확정해 부모 창으로 반환합니다.
   Submit = "MAP_EDITOR_SUBMIT",
   // 사용자가 편집을 취소했음을 알립니다.
