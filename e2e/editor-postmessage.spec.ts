@@ -78,6 +78,10 @@ test("데모가 새 창 에디터에 postMessage로 scene을 전달하고 에디
   expect(initData?.scene?.name).toBe("서울 샘플 편집 씬");
   expect(initData?.scene?.features?.length ?? 0).toBeGreaterThan(0);
 
+  if (process.env.E2E_BASE_URL) {
+    return;
+  }
+
   // 두 origin 모두 allowlist에 있지만, 첫 INIT 이후 opener가 다른 origin으로 이동하면 거부한다.
   await page.goto("http://localhost:4174/demo");
   await page.evaluate(() => {

@@ -48,3 +48,19 @@ npm run preview
 ```bash
 VITE_EDITOR_PARENT_ORIGINS=https://service.example.com,https://admin.example.com
 ```
+
+## Cloudflare Pages 배포
+
+Wrangler CLI를 설치하고 로그인한 뒤 `maps-editor` Pages 프로젝트에 현재 브랜치를 배포합니다. `main`에서 실행하면 production deployment가 됩니다.
+
+```bash
+npm install --global wrangler@4.126.0
+wrangler login
+npm run deploy:cloudflare
+```
+
+운영 배포의 postMessage 연결은 다음처럼 직접 검증할 수 있습니다.
+
+```bash
+E2E_BASE_URL=https://maps-editor.pages.dev npm run test:e2e -- e2e/editor-postmessage.spec.ts
+```
