@@ -19,7 +19,7 @@
 - Basemap: OSM tile layer.
 - Geometry standard: GeoJSON.
 - Geometry utilities: Turf, imported as small packages only.
-- Initial Turf packages: `@turf/area`, `@turf/length`, `@turf/bbox`, `@turf/helpers`.
+- Turf packages: `@turf/area`, `@turf/length`, `@turf/bbox`, `@turf/helpers`, `@turf/circle`, `@turf/intersect`, `@turf/union`, `@turf/difference`.
 - Add validation packages later if needed: `@turf/kinks`, `@turf/clean-coords`, `@turf/rewind`.
 
 ## Installed Packages
@@ -34,7 +34,7 @@
 - Formatting: `prettier`.
 - Linting: `@biomejs/biome`.
 - Map/editor: `ol`.
-- Geometry utilities: `@turf/area`, `@turf/length`, `@turf/bbox`, `@turf/helpers`, `@turf/intersect`, `@turf/union`, `@turf/difference`.
+- Geometry utilities: `@turf/area`, `@turf/length`, `@turf/bbox`, `@turf/helpers`, `@turf/circle`, `@turf/intersect`, `@turf/union`, `@turf/difference`.
 - Drag and drop: `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/modifiers` (패널 스택 재정렬용).
 - UI primitives: `@base-ui/react`, `lucide-react`, `react-rnd`.
 - Documentation syntax highlighting: `prism-react-renderer`.
