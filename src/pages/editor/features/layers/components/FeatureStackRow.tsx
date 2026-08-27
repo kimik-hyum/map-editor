@@ -1,9 +1,10 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Check, GripVertical, Lock, LockOpen, Pencil, Trash2, X } from "lucide-react";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { isToggleSelectionModifier } from "@/pages/editor/features/selection";
 import {
+  getFeatureNameValidationError,
   MAX_FEATURE_NAME_LENGTH,
   normalizeFeatureName,
 } from "@/pages/editor/types/editorTypes";
@@ -18,6 +19,9 @@ type FeatureStackRowProps = {
   onSelect: (row: FeatureStackRowViewModel, additive: boolean) => void;
   onDelete: (row: FeatureStackRowViewModel) => Promise<void>;
   onRename: (row: FeatureStackRowViewModel, name: string) => void;
+  onStartRename: (row: FeatureStackRowViewModel) => void;
+  onCancelRename: () => void;
+  isRenaming: boolean;
 };
 
 // 평탄 스택(1레이어 = 1도형)의 행 하나. 선택 하이라이트·스크롤 추적·표시/잠금 토글·순서 이동을 담당합니다.
@@ -30,10 +34,15 @@ export function FeatureStackRow({
   onSelect,
   onDelete,
   onRename,
+  onStartRename,
+  onCancelRename,
+  isRenaming,
 }: FeatureStackRowProps) {
   const [renameDraft, setRenameDraft] = useState<string | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
-  const isRenaming = renameDraft !== null;
+  const renameButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusAfterRenameRef = useRef(false);
+  const renameHelpId = useId();
   // 지도에서 선택돼도 패널이 해당 행으로 따라가도록 스크롤한다.
   const rowRef = useScrollIntoViewWhenSelected<HTMLLIElement>(row.isSelected);
   const {
@@ -52,13 +61,27 @@ export function FeatureStackRow({
   };
   const normalizedName =
     renameDraft === null ? null : normalizeFeatureName(renameDraft);
+  const renameError =
+    renameDraft === null ? null : getFeatureNameValidationError(renameDraft);
   const canSaveRename = normalizedName !== null && normalizedName !== row.name;
   useEffect(() => {
     if (isRenaming) {
       renameInputRef.current?.focus();
       renameInputRef.current?.select();
+      return;
+    }
+
+    if (restoreFocusAfterRenameRef.current) {
+      restoreFocusAfterRenameRef.current = false;
+      renameButtonRef.current?.focus();
     }
   }, [isRenaming]);
+
+  const closeRename = () => {
+    restoreFocusAfterRenameRef.current = true;
+    setRenameDraft(null);
+    onCancelRename();
+  };
 
   const submitRename = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -66,7 +89,7 @@ export function FeatureStackRow({
       return;
     }
     onRename(row, normalizedName);
-    setRenameDraft(null);
+    closeRename();
   };
 
   return (
@@ -109,42 +132,57 @@ export function FeatureStackRow({
         style={{ backgroundColor: row.accentColor }}
       />
       {isRenaming ? (
-        <form
-          className="flex min-w-0 flex-1 items-center gap-1"
-          onSubmit={submitRename}
-        >
-          <input
-            aria-label={`${row.name} 새 이름`}
-            className="min-w-0 flex-1 rounded-md border border-teal-500 bg-white px-2 py-1 text-sm font-bold text-slate-950 outline-none ring-2 ring-teal-100"
-            maxLength={MAX_FEATURE_NAME_LENGTH}
-            onChange={(event) => setRenameDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.preventDefault();
-                setRenameDraft(null);
-              }
-            }}
-            ref={renameInputRef}
-            value={renameDraft ?? ""}
-          />
-          <button
-            aria-label="이름 변경 저장"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-teal-700 transition-colors hover:bg-teal-50 disabled:cursor-not-allowed disabled:text-slate-300"
-            disabled={!canSaveRename}
-            title="저장"
-            type="submit"
+        <form className="grid min-w-0 flex-1 gap-0.5" onSubmit={submitRename}>
+          <span className="flex min-w-0 items-center gap-1">
+            <input
+              aria-describedby={renameHelpId}
+              aria-invalid={renameError !== null}
+              aria-label={`${row.name} 새 이름`}
+              className="min-w-0 flex-1 rounded-md border border-teal-500 bg-white px-2 py-1 text-sm font-bold text-slate-950 outline-none ring-2 ring-teal-100"
+              maxLength={MAX_FEATURE_NAME_LENGTH}
+              onChange={(event) => setRenameDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  closeRename();
+                }
+              }}
+              ref={renameInputRef}
+              value={renameDraft ?? ""}
+            />
+            <button
+              aria-label="이름 변경 저장"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-teal-700 transition-colors hover:bg-teal-50 disabled:cursor-not-allowed disabled:text-slate-300"
+              disabled={!canSaveRename}
+              title="저장"
+              type="submit"
+            >
+              <Check aria-hidden className="h-3.5 w-3.5" />
+            </button>
+            <button
+              aria-label="이름 변경 취소"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              onClick={closeRename}
+              title="취소"
+              type="button"
+            >
+              <X aria-hidden className="h-3.5 w-3.5" />
+            </button>
+          </span>
+          <span
+            aria-live="polite"
+            className={`flex min-w-0 items-center justify-between gap-2 px-0.5 text-[10px] font-bold ${
+              renameError ? "text-rose-600" : "text-slate-400"
+            }`}
+            id={renameHelpId}
           >
-            <Check aria-hidden className="h-3.5 w-3.5" />
-          </button>
-          <button
-            aria-label="이름 변경 취소"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-            onClick={() => setRenameDraft(null)}
-            title="취소"
-            type="button"
-          >
-            <X aria-hidden className="h-3.5 w-3.5" />
-          </button>
+            <span className="truncate">
+              {renameError ?? `1–${MAX_FEATURE_NAME_LENGTH}자 · 앞뒤 공백 제외`}
+            </span>
+            <span className="shrink-0">
+              {renameDraft?.trim().length ?? 0}/{MAX_FEATURE_NAME_LENGTH}
+            </span>
+          </span>
         </form>
       ) : (
         <>
@@ -170,7 +208,11 @@ export function FeatureStackRow({
             <button
               aria-label={`${row.name} 이름 변경`}
               className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-0 text-slate-300 transition-colors hover:bg-teal-50 hover:text-teal-700"
-              onClick={() => setRenameDraft(row.name)}
+              onClick={() => {
+                setRenameDraft(row.name);
+                onStartRename(row);
+              }}
+              ref={renameButtonRef}
               title="이름 변경"
               type="button"
             >

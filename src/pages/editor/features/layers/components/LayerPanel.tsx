@@ -29,6 +29,8 @@ export function LayerPanel() {
     reorderRow,
     deleteRow,
     renameRow,
+    beginRenameRow,
+    endRenameRow,
   } = useLayerPanelActions();
 
   // 드래그는 끌기 핸들에서만 시작된다. 약간의 이동 거리 제한으로 단순 클릭과 구분한다.
@@ -88,8 +90,11 @@ export function LayerPanel() {
                 {viewModel.rows.map((row) => (
                   <FeatureStackRow
                     key={row.id}
+                    isRenaming={viewModel.renamingFeatureId === row.id}
                     onDelete={deleteRow}
+                    onCancelRename={endRenameRow}
                     onRename={renameRow}
+                    onStartRename={beginRenameRow}
                     row={row}
                     onSelect={selectFeature}
                     onToggleLock={toggleRowLock}

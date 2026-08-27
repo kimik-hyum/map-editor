@@ -437,6 +437,26 @@ describe("editorStore - 도형 이름 변경", () => {
       "수정된 원본",
     );
   });
+
+  it("이름 입력 pending은 권한을 확인하고 시작·종료한다", () => {
+    useEditorStore.getState().beginFeatureRename("feature-1");
+    expect(useEditorStore.getState().renamingFeatureId).toBe("feature-1");
+
+    useEditorStore.getState().endFeatureRename();
+    expect(useEditorStore.getState().renamingFeatureId).toBeNull();
+
+    useEditorStore.getState().setLayerLocked("layer-1", true);
+    useEditorStore.getState().beginFeatureRename("feature-1");
+    expect(useEditorStore.getState().renamingFeatureId).toBeNull();
+  });
+
+  it("새 scene을 받으면 같은 feature id의 이전 이름 입력 pending도 초기화한다", () => {
+    useEditorStore.getState().beginFeatureRename("feature-1");
+    expect(useEditorStore.getState().renamingFeatureId).toBe("feature-1");
+
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_B));
+    expect(useEditorStore.getState().renamingFeatureId).toBeNull();
+  });
 });
 
 describe("editorStore - 스냅샷 불변성(타입)", () => {

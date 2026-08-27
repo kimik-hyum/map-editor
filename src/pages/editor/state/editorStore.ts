@@ -56,6 +56,8 @@ type EditorStoreState = {
   selectedFeatureIds: string[];
   hoveredFeatureId: string | null;
   featureFocusRequest: FeatureFocusRequest | null;
+  // 레이어 행의 이름 입력이 열려 있는 도형. 다른 종료 액션과 beforeunload가 초안 유실을 막는 데 사용합니다.
+  renamingFeatureId: string | null;
   activeMode: EditorMode;
   activeBoundaryKind: string | null;
   activeDrawShape: DrawShape;
@@ -73,6 +75,8 @@ type EditorStoreActions = {
   setSelectedFeatureIds: (featureIds: string[]) => void;
   requestFeatureFocus: (featureId: string) => void;
   consumeFeatureFocusRequest: (requestId: number) => void;
+  beginFeatureRename: (featureId: string) => void;
+  endFeatureRename: () => void;
   setActiveMode: (mode: EditorMode) => void;
   setActiveBoundaryKind: (kind: string | null) => void;
   setActiveDrawShape: (shape: DrawShape) => void;
@@ -97,6 +101,17 @@ export type EditorStore = EditorStoreState & EditorStoreActions;
 
 function getInitialActiveLayerId(scene: ReadonlyScene | null) {
   return scene?.layers[0]?.id ?? null;
+}
+
+function canContinueFeatureRename(scene: ReadonlyScene, featureId: string): boolean {
+  for (const layer of scene.layers) {
+    const feature = layer.features.find((candidate) => candidate.id === featureId);
+    if (feature) {
+      return canRenameFeature(layer, feature);
+    }
+  }
+
+  return false;
 }
 
 // undo/redo로 복원된 scene에 더 이상 존재하지 않는 피처를 가리키는 선택을 정리합니다.
@@ -629,6 +644,11 @@ export const useEditorStore = create<EditorStore>((set) => {
         // 구조 편집(병합/제거)으로 사라진 피처를 가리키는 선택을 정리한다.
         // 변경이 없으면 reconcileSelection이 같은 배열 참조를 반환해 불필요한 리렌더가 없다.
         selectedFeatureIds: reconcileSelection(state.selectedFeatureIds, next),
+        renamingFeatureId:
+          state.renamingFeatureId &&
+          canContinueFeatureRename(next, state.renamingFeatureId)
+            ? state.renamingFeatureId
+            : null,
         dirty: next !== state.baselineScene,
       };
     });
@@ -643,6 +663,7 @@ export const useEditorStore = create<EditorStore>((set) => {
     selectedFeatureIds: [],
     hoveredFeatureId: null,
     featureFocusRequest: null,
+    renamingFeatureId: null,
     activeMode: DEFAULT_EDITOR_MODE,
     activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
     activeDrawShape: DEFAULT_DRAW_SHAPE,
@@ -661,6 +682,7 @@ export const useEditorStore = create<EditorStore>((set) => {
         selectedFeatureIds: [],
         hoveredFeatureId: null,
         featureFocusRequest: null,
+        renamingFeatureId: null,
         activeMode: DEFAULT_EDITOR_MODE,
         activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
         activeDrawShape: DEFAULT_DRAW_SHAPE,
@@ -676,6 +698,7 @@ export const useEditorStore = create<EditorStore>((set) => {
         selectedFeatureIds: [],
         hoveredFeatureId: null,
         featureFocusRequest: null,
+        renamingFeatureId: null,
         dirty: false,
       }),
     resetScene: () =>
@@ -689,6 +712,7 @@ export const useEditorStore = create<EditorStore>((set) => {
         selectedFeatureIds: [],
         hoveredFeatureId: null,
         featureFocusRequest: null,
+        renamingFeatureId: null,
         activeMode: DEFAULT_EDITOR_MODE,
         activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
         activeDrawShape: DEFAULT_DRAW_SHAPE,
@@ -747,6 +771,16 @@ export const useEditorStore = create<EditorStore>((set) => {
           ? { featureFocusRequest: null }
           : {},
       ),
+    beginFeatureRename: (featureId) =>
+      set((state) =>
+        state.scene && canContinueFeatureRename(state.scene, featureId)
+          ? { renamingFeatureId: featureId }
+          : {},
+      ),
+    endFeatureRename: () =>
+      set((state) =>
+        state.renamingFeatureId === null ? {} : { renamingFeatureId: null },
+      ),
     setActiveMode: (activeMode) => set({ activeMode }),
     setActiveBoundaryKind: (activeBoundaryKind) => set({ activeBoundaryKind }),
     setActiveDrawShape: (activeDrawShape) => set({ activeDrawShape }),
@@ -762,7 +796,15 @@ export const useEditorStore = create<EditorStore>((set) => {
           return {};
         }
 
-        return { scene: next, dirty: next !== state.baselineScene };
+        return {
+          scene: next,
+          renamingFeatureId:
+            state.renamingFeatureId &&
+            canContinueFeatureRename(next, state.renamingFeatureId)
+              ? state.renamingFeatureId
+              : null,
+          dirty: next !== state.baselineScene,
+        };
       }),
     // 순서(쌓임 값) 이동도 silent(히스토리 X) — 보임/잠금과 같은 뷰 정책. 변경 시에만 dirty 갱신.
     updateLayerZIndexes: (updates) =>
@@ -790,7 +832,15 @@ export const useEditorStore = create<EditorStore>((set) => {
           return {};
         }
 
-        return { scene: next, dirty: next !== state.baselineScene };
+        return {
+          scene: next,
+          renamingFeatureId:
+            state.renamingFeatureId &&
+            canContinueFeatureRename(next, state.renamingFeatureId)
+              ? state.renamingFeatureId
+              : null,
+          dirty: next !== state.baselineScene,
+        };
       }),
     updateFeatureView: (featureId, view) =>
       set((state) => {
