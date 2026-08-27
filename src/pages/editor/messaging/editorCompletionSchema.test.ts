@@ -45,5 +45,11 @@ describe("editor completion messages", () => {
       }),
     ).toBeNull();
     expect(parseEditorCompletionMessage({ type: EditorMessageType.Cancel })).toBeNull();
+    expect(
+      parseEditorCompletionMessage({
+        type: EditorMessageType.Cancel,
+        sessionId: "",
+      }),
+    ).toBeNull();
   });
 });

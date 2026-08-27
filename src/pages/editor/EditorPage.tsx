@@ -109,7 +109,9 @@ export function EditorPage() {
         ) : null}
         <MapCursorTooltip text={cursorHint} containerRef={mapElementRef} />
         <EditorSessionActions
-          hasPendingToolAction={drawTool.isDrawing || radiusTool.popupOpen}
+          hasPendingToolAction={
+            drawTool.isDrawing || radiusTool.popupOpen || regionOps.busy
+          }
           messaging={messaging}
         />
         {radiusTool.hint ? (

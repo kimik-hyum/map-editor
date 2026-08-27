@@ -8,13 +8,13 @@ import { editorSceneInputSchema } from "./editorSceneSchema";
 
 const editorSubmitMessageSchema = z.object({
   type: z.literal(EditorMessageType.Submit),
-  sessionId: z.string(),
+  sessionId: z.string().min(1),
   scene: editorSceneInputSchema,
 });
 
 const editorCancelMessageSchema = z.object({
   type: z.literal(EditorMessageType.Cancel),
-  sessionId: z.string(),
+  sessionId: z.string().min(1),
 });
 
 const editorCompletionMessageSchema = z.discriminatedUnion("type", [

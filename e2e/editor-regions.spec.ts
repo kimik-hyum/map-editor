@@ -176,7 +176,7 @@ test("준비된 scene에서 경계 +는 원본 geometry를 새 편집 피처로 
   context,
   page,
 }) => {
-  await installRegionApiMock(context);
+  await installRegionApiMock(context, { fullResolutionDelayMs: 300 });
   const editorPage = await openEditorViaDemo(page);
 
   const boundaryTool = editorPage.getByRole("button", { name: "행정동 경계" });
@@ -191,7 +191,14 @@ test("준비된 scene에서 경계 +는 원본 geometry를 새 편집 피처로 
   await hoverMapUntilVisible(editorPage, map, mergeButton);
   await mergeButton.click();
 
+  await expect(
+    editorPage.getByRole("button", { name: "저장하고 편집 완료" }),
+  ).toBeDisabled();
+
   await expect(editorPage.getByRole("button", { name: "도형 숨기기" })).toHaveCount(9);
+  await expect(
+    editorPage.getByRole("button", { name: "저장하고 편집 완료" }),
+  ).toBeEnabled();
 });
 
 test("원본 조회 중 새 INIT이 오면 이전 경계 연산 결과를 버린다", async ({

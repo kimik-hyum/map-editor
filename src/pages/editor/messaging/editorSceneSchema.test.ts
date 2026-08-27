@@ -60,6 +60,10 @@ describe("parseInitMessage", () => {
     );
   });
 
+  it("빈 sessionId는 완료 응답을 연결할 수 없으므로 거부한다", () => {
+    expect(parseInitMessage({ ...validInput, sessionId: "" }).ok).toBe(false);
+  });
+
   it("version이 2가 아니면 거부한다", () => {
     const result = parseInitMessage({
       ...validInput,

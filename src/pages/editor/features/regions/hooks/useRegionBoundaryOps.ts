@@ -131,9 +131,11 @@ export function useRegionBoundaryOps({
   scopeKey,
 }: UseRegionBoundaryOpsArgs) {
   const scene = useEditorStore((state) => state.scene);
+  const sessionId = useEditorStore((state) => state.sessionId);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
   const [hoveredBoundary, setHoveredBoundary] = useState<HoveredBoundary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const queryClient = useQueryClient();
   const boundaryByFeatureIdRef = useRef(new Map<string, BoundaryMetadata>());
   const busyRef = useRef(false);
@@ -162,6 +164,7 @@ export function useRegionBoundaryOps({
   useEffect(() => {
     operationGenerationRef.current += 1;
     busyRef.current = false;
+    setBusy(false);
     boundaryByFeatureIdRef.current.clear();
     setHoveredBoundary(null);
     setError(null);
@@ -172,6 +175,9 @@ export function useRegionBoundaryOps({
 
     const attachment = attachRegionBoundaryHover(map, layer, {
       onHover: ({ featureId, boundaryId, element, name, displayGeometry }) => {
+        if (useEditorStore.getState().sessionId !== sessionId) {
+          return;
+        }
         boundaryByFeatureIdRef.current.set(featureId, { boundaryId, name });
         setHoveredBoundary({
           featureId,
@@ -190,7 +196,7 @@ export function useRegionBoundaryOps({
       attachment.detach();
       boundaryByFeatureIdRef.current.clear();
     };
-  }, [map, layer, enabled, scopeKey]);
+  }, [map, layer, enabled, scopeKey, sessionId]);
 
   const onMerge = useCallback(
     async (featureId: string) => {
@@ -209,6 +215,7 @@ export function useRegionBoundaryOps({
       const operationGeneration = operationGenerationRef.current + 1;
       operationGenerationRef.current = operationGeneration;
       busyRef.current = true;
+      setBusy(true);
       setError(null);
       try {
         const boundaryGeom = await fullResBoundaryGeom(
@@ -250,6 +257,7 @@ export function useRegionBoundaryOps({
       } finally {
         if (operationGeneration === operationGenerationRef.current) {
           busyRef.current = false;
+          setBusy(false);
         }
       }
     },
@@ -270,6 +278,7 @@ export function useRegionBoundaryOps({
       const operationGeneration = operationGenerationRef.current + 1;
       operationGenerationRef.current = operationGeneration;
       busyRef.current = true;
+      setBusy(true);
       setError(null);
       try {
         const boundaryGeom = await fullResBoundaryGeom(
@@ -305,11 +314,12 @@ export function useRegionBoundaryOps({
       } finally {
         if (operationGeneration === operationGenerationRef.current) {
           busyRef.current = false;
+          setBusy(false);
         }
       }
     },
     [queryClient],
   );
 
-  return { overlays: chip ? [chip] : [], onMerge, onSubtract, error };
+  return { overlays: chip ? [chip] : [], onMerge, onSubtract, error, busy };
 }

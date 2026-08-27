@@ -63,3 +63,32 @@ test("미저장 변경 취소는 확인 뒤 CANCEL만 반환한다", async ({ pa
   await expect(page.getByText("취소됨 · 반환 데이터 없음")).toBeVisible();
   await expect(page.getByTestId("submitted-scene")).toHaveCount(0);
 });
+
+test("커밋 전 그리기 작업도 저장과 무경고 이탈을 막는다", async ({ page }) => {
+  const editorPage = await openConnectedEditor(page);
+  await editorPage.getByRole("button", { name: "폴리곤 그리기" }).click();
+  const shapeDialog = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  await expect(shapeDialog).toBeVisible();
+  await shapeDialog.getByRole("button", { name: "추가할 도형 닫기" }).click();
+
+  const mapBox = await editorPage.getByLabel("OSM map editor").boundingBox();
+  if (!mapBox) {
+    throw new Error("지도 영역을 찾을 수 없습니다.");
+  }
+  await editorPage.mouse.click(
+    mapBox.x + mapBox.width * 0.55,
+    mapBox.y + mapBox.height * 0.3,
+  );
+
+  await expect(
+    editorPage.getByRole("button", { name: "저장하고 편집 완료" }),
+  ).toBeDisabled();
+  await expect(editorPage.getByRole("button", { name: "편집 취소" })).toBeDisabled();
+
+  const preventsUnload = await editorPage.evaluate(() => {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(preventsUnload).toBe(true);
+});

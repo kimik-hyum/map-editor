@@ -17,6 +17,8 @@ export function useEditorSessionActions({
   const scene = useEditorStore((state) => state.scene);
   const dirty = useEditorStore((state) => state.dirty);
   const completedSessionIdRef = useRef<string | null>(null);
+  const pendingToolActionRef = useRef(hasPendingToolAction);
+  pendingToolActionRef.current = hasPendingToolAction;
 
   const invalidFeatureCount = useMemo(
     () =>
@@ -37,7 +39,7 @@ export function useEditorSessionActions({
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       const current = useEditorStore.getState();
       if (
-        !current.dirty ||
+        (!current.dirty && !pendingToolActionRef.current) ||
         (completedSessionIdRef.current !== null &&
           current.sessionId === completedSessionIdRef.current)
       ) {
