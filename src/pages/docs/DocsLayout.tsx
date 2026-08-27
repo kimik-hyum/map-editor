@@ -1,4 +1,4 @@
-import { Cable, PanelsTopLeft, Rocket } from "lucide-react";
+import { Cable, PanelsTopLeft, PencilRuler, Rocket } from "lucide-react";
 import { Outlet } from "react-router";
 import { AppPageContent } from "@/shared/layout/AppPageContent";
 import { AppNavigation } from "@/shared/navigation/AppNavigation";
@@ -24,8 +24,24 @@ const docsMenuGroups: AppSideMenuGroup[] = [
       { href: "#map-area", label: "지도 영역" },
       { href: "#layer-panel", label: "레이어 패널" },
       { href: "#tools", label: "도구 레일" },
+      { href: "#completion-bar", label: "완료 바" },
     ],
     to: "/screen",
+  },
+  {
+    icon: PencilRuler,
+    label: "도형 편집",
+    sections: [
+      { href: "#editing-overview", label: "편집 흐름" },
+      { href: "#select-move", label: "선택과 이동" },
+      { href: "#vertices", label: "정점 편집" },
+      { href: "#layer-actions", label: "레이어 정리" },
+      { href: "#create-shapes", label: "새 도형 그리기" },
+      { href: "#radius", label: "반경 폴리곤" },
+      { href: "#combine", label: "폴리곤 연산" },
+      { href: "#finish", label: "완료와 취소" },
+    ],
+    to: "/editing",
   },
   {
     icon: Cable,

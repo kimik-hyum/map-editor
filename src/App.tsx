@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router";
 import { DemoLayout } from "./pages/demo/DemoLayout";
 import { DemoPage } from "./pages/demo/DemoPage";
+import { DocsEditingPage } from "./pages/docs/DocsEditingPage";
 import { DocsIntegrationPage } from "./pages/docs/DocsIntegrationPage";
 import { DocsLayout } from "./pages/docs/DocsLayout";
 import { DocsScreenPage } from "./pages/docs/DocsScreenPage";
@@ -42,6 +43,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<DocsLayout />}>
           <Route index element={<DocsStartPage />} />
+          <Route path="editing" element={<DocsEditingPage />} />
           <Route path="integration" element={<DocsIntegrationPage />} />
           <Route path="screen" element={<DocsScreenPage />} />
         </Route>

@@ -79,8 +79,8 @@ const nextDocs: NextDoc[] = [
     title: "편집기 화면 구성",
   },
   {
-    badge: "준비 중",
-    description: "정점 추가·이동·삭제와 스냅 동작을 단계별로 안내합니다.",
+    description: "선택·정점 편집·그리기·반경·폴리곤 연산을 단계별로 안내합니다.",
+    href: "/editing",
     icon: PencilRuler,
     title: "도형 편집 방법",
   },
@@ -164,7 +164,7 @@ export function DocsStartPage() {
       </DocsSection>
 
       <DocsSection
-        description="앞으로 이 자리에 안내 문서를 하나씩 추가합니다."
+        description="화면 구성부터 실제 편집, 부모창 연동까지 필요한 안내를 골라 확인합니다."
         eyebrow="더 알아보기"
         id="explore"
         title="다음 문서"

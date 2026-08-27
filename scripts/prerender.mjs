@@ -10,7 +10,7 @@ const template = await readFile(templatePath, "utf8");
 const { render } = await import(serverEntryPath);
 const nestedShell = template.replaceAll("./assets/", "../assets/");
 
-for (const route of ["/", "/screen", "/integration"]) {
+for (const route of ["/", "/screen", "/editing", "/integration"]) {
   const routeTemplate = route === "/" ? template : nestedShell;
   const routeHtml = routeTemplate.replace(
     '<div id="root"></div>',
