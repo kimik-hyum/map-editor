@@ -377,6 +377,68 @@ describe("editorStore - 로컬 생성 레이어 삭제", () => {
   });
 });
 
+describe("editorStore - 도형 이름 변경", () => {
+  beforeEach(() => {
+    useEditorStore.getState().resetScene();
+    useEditorStore.getState().setScene(sampleScene(GEOMETRY_A));
+  });
+
+  it("이름을 정규화해 feature와 1:1 레이어에 반영하고 undo/redo한다", () => {
+    useEditorStore.getState().renameFeature("feature-1", "  배송 권역  ");
+
+    const state = useEditorStore.getState();
+    expect(state.scene?.layers[0]).toMatchObject({
+      name: "배송 권역",
+      features: [
+        {
+          name: "배송 권역",
+          state: { lifecycle: FeatureLifecycle.Updated },
+          feature: { properties: {} },
+        },
+      ],
+    });
+    expect(state.past).toHaveLength(1);
+    expect(state.dirty).toBe(true);
+
+    state.undo();
+    expect(useEditorStore.getState().scene?.layers[0]).toMatchObject({
+      name: "레이어",
+      features: [{ name: "도형" }],
+    });
+    useEditorStore.getState().redo();
+    expect(useEditorStore.getState().scene?.layers[0]?.features[0]?.name).toBe(
+      "배송 권역",
+    );
+  });
+
+  it("같은 이름·빈 이름·없는 도형은 no-op이다", () => {
+    const before = useEditorStore.getState().scene;
+
+    useEditorStore.getState().renameFeature("feature-1", "도형");
+    useEditorStore.getState().renameFeature("feature-1", "   ");
+    useEditorStore.getState().renameFeature("ghost", "새 이름");
+
+    expect(useEditorStore.getState().scene).toBe(before);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+    expect(useEditorStore.getState().dirty).toBe(false);
+  });
+
+  it("잠긴 도형은 거부하고 잠금을 풀면 부모 원본 이름도 변경한다", () => {
+    useEditorStore.getState().setLayerLocked("layer-1", true);
+    const lockedScene = useEditorStore.getState().scene;
+
+    useEditorStore.getState().renameFeature("feature-1", "잠긴 이름");
+    expect(useEditorStore.getState().scene).toBe(lockedScene);
+    expect(useEditorStore.getState().past).toHaveLength(0);
+
+    useEditorStore.getState().setLayerLocked("layer-1", false);
+    useEditorStore.getState().renameFeature("feature-1", "수정된 원본");
+    expect(useEditorStore.getState().scene?.layers[0]?.features[0]?.name).toBe(
+      "수정된 원본",
+    );
+  });
+});
+
 describe("editorStore - 스냅샷 불변성(타입)", () => {
   it("scene 스냅샷과 히스토리 스택 타입은 readonly다(컴파일 타임 잠금)", () => {
     type Store = ReturnType<typeof useEditorStore.getState>;

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { addFeaturesToScene } from "../messaging/normalizeSceneInput";
 import {
   canDeleteCreatedFeature,
+  canRenameFeature,
   EditabilityState,
   EditorMode,
   FeatureLifecycle,
@@ -9,6 +10,7 @@ import {
   GeometryKind,
   LayerRole,
   LockState,
+  normalizeFeatureName,
   VisibilityState,
   type DeepReadonly,
   type DrawShape,
@@ -82,6 +84,7 @@ type EditorStoreActions = {
   updateFeatureView: (featureId: string, view: Partial<EditorFeatureViewState>) => void;
   addFeatures: (inputs: ReadonlyArray<EditorFeatureInput>) => void;
   deleteCreatedFeature: (featureId: string) => void;
+  renameFeature: (featureId: string, name: string) => void;
   updateFeatureGeometry: (featureId: string, geometry: GeoJsonGeometry) => void;
   updateFeaturesGeometry: (
     updates: ReadonlyArray<{ featureId: string; geometry: GeoJsonGeometry }>,
@@ -245,6 +248,50 @@ function deleteCreatedFeatureInScene(
       layers.push({ ...layer, features });
     }
   }
+
+  return changed ? { ...scene, layers } : scene;
+}
+
+// 도형 이름은 feature.name을 공개 기준으로 사용하고, 1레이어=1도형 내부 이름도 함께 맞춥니다.
+// properties.label은 부모가 제공한 임의 속성이므로 덮어쓰지 않습니다.
+function renameFeatureInScene(
+  scene: EditorScene,
+  featureId: string,
+  name: string,
+): EditorScene {
+  const normalizedName = normalizeFeatureName(name);
+  if (!normalizedName) {
+    return scene;
+  }
+
+  let changed = false;
+  const layers = scene.layers.map((layer) => {
+    const target = layer.features.find((feature) => feature.id === featureId);
+    if (!target || target.name === normalizedName || !canRenameFeature(layer, target)) {
+      return layer;
+    }
+
+    changed = true;
+    return {
+      ...layer,
+      name: normalizedName,
+      features: layer.features.map((feature) =>
+        feature.id === featureId
+          ? {
+              ...feature,
+              name: normalizedName,
+              state: {
+                ...feature.state,
+                lifecycle:
+                  feature.state.lifecycle === FeatureLifecycle.Created
+                    ? FeatureLifecycle.Created
+                    : FeatureLifecycle.Updated,
+              },
+            }
+          : feature,
+      ),
+    };
+  });
 
   return changed ? { ...scene, layers } : scene;
 }
@@ -794,6 +841,9 @@ export const useEditorStore = create<EditorStore>((set) => {
     // 로컬 생성 레이어 삭제를 한 스냅샷(=undo 1단계)으로 커밋합니다.
     deleteCreatedFeature: (featureId) =>
       commitSceneEdit((scene) => deleteCreatedFeatureInScene(scene, featureId)),
+    // 이름 변경도 부모 반환 데이터의 편집이므로 undo/redo 가능한 한 스냅샷으로 커밋합니다.
+    renameFeature: (featureId, name) =>
+      commitSceneEdit((scene) => renameFeatureInScene(scene, featureId, name)),
     // geometry 변경은 편집이므로 히스토리에 스냅샷을 남깁니다.
     updateFeatureGeometry: (featureId, geometry) =>
       commitSceneEdit((scene) =>
