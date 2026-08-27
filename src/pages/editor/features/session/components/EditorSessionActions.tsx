@@ -17,26 +17,26 @@ export function EditorSessionActions({
     return null;
   }
 
-  const statusText = actions.submitBlockedReason
-    ? actions.submitBlockedReason
-    : actions.dirty
-      ? "저장하지 않은 변경사항이 있습니다."
-      : "현재 상태를 그대로 완료할 수 있습니다.";
+  const statusText =
+    actions.submitBlockedReason ??
+    (actions.hasReturnablePolygon ? null : "반환할 폴리곤이 없습니다.");
 
   return (
     <section
       aria-label="편집 완료"
       className="col-span-2 row-start-2 z-40 flex w-full items-center justify-between gap-6 border-t border-slate-200 bg-white px-5 py-3 shadow-[0_-4px_16px_rgba(15,23,42,0.06)]"
     >
-      <p
-        aria-live="polite"
-        className={`m-0 min-w-0 flex-1 text-sm font-bold leading-5 ${
-          actions.submitBlockedReason ? "text-amber-700" : "text-slate-500"
-        }`}
-      >
-        {statusText}
-      </p>
-      <div className="flex shrink-0 items-center gap-2">
+      {statusText ? (
+        <p
+          aria-live="polite"
+          className={`m-0 min-w-0 flex-1 text-sm font-bold leading-5 ${
+            actions.submitBlockedReason ? "text-amber-700" : "text-slate-500"
+          }`}
+        >
+          {statusText}
+        </p>
+      ) : null}
+      <div className="ml-auto flex shrink-0 items-center gap-2">
         <button
           aria-label="편집 취소"
           className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"

@@ -15,9 +15,6 @@ async function openConnectedEditor(parentPage: Page): Promise<Page> {
 async function hideAreaA(editorPage: Page) {
   const row = editorPage.getByRole("listitem").filter({ hasText: "권역 A" });
   await row.getByRole("button", { name: "도형 숨기기" }).click();
-  await expect(
-    editorPage.getByText("저장하지 않은 변경사항이 있습니다."),
-  ).toBeVisible();
 }
 
 test("저장하고 완료하면 공개 v2 scene을 부모에게 반환하고 부모가 팝업을 닫는다", async ({
@@ -91,4 +88,35 @@ test("커밋 전 그리기 작업도 저장과 무경고 이탈을 막는다", a
     return event.defaultPrevented;
   });
   expect(preventsUnload).toBe(true);
+});
+
+test("일반 상태 문구는 숨기고 반환할 폴리곤이 없을 때만 안내한다", async ({ page }) => {
+  const editorPage = await openConnectedEditor(page);
+  await expect(
+    editorPage.getByText("현재 상태를 그대로 완료할 수 있습니다."),
+  ).toHaveCount(0);
+
+  await page.evaluate(() => {
+    window.open("", "map-editor-child")?.postMessage(
+      {
+        type: "MAP_EDITOR_INIT",
+        sessionId: "point-only-session",
+        scene: {
+          version: 2,
+          features: [
+            {
+              name: "마커만 있는 결과",
+              geometry: { type: "Point", coordinates: [126.98, 37.57] },
+            },
+          ],
+        },
+      },
+      window.location.origin,
+    );
+  });
+
+  await expect(editorPage.getByText("반환할 폴리곤이 없습니다.")).toBeVisible();
+  await expect(
+    editorPage.getByRole("button", { name: "저장하고 편집 완료" }),
+  ).toBeEnabled();
 });

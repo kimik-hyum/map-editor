@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { EditorMessagingController } from "@/pages/editor/messaging";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
-import { ValidationState } from "@/pages/editor/types/editorTypes";
+import { FeatureLifecycle, ValidationState } from "@/pages/editor/types/editorTypes";
 import { confirmDialog } from "@/shared/ui/confirmation-dialog";
 
 type UseEditorSessionActionsOptions = {
@@ -30,6 +30,18 @@ export function useEditorSessionActions({
           ).length,
         0,
       ) ?? 0,
+    [scene],
+  );
+  const hasReturnablePolygon = useMemo(
+    () =>
+      scene?.layers.some((layer) =>
+        layer.features.some(
+          (feature) =>
+            feature.state.lifecycle !== FeatureLifecycle.Deleted &&
+            (feature.feature.geometry.type === "Polygon" ||
+              feature.feature.geometry.type === "MultiPolygon"),
+        ),
+      ) ?? false,
     [scene],
   );
 
@@ -128,6 +140,7 @@ export function useEditorSessionActions({
     isReady,
     dirty,
     invalidFeatureCount,
+    hasReturnablePolygon,
     submitBlockedReason,
     canSubmit: isReady && submitBlockedReason === null,
     canCancel: isReady && !hasPendingToolAction,
