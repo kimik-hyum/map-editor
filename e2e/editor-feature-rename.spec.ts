@@ -24,11 +24,25 @@ test("잠금 해제된 도형 이름을 인라인으로 바꾸고 부모에게 �
   const nameInput = editorPage.getByRole("textbox", { name: "권역 A 새 이름" });
   await expect(nameInput).toBeFocused();
   await expect(nameInput).toHaveValue("권역 A");
+  await expect(
+    editorPage.getByRole("button", { name: "권역 B 이름 변경" }),
+  ).toBeDisabled();
+  await expect(editorPage.getByRole("button", { name: "권역 A 잠금" })).toBeDisabled();
+
+  await nameInput.fill("가".repeat(101));
+  await expect(editorPage.getByText("이름은 100자 이하로 입력하세요.")).toBeVisible();
+  await expect(editorPage.getByText("101/100")).toBeVisible();
+  await expect(
+    editorPage.getByRole("button", { name: "이름 변경 저장" }),
+  ).toBeDisabled();
+
+  await nameInput.fill(` ${"가".repeat(100)} `);
+  await expect(editorPage.getByText("100/100")).toBeVisible();
+  await expect(editorPage.getByText("이름은 100자 이하로 입력하세요.")).toHaveCount(0);
 
   await nameInput.fill("   ");
   await expect(editorPage.getByText("이름을 입력하세요.")).toBeVisible();
   await expect(editorPage.getByText("0/100")).toBeVisible();
-  await expect(nameInput).toHaveAttribute("maxlength", "100");
   await expect(
     editorPage.getByRole("button", { name: "이름 변경 저장" }),
   ).toBeDisabled();

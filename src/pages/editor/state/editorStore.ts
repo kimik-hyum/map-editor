@@ -730,6 +730,11 @@ export const useEditorStore = create<EditorStore>((set) => {
           past: state.past.slice(0, -1),
           future: [state.scene, ...state.future],
           selectedFeatureIds: reconcileSelection(state.selectedFeatureIds, previous),
+          renamingFeatureId:
+            state.renamingFeatureId &&
+            canContinueFeatureRename(previous, state.renamingFeatureId)
+              ? state.renamingFeatureId
+              : null,
           dirty: previous !== state.baselineScene,
         };
       }),
@@ -745,6 +750,11 @@ export const useEditorStore = create<EditorStore>((set) => {
           past: [...state.past, state.scene],
           future: state.future.slice(1),
           selectedFeatureIds: reconcileSelection(state.selectedFeatureIds, next),
+          renamingFeatureId:
+            state.renamingFeatureId &&
+            canContinueFeatureRename(next, state.renamingFeatureId)
+              ? state.renamingFeatureId
+              : null,
           dirty: next !== state.baselineScene,
         };
       }),
@@ -772,11 +782,17 @@ export const useEditorStore = create<EditorStore>((set) => {
           : {},
       ),
     beginFeatureRename: (featureId) =>
-      set((state) =>
-        state.scene && canContinueFeatureRename(state.scene, featureId)
-          ? { renamingFeatureId: featureId }
-          : {},
-      ),
+      set((state) => {
+        if (
+          state.renamingFeatureId !== null ||
+          !state.scene ||
+          !canContinueFeatureRename(state.scene, featureId)
+        ) {
+          return {};
+        }
+
+        return { renamingFeatureId: featureId };
+      }),
     endFeatureRename: () =>
       set((state) =>
         state.renamingFeatureId === null ? {} : { renamingFeatureId: null },

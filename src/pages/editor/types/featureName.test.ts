@@ -22,5 +22,6 @@ describe("normalizeFeatureName", () => {
   it("최대 길이까지 허용한다", () => {
     const name = "가".repeat(MAX_FEATURE_NAME_LENGTH);
     expect(normalizeFeatureName(name)).toBe(name);
+    expect(normalizeFeatureName(` ${name} `)).toBe(name);
   });
 });

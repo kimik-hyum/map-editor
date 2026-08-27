@@ -91,6 +91,10 @@ export function LayerPanel() {
                   <FeatureStackRow
                     key={row.id}
                     isRenaming={viewModel.renamingFeatureId === row.id}
+                    renameBlocked={
+                      viewModel.renamingFeatureId !== null &&
+                      viewModel.renamingFeatureId !== row.id
+                    }
                     onDelete={deleteRow}
                     onCancelRename={endRenameRow}
                     onRename={renameRow}

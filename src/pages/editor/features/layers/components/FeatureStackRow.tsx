@@ -22,6 +22,7 @@ type FeatureStackRowProps = {
   onStartRename: (row: FeatureStackRowViewModel) => void;
   onCancelRename: () => void;
   isRenaming: boolean;
+  renameBlocked: boolean;
 };
 
 // 평탄 스택(1레이어 = 1도형)의 행 하나. 선택 하이라이트·스크롤 추적·표시/잠금 토글·순서 이동을 담당합니다.
@@ -37,6 +38,7 @@ export function FeatureStackRow({
   onStartRename,
   onCancelRename,
   isRenaming,
+  renameBlocked,
 }: FeatureStackRowProps) {
   const [renameDraft, setRenameDraft] = useState<string | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -113,9 +115,16 @@ export function FeatureStackRow({
       <button
         aria-label={row.isLocked ? `${row.name} 잠금 해제` : `${row.name} 잠금`}
         aria-pressed={row.isLocked}
-        className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-0"
+        className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-40"
+        disabled={isRenaming}
         onClick={() => onToggleLock(row)}
-        title={row.isLocked ? "잠금 해제" : "잠금"}
+        title={
+          isRenaming
+            ? "이름 편집을 먼저 완료하거나 취소하세요"
+            : row.isLocked
+              ? "잠금 해제"
+              : "잠금"
+        }
         type="button"
       >
         {row.isLocked ? (
@@ -139,7 +148,6 @@ export function FeatureStackRow({
               aria-invalid={renameError !== null}
               aria-label={`${row.name} 새 이름`}
               className="min-w-0 flex-1 rounded-md border border-teal-500 bg-white px-2 py-1 text-sm font-bold text-slate-950 outline-none ring-2 ring-teal-100"
-              maxLength={MAX_FEATURE_NAME_LENGTH}
               onChange={(event) => setRenameDraft(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
@@ -207,13 +215,18 @@ export function FeatureStackRow({
           {row.canRename ? (
             <button
               aria-label={`${row.name} 이름 변경`}
-              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-0 text-slate-300 transition-colors hover:bg-teal-50 hover:text-teal-700"
+              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-0 text-slate-300 transition-colors hover:bg-teal-50 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-300"
+              disabled={renameBlocked}
               onClick={() => {
                 setRenameDraft(row.name);
                 onStartRename(row);
               }}
               ref={renameButtonRef}
-              title="이름 변경"
+              title={
+                renameBlocked
+                  ? "다른 이름 편집을 먼저 완료하거나 취소하세요"
+                  : "이름 변경"
+              }
               type="button"
             >
               <Pencil aria-hidden className="h-3.5 w-3.5" />

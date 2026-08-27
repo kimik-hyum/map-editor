@@ -442,6 +442,13 @@ describe("editorStore - 도형 이름 변경", () => {
     useEditorStore.getState().beginFeatureRename("feature-1");
     expect(useEditorStore.getState().renamingFeatureId).toBe("feature-1");
 
+    useEditorStore
+      .getState()
+      .addFeatures([{ geometry: GEOMETRY_B as EditorPolygonInputGeometry }]);
+    const otherFeatureId = useEditorStore.getState().selectedFeatureIds[0];
+    useEditorStore.getState().beginFeatureRename(otherFeatureId);
+    expect(useEditorStore.getState().renamingFeatureId).toBe("feature-1");
+
     useEditorStore.getState().endFeatureRename();
     expect(useEditorStore.getState().renamingFeatureId).toBeNull();
 
@@ -455,6 +462,25 @@ describe("editorStore - 도형 이름 변경", () => {
     expect(useEditorStore.getState().renamingFeatureId).toBe("feature-1");
 
     useEditorStore.getState().setScene(sampleScene(GEOMETRY_B));
+    expect(useEditorStore.getState().renamingFeatureId).toBeNull();
+  });
+
+  it("undo/redo로 이름 편집 대상이 사라지면 pending을 정리한다", () => {
+    const inputGeometry = GEOMETRY_B as EditorPolygonInputGeometry;
+    useEditorStore.getState().addFeatures([{ geometry: inputGeometry }]);
+    const createdId = useEditorStore.getState().selectedFeatureIds[0];
+
+    useEditorStore.getState().beginFeatureRename(createdId);
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().renamingFeatureId).toBeNull();
+
+    useEditorStore.getState().redo();
+    useEditorStore.getState().deleteCreatedFeature(createdId);
+    useEditorStore.getState().undo();
+    useEditorStore.getState().beginFeatureRename(createdId);
+    expect(useEditorStore.getState().renamingFeatureId).toBe(createdId);
+
+    useEditorStore.getState().redo();
     expect(useEditorStore.getState().renamingFeatureId).toBeNull();
   });
 });
