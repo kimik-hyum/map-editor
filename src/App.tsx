@@ -3,8 +3,12 @@ import { Navigate, Route, Routes } from "react-router";
 import { AuthCallbackPage } from "@/features/auth";
 import { DemoLayout } from "./pages/demo/DemoLayout";
 import { DemoPage } from "./pages/demo/DemoPage";
+import { DocsEditingPage } from "./pages/docs/DocsEditingPage";
+import { DocsIntegrationPage } from "./pages/docs/DocsIntegrationPage";
 import { DocsLayout } from "./pages/docs/DocsLayout";
-import { DocsPage } from "./pages/docs/DocsPage";
+import { DocsScreenPage } from "./pages/docs/DocsScreenPage";
+import { DocsStartPage } from "./pages/docs/DocsStartPage";
+import { ScrollToTop } from "./shared/navigation/ScrollToTop";
 import "./App.css";
 
 const EditorLayout = lazy(() =>
@@ -35,34 +39,40 @@ function EditorRoute() {
 
 export function App() {
   return (
-    <Routes>
-      <Route path="/auth/callback" element={<AuthCallbackPage />} />
-      <Route path="/" element={<DocsLayout />}>
-        <Route index element={<DocsPage />} />
-      </Route>
+    <>
+      <ScrollToTop />
+      <Routes>
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route path="/" element={<DocsLayout />}>
+          <Route index element={<DocsStartPage />} />
+          <Route path="editing" element={<DocsEditingPage />} />
+          <Route path="integration" element={<DocsIntegrationPage />} />
+          <Route path="screen" element={<DocsScreenPage />} />
+        </Route>
 
-      <Route path="/demo" element={<DemoLayout />}>
-        <Route index element={<DemoPage />} />
-      </Route>
+        <Route path="/demo" element={<DemoLayout />}>
+          <Route index element={<DemoPage />} />
+        </Route>
 
-      <Route
-        path="/editor"
-        element={
-          <Suspense
-            fallback={
-              <div className="flex min-h-screen items-center justify-center font-extrabold text-ink-soft">
-                불러오는 중...
-              </div>
-            }
-          >
-            <EditorLayout />
-          </Suspense>
-        }
-      >
-        <Route index element={<EditorRoute />} />
-      </Route>
+        <Route
+          path="/editor"
+          element={
+            <Suspense
+              fallback={
+                <div className="flex min-h-screen items-center justify-center font-extrabold text-ink-soft">
+                  불러오는 중...
+                </div>
+              }
+            >
+              <EditorLayout />
+            </Suspense>
+          }
+        >
+          <Route index element={<EditorRoute />} />
+        </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }

@@ -22,15 +22,6 @@ export type EditorReadyMessage = {
   sessionId?: string;
 };
 
-export type EditorChangeMessage = {
-  type: EditorMessageType.Change;
-  sessionId: string;
-  // 외부 메시지는 내부 레이어 모델이 아니라 공개 v2 형식만 노출합니다.
-  scene: EditorSceneInput;
-  changedFeatureIds: string[];
-  changedLayerIds: string[];
-};
-
 export type EditorSubmitMessage = {
   type: EditorMessageType.Submit;
   sessionId: string;
@@ -52,7 +43,6 @@ export type EditorErrorMessage = {
 export type EditorMessage =
   | EditorReadyMessage
   | EditorInitMessage
-  | EditorChangeMessage
   | EditorSubmitMessage
   | EditorCancelMessage
   | EditorErrorMessage;

@@ -1,5 +1,7 @@
 # Supabase 지역 경계 API — DB 구조 및 응답 규격
 
+현황 갱신: 2026-08-27
+
 maps-editor의 경계(Boundary) 도구가 시군구·행정동·법정동·우편번호 경계를 Supabase에서 내려받기 위한 DB 구조와 응답 규격을 정의한다.
 
 - **저장 좌표계:** EPSG:4326 (WGS84 경위도). 에디터 `EditorCoordinate = [lng, lat]`와 동일하므로 변환 없이 사용.
@@ -227,4 +229,5 @@ floor(zoom) ≥ (선택 kind의 min_zoom)  →  선택한 kind 반환 (detail)
 - [x] 경계 도구 선택 시에만 Google 로그인 안내, 별도 OAuth 팝업으로 부모 연결과 편집 상태 유지
 - [x] 비로그인 경계 요청 차단 및 사용자별 조회 캐시 분리
 - [x] 직접 Data API 권한 회수, Edge Function Origin/JWT/Google identity/호출량 검증
+- [x] API 응답 Zod 검증, 카탈로그 실패 fallback, 원본 조회 중 session 교체 시 stale 결과 폐기 E2E
 - [ ] 시도별 증분 적재 운영(다운로드 → staging 검증 → 버전 스왑) + (필요 시) coarse tier 단순화
