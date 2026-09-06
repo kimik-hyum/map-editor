@@ -83,6 +83,14 @@ export function DocsEditingPage() {
               ],
             },
             {
+              key: "hole-fill",
+              cells: [
+                "빈 공간 채우기",
+                "레이어 행의 연필 오른쪽 페인트통을 누르고 최대 면적(㎡)을 입력합니다. 청록색 미리보기를 확인한 뒤 적용합니다.",
+                "선택·경계 도구에서, 표시된 편집 가능 폴리곤에 내부 구멍이 있을 때 활성화됩니다. 해당 행만 수정하며 열린 틈·큰 구멍은 유지합니다. 기본 기준은 1,000㎡이며 취소는 변경 없이, 적용은 undo 한 번으로 복원됩니다.",
+              ],
+            },
+            {
               key: "boolean",
               cells: [
                 "폴리곤 연산",
@@ -106,8 +114,8 @@ export function DocsEditingPage() {
             안내이며 저장을 차단하지 않습니다.
           </DocsListItem>
           <DocsListItem>
-            오류가 있는 도형, 진행 중 그리기·반경 입력·경계 연산·이름 변경은 먼저
-            완료하거나 취소해야 합니다.
+            오류가 있는 도형, 진행 중 그리기·반경 입력·경계 연산·이름 변경·빈 공간
+            채우기는 먼저 완료하거나 취소해야 합니다.
           </DocsListItem>
           <DocsListItem>
             취소 시 <DocsCode>MAP_EDITOR_CANCEL</DocsCode>만 반환합니다. 미저장 변경이

@@ -40,8 +40,16 @@
 - locked는 UI 잠금이며 사용자 해제가 가능합니다. 부모 원본의 삭제 버튼 보호와 서버 저장 권한은 서로 다른 정책입니다.
 - SUBMIT은 공개 v2 scene 전체, CANCEL은 sessionId만 반환합니다. 중간 CHANGE 메시지를 보내지 않습니다.
 
+## 빈 공간 채우기
+
+레이어 행의 페인트통은 `select`/`boundary`에서 표시·편집 가능한 Polygon/MultiPolygon에 닫힌 내부 ring이 있을 때만 활성화합니다. 잠금·읽기 전용·좌표 오류·다른 작업 중에는 기본 `title`로 이유를 설명합니다. 도형 선택 여부와 관계없이 클릭한 행 하나를 대상으로 삼고 단독 선택합니다.
+
+`features/hole-fill` controller는 기준 면적(기본 1,000㎡), 원본 scene/session/선택 맥락과 미리보기를 소유합니다. 내부 ring의 Turf 지표 면적이 기준 이하일 때만 채우며 외부로 열린 틈은 처리하지 않습니다. MultiPolygon의 구멍 안에 섬이 있으면 합집합으로 중복 면을 제거하고 실제 추가 면만 preview에 표시합니다.
+
+설정 팝업은 배경 조작과 scene 단축키·완료를 차단합니다. 취소·Escape·바깥 클릭 또는 scene/session/선택 변경은 원본을 유지하고 미리보기를 폐기합니다. 적용 직전에도 맥락을 재확인하며 `updateFeatureGeometry` 한 번만 호출합니다. 별도 서버 요청이나 로그인을 요구하지 않습니다.
+
 ## 완료를 막는 상태
 
-진행 중 그리기·반경 입력·경계 연산·이름 변경과 invalid 도형은 완료를 막습니다. 부모 데이터와 연결이 준비되지 않아도 완료할 수 없습니다. 반환할 Polygon/MultiPolygon이 없는 상태는 안내만 표시하며 저장은 가능합니다. 서버 영구 저장은 이 흐름에 포함되지 않습니다.
+진행 중 그리기·반경 입력·경계 연산·이름 변경·빈 공간 채우기와 invalid 도형은 완료를 막습니다. 부모 데이터와 연결이 준비되지 않아도 완료할 수 없습니다. 반환할 Polygon/MultiPolygon이 없는 상태는 안내만 표시하며 저장은 가능합니다. 서버 영구 저장은 이 흐름에 포함되지 않습니다.
 
 기준 코드: [도구 활성화](../src/pages/editor/features/modes/model/toolActivationModel.ts), [세션 액션](../src/pages/editor/features/session/hooks/useEditorSessionActions.ts), [경계 로그인](../src/pages/editor/features/regions/hooks/useBoundaryLogin.ts).
