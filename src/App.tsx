@@ -6,7 +6,7 @@ import { DemoPage } from "./pages/demo/DemoPage";
 import { DocsEditingPage } from "./pages/docs/DocsEditingPage";
 import { DocsIntegrationPage } from "./pages/docs/DocsIntegrationPage";
 import { DocsLayout } from "./pages/docs/DocsLayout";
-import { DocsScreenPage } from "./pages/docs/DocsScreenPage";
+import { DocsAuthenticationPage } from "./pages/docs/DocsAuthenticationPage";
 import { DocsStartPage } from "./pages/docs/DocsStartPage";
 import { ScrollToTop } from "./shared/navigation/ScrollToTop";
 import "./App.css";
@@ -47,7 +47,8 @@ export function App() {
           <Route index element={<DocsStartPage />} />
           <Route path="editing" element={<DocsEditingPage />} />
           <Route path="integration" element={<DocsIntegrationPage />} />
-          <Route path="screen" element={<DocsScreenPage />} />
+          <Route path="authentication" element={<DocsAuthenticationPage />} />
+          <Route path="screen" element={<Navigate to="/editing#screen" replace />} />
         </Route>
 
         <Route path="/demo" element={<DemoLayout />}>

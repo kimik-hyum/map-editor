@@ -100,7 +100,7 @@ export function DocsCodeBlock({
           <pre
             className={cn(
               highlightClassName,
-              "m-0 max-h-[36rem] overflow-auto p-4 text-[13px] leading-6",
+              "m-0 max-h-[32rem] overflow-auto p-4 text-sm leading-6",
             )}
             style={{ ...style, background: "transparent" }}
           >

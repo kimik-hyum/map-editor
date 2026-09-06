@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs",
+    "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs && npm run test:build",
+    "test:build": "node scripts/verify-static-build.mjs",
     "typecheck": "tsc -b",
     "lint": "biome lint .",
     "lint:fix": "biome lint . --write",

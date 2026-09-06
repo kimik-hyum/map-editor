@@ -25,7 +25,8 @@ flowchart LR
   RadiusHook -- "완성 geometry" --> Store
   Session --> Messaging
 
-  Supabase["Supabase"] --> RegionApi["regions API<br/>fetch + Zod"]
+  Auth["Google 세션<br/>경계 선택 시 PKCE 팝업"] --> RegionApi["regions API<br/>사용자 JWT + fetch + Zod"]
+  Supabase["regions Edge Function<br/>JWT/Google/origin 검증"] --> RegionApi
   RegionApi --> Query["TanStack Query cache"]
   Query --> RegionHooks
 
@@ -47,7 +48,7 @@ flowchart TB
   Activation["순수 tool activation 정책<br/>select / draw / boundary / radius"]
 
   subgraph RemoteState["원격 상태"]
-    Supabase["Supabase"] --> ApiBoundary["API contract<br/>fetch + Zod"]
+    Supabase["인증된 regions Edge Function"] --> ApiBoundary["API contract<br/>fetch + Zod"]
     ApiBoundary --> QueryDefs["query keys + options"]
     QueryDefs --> QueryCache["TanStack Query cache"]
     QueryCache --> RegionVM["region catalog/view model"]
@@ -168,7 +169,7 @@ flowchart TB
 3. `features/map/hooks/useOpenLayersEditorMap.ts`가 store 상태를 구독하고 OpenLayers adapter를 호출한다.
 4. `adapters/openlayers`가 scene을 OpenLayers layer/feature/interaction으로 변환하거나 동기화한다.
 5. `features/layers` 같은 UI 기능은 store action을 호출하고, map hook이 변경된 상태를 지도에 반영한다.
-6. `features/regions`는 외부 RPC 응답을 Zod로 검증한 뒤, `adapters/openlayers`의 별도 참고 레이어에만 표시한다. 사용자가 채택한 원본 geometry만 store action으로 scene에 복사한다.
+6. `features/regions`는 Google 세션으로 Edge Function을 호출하고 응답을 Zod로 검증한 뒤, `adapters/openlayers`의 별도 참고 레이어에만 표시한다. 사용자가 채택한 원본 geometry만 store action으로 scene에 복사한다.
 7. `features/draw`는 OpenLayers sketch를 adapter 안에 유지하고, 완성된 geometry만 `addFeatures`로 scene에 커밋한다.
 8. `features/radius`는 입력 중 원을 전용 preview layer에만 표시하고, 적용 시 완성 Polygon만 `addFeatures`로 커밋한다.
 9. `features/session`은 진행 중 도구와 invalid 도형을 확인한 뒤 공개 v2 scene을 SUBMIT하거나 scene 없이 CANCEL한다.

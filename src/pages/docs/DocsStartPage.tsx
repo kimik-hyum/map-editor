@@ -1,187 +1,107 @@
-import {
-  ArrowRight,
-  BookOpen,
-  type LucideIcon,
-  MousePointer2,
-  PanelsTopLeft,
-  PencilRuler,
-  Rocket,
-  Send,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { Link } from "react-router";
 import {
   Callout,
   DocsArticle,
   DocsButton,
-  DocsCard,
-  DocsCardGrid,
-  DocsEyebrow,
-  DocsHeading,
+  DocsCode,
+  DocsCodeBlock,
   DocsHero,
+  DocsList,
+  DocsListItem,
   DocsSection,
   DocsText,
-  Steps,
 } from "./components";
+import { DocsTable } from "./components/DocsTable";
 
-const steps = [
-  {
-    title: "데모 페이지로 이동합니다",
-    description:
-      "상단 메뉴에서 Demo를 선택하거나 히어로의 ‘데모에서 시작하기’ 버튼을 눌러 데모 페이지로 이동합니다.",
-  },
-  {
-    title: "편집기를 새 창으로 엽니다",
-    description:
-      "데모 페이지의 ‘편집기 새 창으로 열기’ 버튼을 누르면 지도 편집기가 별도 창으로 열립니다.",
-  },
-  {
-    title: "지도가 나타나면 작업을 시작합니다",
-    description:
-      "데이터가 준비되면 지도와 레이어 패널이 보입니다. 권역 도형을 확인하고 필요한 부분을 선택해 다듬을 수 있습니다.",
-  },
-];
-
-type FlowNode = {
-  description: string;
-  icon: LucideIcon;
-  label: string;
-};
-
-const flow: FlowNode[] = [
-  { description: "여기서 사용법을 읽습니다.", icon: BookOpen, label: "Docs" },
-  { description: "편집기를 새 창으로 엽니다.", icon: Rocket, label: "Demo" },
-  {
-    description: "지도에서 도형을 다듬습니다.",
-    icon: PencilRuler,
-    label: "Editor",
-  },
-];
-
-type NextDoc = {
-  badge?: string;
-  description: string;
-  href?: string;
-  icon: LucideIcon;
-  title: string;
-};
-
-const nextDocs: NextDoc[] = [
-  {
-    description: "부모 서비스 없이 편집기를 바로 띄워 보는 예시 페이지입니다.",
-    href: "/demo",
-    icon: MousePointer2,
-    title: "데모에서 직접 실행",
-  },
-  {
-    description:
-      "지도 영역, 레이어 패널, 도구 레일이 화면에서 어떻게 배치되는지 설명합니다.",
-    href: "/screen",
-    icon: PanelsTopLeft,
-    title: "편집기 화면 구성",
-  },
-  {
-    description: "선택·정점 편집·그리기·반경·폴리곤 연산을 단계별로 안내합니다.",
-    href: "/editing",
-    icon: PencilRuler,
-    title: "도형 편집 방법",
-  },
-  {
-    description: "부모 서비스와 scene을 주고받는 postMessage 규약을 정리합니다.",
-    href: "/integration",
-    icon: Send,
-    title: "postMessage 연동",
-  },
-];
-
-function HeroFlow() {
-  return (
-    <div className="rounded-2xl border border-line bg-white p-6 shadow-[0_22px_48px_-30px_rgba(15,118,110,0.5)]">
-      <DocsEyebrow>화면 흐름</DocsEyebrow>
-      <ul className="m-0 mt-4 flex list-none flex-col p-0">
-        {flow.map((node, index) => {
-          const Icon = node.icon;
-          const isLast = index === flow.length - 1;
-
-          return (
-            <li
-              className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-x-3"
-              key={node.label}
-            >
-              <div className="flex flex-col items-center">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-soft text-brand">
-                  <Icon aria-hidden="true" size={18} strokeWidth={2.2} />
-                </span>
-                {isLast ? null : (
-                  <span aria-hidden="true" className="my-1 w-px flex-1 bg-line" />
-                )}
-              </div>
-              <div className={isLast ? "pt-1.5" : "pb-4 pt-1.5"}>
-                <DocsHeading level={3}>{node.label}</DocsHeading>
-                <DocsText className="mt-0.5" variant="small">
-                  {node.description}
-                </DocsText>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
-// 대메뉴 ‘시작하기’ 페이지. 편집기를 여는 흐름과 다음 문서를 안내합니다.
 export function DocsStartPage() {
   return (
     <DocsArticle>
       <DocsHero
+        eyebrow="Developer guide"
+        id="overview"
+        title="빠른 시작"
+        description="부모 서비스가 도형을 보내고, 사용자가 편집한 결과를 돌려받는 팝업 지도 편집기입니다. 별도 SDK 설치 없이 postMessage로 연결합니다."
         actions={
-          <>
-            <DocsButton icon={ArrowRight} to="/demo">
-              데모에서 시작하기
-            </DocsButton>
-            <DocsButton to="/editor" variant="secondary">
-              편집기 미리보기
-            </DocsButton>
-          </>
+          <DocsButton icon={ArrowRight} to="/demo">
+            샘플 데이터로 실행
+          </DocsButton>
         }
-        aside={<HeroFlow />}
-        description="지도 편집기는 데모 페이지에서 새 창으로 열어 사용합니다. 편집기가 열리면 지도 위에 권역 도형과 레이어 패널이 표시되고, 도형을 확인하거나 경계선을 다듬을 수 있습니다."
-        eyebrow="사용자 안내"
-        id="start-editor"
-        title="지도 편집기 열기"
       />
-
+      <DocsSection id="contract" title="연동 전에 알아둘 세 가지">
+        <DocsList>
+          <DocsListItem>
+            입력과 출력은 <DocsCode>EditorSceneInput v2</DocsCode>입니다. GeoJSON
+            FeatureCollection을 그대로 보내지 않고{" "}
+            <DocsCode>version + features</DocsCode>로 감쌉니다.
+          </DocsListItem>
+          <DocsListItem>
+            일반 편집은 비로그인으로 사용할 수 있습니다. 경계 데이터를 선택할 때만
+            에디터가 Google 로그인을 요청합니다.
+          </DocsListItem>
+          <DocsListItem>
+            에디터는 부모 서버에 저장하지 않습니다. 부모가 완료 결과를 검증한 뒤
+            지도·폼에 반영하고, 필요하면 자신의 API로 저장합니다.
+          </DocsListItem>
+        </DocsList>
+      </DocsSection>
       <DocsSection
-        description="세 단계면 충분합니다. 데모에서 편집기를 열고 바로 작업을 시작하세요."
-        eyebrow="시작 단계"
-        id="steps"
-        title="세 단계로 시작하기"
+        id="run"
+        title="로컬에서 실행"
+        description="Node.js 22 이상과 npm이 필요합니다. 저장소를 받은 뒤 프로젝트 루트에서 실행하세요."
       >
-        <Steps items={steps} />
-        <Callout className="mt-6" title="팝업 차단을 확인하세요" tone="warning">
-          편집기는 새 창(팝업)으로 열립니다. 창이 뜨지 않으면 브라우저 주소창의 팝업
-          차단 아이콘에서 이 사이트를 허용해 주세요.
+        <DocsCodeBlock
+          code={"npm ci\nnpm run dev -- --port 4174"}
+          language="bash"
+          title="터미널"
+        />
+        <DocsText className="mt-4">
+          <DocsCode>http://localhost:4174/demo</DocsCode>에서 ‘편집기 새 창으로 열기’를
+          누르면 부모 데이터 수신부터 반환까지 확인할 수 있습니다. 경계 조회를 제외한
+          편집·문서는 Supabase 설정 없이도 동작합니다.
+        </DocsText>
+        <Callout className="mt-4" tone="note" title="에디터 주소만 직접 열었다면">
+          부모 창이 없으므로 데이터를 기다리는 화면이 표시됩니다.{" "}
+          <Link to="/demo">데모</Link>에서 열거나 부모 서비스에서 INIT을 전달하세요.
         </Callout>
       </DocsSection>
-
-      <DocsSection
-        description="화면 구성부터 실제 편집, 부모창 연동까지 필요한 안내를 골라 확인합니다."
-        eyebrow="더 알아보기"
-        id="explore"
-        title="다음 문서"
-      >
-        <DocsCardGrid>
-          {nextDocs.map((doc) => (
-            <DocsCard
-              eyebrow={doc.badge}
-              href={doc.href}
-              icon={doc.icon}
-              key={doc.title}
-              title={doc.title}
-            >
-              {doc.description}
-            </DocsCard>
-          ))}
-        </DocsCardGrid>
+      <DocsSection id="next" title="필요한 문서로 이동">
+        <DocsTable
+          label="개발자 문서 안내"
+          headers={["하려는 작업", "문서", "확인할 내용"]}
+          rows={[
+            {
+              key: "integration",
+              cells: [
+                "서비스에 편집기 연결",
+                <Link key="integration" to="/integration">
+                  부모 창 연동
+                </Link>,
+                "입력 형식, 메시지 검증, 실행 가능한 예제",
+              ],
+            },
+            {
+              key: "authentication",
+              cells: [
+                "경계 조회·배포 설정",
+                <Link key="authentication" to="/authentication">
+                  경계 데이터·인증
+                </Link>,
+                "로그인 시점, 공개 설정, callback, 접근 제한",
+              ],
+            },
+            {
+              key: "editing",
+              cells: [
+                "기능 범위·QA 확인",
+                <Link key="editing" to="/editing">
+                  편집 동작
+                </Link>,
+                "선택·그리기·연산, 저장 조건, 단축키",
+              ],
+            },
+          ]}
+        />
       </DocsSection>
     </DocsArticle>
   );

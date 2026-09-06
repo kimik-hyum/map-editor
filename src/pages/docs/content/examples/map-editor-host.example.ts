@@ -3,11 +3,11 @@ import {
   type EditorSceneInput,
 } from "./editor-contract.example";
 
-const EDITOR_URL = "https://YOUR_EDITOR_DOMAIN/editor";
 const EDITOR_WINDOW_NAME = "map-editor-child";
 const EDITOR_WINDOW_FEATURES = "width=1280,height=860";
 
 type MapEditorHostOptions = {
+  editorUrl: string;
   getScene: () => EditorSceneInput;
   onSubmit: (scene: EditorSceneInput) => void;
   onCancel?: () => void;
@@ -15,15 +15,17 @@ type MapEditorHostOptions = {
 };
 
 export function createMapEditorHost(options: MapEditorHostOptions) {
-  const editorUrl = new URL(EDITOR_URL);
+  const editorUrl = new URL(options.editorUrl, window.location.href);
   const editorOrigin = editorUrl.origin;
   let editorWindow: Window | null = null;
   let sessionId: string | null = null;
+  let initialScene: EditorSceneInput | null = null;
 
   const closeEditor = () => {
     editorWindow?.close();
     editorWindow = null;
     sessionId = null;
+    initialScene = null;
   };
 
   const handleMessage = (event: MessageEvent<unknown>) => {
@@ -48,13 +50,13 @@ export function createMapEditorHost(options: MapEditorHostOptions) {
     }
 
     if (data.type === "MAP_EDITOR_READY") {
-      // 같은 팝업이 READY를 다시 보내도 같은 sessionId로 INIT을 재전송합니다.
-      sessionId ??= crypto.randomUUID();
+      // 같은 팝업의 재전송에도 세션과 최초 입력을 일관되게 유지합니다.
+      if (!sessionId || !initialScene) return;
       targetWindow.postMessage(
         {
           type: "MAP_EDITOR_INIT",
           sessionId,
-          scene: options.getScene(),
+          scene: initialScene,
         },
         editorOrigin,
       );
@@ -67,12 +69,12 @@ export function createMapEditorHost(options: MapEditorHostOptions) {
         return;
       }
 
+      closeEditor();
       if (completion.data.type === "MAP_EDITOR_SUBMIT") {
         options.onSubmit(completion.data.scene);
       } else {
         options.onCancel?.();
       }
-      closeEditor();
       return;
     }
 
@@ -89,7 +91,14 @@ export function createMapEditorHost(options: MapEditorHostOptions) {
 
   return {
     open() {
+      // 중복 클릭으로 이미 편집 중인 창을 닫거나 데이터를 덮지 않습니다.
+      if (editorWindow && !editorWindow.closed) {
+        editorWindow.focus();
+        return;
+      }
       closeEditor();
+      initialScene = structuredClone(options.getScene());
+      sessionId = crypto.randomUUID();
       editorWindow = window.open(
         editorUrl.href,
         EDITOR_WINDOW_NAME,
@@ -97,6 +106,7 @@ export function createMapEditorHost(options: MapEditorHostOptions) {
       );
 
       if (!editorWindow) {
+        closeEditor();
         throw new Error("팝업이 차단되었습니다.");
       }
     },

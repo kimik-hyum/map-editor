@@ -10,7 +10,7 @@ const template = await readFile(templatePath, "utf8");
 const { render } = await import(serverEntryPath);
 const nestedShell = template.replaceAll("./assets/", "../assets/");
 
-for (const route of ["/", "/screen", "/editing", "/integration"]) {
+for (const route of ["/", "/authentication", "/editing", "/integration"]) {
   const routeTemplate = route === "/" ? template : nestedShell;
   const routeHtml = routeTemplate.replace(
     '<div id="root"></div>',
@@ -27,7 +27,7 @@ for (const route of ["/", "/screen", "/editing", "/integration"]) {
   await writeFile(resolve(routeDir, "index.html"), routeHtml);
 }
 
-for (const route of ["demo", "editor", "auth/callback"]) {
+for (const route of ["demo", "editor", "screen", "auth/callback"]) {
   // 중첩 callback 경로에서도 JS/CSS가 루트 assets를 가리켜야 합니다.
   const assetPrefix = "../".repeat(route.split("/").length);
   const nestedShell = template.replaceAll("./assets/", `${assetPrefix}assets/`);

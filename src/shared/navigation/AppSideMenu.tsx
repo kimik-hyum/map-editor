@@ -141,7 +141,7 @@ export function AppSideMenu({ ariaLabel, className, groups, title }: AppSideMenu
           {title}
         </strong>
 
-        <nav className="grid gap-1" aria-label={ariaLabel}>
+        <nav className="grid gap-1 max-[900px]:grid-cols-2" aria-label={ariaLabel}>
           {groups.map((group) => {
             const Icon = group.icon;
             const isGroupActive = group === activeGroup;
@@ -162,7 +162,9 @@ export function AppSideMenu({ ariaLabel, className, groups, title }: AppSideMenu
                 </NavLink>
 
                 {isGroupActive && sections.length > 0 ? (
-                  <ul className={sideMenuSectionListClassName}>
+                  <ul
+                    className={cn(sideMenuSectionListClassName, "max-[900px]:hidden")}
+                  >
                     {sections.map((section) => {
                       const isSectionActive = section.href === activeHref;
 

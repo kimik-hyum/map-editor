@@ -39,7 +39,8 @@ describe("부모창 연동 문서 예제", () => {
     expect(parentHostExample).toContain("event.source !== targetWindow");
     expect(parentHostExample).toContain("event.origin !== editorOrigin");
     expect(parentHostExample).toContain("completion.data.sessionId !== sessionId");
-    expect(parentHostExample).toContain("scene: options.getScene()");
+    expect(parentHostExample).toContain("scene: initialScene");
+    expect(parentHostExample).toContain("structuredClone(options.getScene())");
     expect(parentHostExample).toContain("editorOrigin,");
     expect(parentHostExample).not.toContain('postMessage("*")');
   });

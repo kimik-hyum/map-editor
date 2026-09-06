@@ -35,15 +35,15 @@ export function DocsHero({
     >
       <div>
         {eyebrow ? <DocsEyebrow>{eyebrow}</DocsEyebrow> : null}
-        <DocsHeading className="mt-4" level={1}>
+        <DocsHeading className="mt-2" level={1}>
           {title}
         </DocsHeading>
         {description ? (
-          <DocsText className="mt-5 max-w-[680px]" variant="lead">
+          <DocsText className="mt-3 max-w-[760px]" variant="body">
             {description}
           </DocsText>
         ) : null}
-        {actions ? <div className="mt-7 flex flex-wrap gap-3">{actions}</div> : null}
+        {actions ? <div className="mt-5 flex flex-wrap gap-3">{actions}</div> : null}
       </div>
       {aside ? <div>{aside}</div> : null}
     </header>

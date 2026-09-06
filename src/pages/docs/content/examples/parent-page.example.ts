@@ -3,6 +3,8 @@ import { inputScene } from "./input-scene.example";
 import { createMapEditorHost } from "./map-editor-host.example";
 
 type ParentPageBindings = {
+  // 예: https://maps-editor.pages.dev/editor/ 또는 로컬 /editor/
+  editorUrl: string;
   openButton: HTMLButtonElement;
   renderOnParentMap: (featureCollection: {
     type: "FeatureCollection";
@@ -17,6 +19,7 @@ type ParentPageBindings = {
 };
 
 export function bindMapEditor({
+  editorUrl,
   openButton,
   renderOnParentMap,
   showEditorError,
@@ -24,6 +27,7 @@ export function bindMapEditor({
   let currentScene: EditorSceneInput = inputScene;
 
   const mapEditor = createMapEditorHost({
+    editorUrl,
     getScene: () => currentScene,
     onSubmit(editedScene) {
       // 반환값 전체를 다음 편집의 기준 데이터로 교체합니다.
@@ -51,7 +55,15 @@ export function bindMapEditor({
     onError: showEditorError,
   });
 
-  const openEditor = () => mapEditor.open();
+  const openEditor = () => {
+    try {
+      mapEditor.open();
+    } catch (error) {
+      showEditorError(
+        error instanceof Error ? error.message : "편집기를 열지 못했습니다.",
+      );
+    }
+  };
   openButton.addEventListener("click", openEditor);
 
   return () => {
