@@ -142,6 +142,7 @@ describe("Demo 부모 편집 회차", () => {
     s.send(result, "https://other.example");
     s.send(result, "https://host.example", {});
     s.send({ ...result, sessionId: "stale" });
+    expect(s.onError).toHaveBeenLastCalledWith(null);
     s.send({
       ...result,
       scene: {
@@ -151,9 +152,15 @@ describe("Demo 부모 편집 회차", () => {
     });
     expect(s.onSubmit).not.toHaveBeenCalled();
     expect(s.popup.close).not.toHaveBeenCalled();
+    expect(s.onError).toHaveBeenLastCalledWith(
+      expect.stringContaining("저장하지 못했습니다"),
+    );
+    expect(s.onStatus).toHaveBeenLastCalledWith("error");
+    expect(s.getScene()).toEqual(init.scene);
     s.send(result);
     s.send(result);
     expect(s.onSubmit).toHaveBeenCalledOnce();
+    expect(s.onError).toHaveBeenLastCalledWith(null);
   });
 
   it("팝업 차단 뒤에도 부모 데이터가 남고 다시 시도할 수 있다", () => {

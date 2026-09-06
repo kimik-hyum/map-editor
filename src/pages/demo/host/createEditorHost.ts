@@ -63,8 +63,18 @@ export function createEditorHost(options: EditorHostOptions) {
       return;
     }
 
+    if (type !== EditorMessageType.Submit && type !== EditorMessageType.Cancel) return;
+    const data = event.data as { sessionId?: unknown };
+    if (!sessionId || data.sessionId !== sessionId) return;
     const message = parseEditorCompletionMessage(event.data);
-    if (!message || message.sessionId !== sessionId) return;
+    if (!message) {
+      // 신뢰한 창의 현재 회차만 오류로 표시합니다. 원본과 팝업을 유지해 재시도를 허용합니다.
+      options.onError(
+        "편집 결과의 데이터 형식이 올바르지 않아 저장하지 못했습니다. 편집창에서 수정 후 다시 저장하세요.",
+      );
+      options.onStatus("error");
+      return;
+    }
     const completedChild = child;
     // 후속 메시지·close 타이머가 이미 완료된 회차의 상태를 바꾸지 못하게 먼저 해제합니다.
     releaseChild();

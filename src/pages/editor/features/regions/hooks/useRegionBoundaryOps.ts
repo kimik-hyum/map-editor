@@ -8,6 +8,7 @@ import {
 import {
   deriveGeometryOpTargets,
   hasAreaOverlap,
+  normalizePolygonalGeometry,
   subtractGeometry,
   unionGeometries,
 } from "@/pages/editor/features/geometry-ops";
@@ -91,7 +92,11 @@ async function fullResBoundaryGeom(
   if (!geometry || !isPolygonalGeometry(geometry)) {
     throw new Error("경계 원본 geometry가 없습니다.");
   }
-  return geometry;
+  const normalized = normalizePolygonalGeometry(geometry);
+  if (!normalized) {
+    throw new Error("경계 원본의 좌표가 올바르지 않아 적용할 수 없습니다.");
+  }
+  return normalized;
 }
 
 // 현재 선택이 "정확히 1개의 편집 가능 폴리곤"이면 그 id를, 아니면 null을 돌려줍니다.

@@ -1,4 +1,5 @@
 export { GeometryOpMarkers } from "./components/GeometryOpMarkers";
+export { normalizePolygonalGeometry } from "./model/normalizePolygonalGeometry";
 export {
   hasAreaOverlap,
   intersectGeometries,

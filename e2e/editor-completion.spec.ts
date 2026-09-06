@@ -17,6 +17,82 @@ async function hideAreaA(editorPage: Page) {
   await row.getByRole("button", { name: "도형 숨기기" }).click();
 }
 
+test("저장 직전 검증 오류를 표시하고 부모 데이터와 미저장 이탈 경고를 유지한다", async ({
+  page,
+}) => {
+  const editorPage = await openConnectedEditor(page);
+  const before = await page.getByTestId("parent-scene").textContent();
+  await editorPage.evaluate(async () => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    useEditorStore.getState().updateFeatureGeometry("feature-7", {
+      type: "Polygon",
+      coordinates: [
+        [
+          [126.97, 37.58],
+          [126.98, 37.58],
+          [126.98, 37.59],
+          [126.97, 37.58],
+        ],
+        [
+          [126.975, 37.581],
+          [126.976, 37.582],
+          [126.975, 37.581],
+        ],
+      ],
+    });
+  });
+  await editorPage.getByRole("button", { name: "저장하고 편집 완료" }).click();
+  await expect(editorPage.getByRole("alert")).toContainText(
+    "저장할 수 없는 도형 데이터",
+  );
+  expect(await page.getByTestId("parent-scene").textContent()).toBe(before);
+  expect(
+    await editorPage.evaluate(() => {
+      const event = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    }),
+  ).toBe(true);
+  await editorPage.evaluate(async () => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    useEditorStore.getState().undo();
+  });
+  await Promise.all([
+    editorPage.waitForEvent("close"),
+    editorPage.getByRole("button", { name: "저장하고 편집 완료" }).click(),
+  ]);
+  await expect(page.getByText("완료됨 · 편집 결과 수신")).toBeVisible();
+});
+
+test("postMessage 전송 예외를 표시하고 재시도할 수 있다", async ({ page }) => {
+  const editorPage = await openConnectedEditor(page);
+  await hideAreaA(editorPage);
+  // 같은 origin인 Demo 부모의 전송 함수를 한 번만 실패시킵니다.
+  await page.evaluate(() => {
+    const original = window.postMessage;
+    window.postMessage = () => {
+      window.postMessage = original;
+      throw new DOMException("test transport failure", "DataCloneError");
+    };
+  });
+  await editorPage.getByRole("button", { name: "저장하고 편집 완료" }).click();
+  await expect(editorPage.getByRole("alert")).toContainText(
+    "편집 결과를 전송하지 못했습니다",
+  );
+  expect(
+    await editorPage.evaluate(() => {
+      const event = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    }),
+  ).toBe(true);
+  await Promise.all([
+    editorPage.waitForEvent("close"),
+    editorPage.getByRole("button", { name: "저장하고 편집 완료" }).click(),
+  ]);
+  await expect(page.getByText("완료됨 · 편집 결과 수신")).toBeVisible();
+});
+
 test("저장하고 완료하면 공개 v2 scene을 부모에게 반환하고 부모가 팝업을 닫는다", async ({
   page,
 }) => {

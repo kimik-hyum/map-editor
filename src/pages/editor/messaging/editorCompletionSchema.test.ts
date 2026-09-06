@@ -1,4 +1,11 @@
 import { describe, expect, it } from "vitest";
+import union from "@turf/union";
+import { feature, featureCollection } from "@turf/helpers";
+import { unionGeometries } from "../features/geometry-ops/model/booleanOps";
+import {
+  UNION_REGRESSION_TARGET,
+  UNION_REGRESSION_BOUNDARY,
+} from "../features/geometry-ops/model/fixtures/degenerateUnion";
 import { EditorMessageType, type EditorSceneInput } from "../types/editorTypes";
 import { createCancelMessage, createSubmitMessage } from "./editorMessageChannel";
 import { parseEditorCompletionMessage } from "./editorCompletionSchema";
@@ -15,6 +22,34 @@ const sceneInput: EditorSceneInput = {
 };
 
 describe("editor completion messages", () => {
+  it("각각 유효한 경계의 병합에서 생긴 퇴화 ring을 정리해 저장 검증을 통과한다", () => {
+    const completion = (geometry: unknown) => ({
+      type: EditorMessageType.Submit,
+      sessionId: "boundary-regression",
+      scene: { version: 2, features: [{ geometry }] },
+    });
+    expect(
+      parseEditorCompletionMessage(completion(UNION_REGRESSION_TARGET)),
+    ).not.toBeNull();
+    expect(
+      parseEditorCompletionMessage(completion(UNION_REGRESSION_BOUNDARY)),
+    ).not.toBeNull();
+    const raw = union(
+      featureCollection([
+        feature(UNION_REGRESSION_TARGET),
+        feature(UNION_REGRESSION_BOUNDARY),
+      ]),
+    );
+    expect(parseEditorCompletionMessage(completion(raw?.geometry))).toBeNull();
+    const repaired = unionGeometries(
+      UNION_REGRESSION_TARGET,
+      UNION_REGRESSION_BOUNDARY,
+    );
+    expect(repaired).not.toBeNull();
+    expect(parseEditorCompletionMessage(completion(repaired))).not.toBeNull();
+    expect(repaired?.coordinates[0]).toEqual(raw?.geometry.coordinates[0]);
+  });
+
   it("SUBMIT은 sessionId와 공개 v2 scene을 만들고 검증한다", () => {
     const message = createSubmitMessage(
       "session-submit",

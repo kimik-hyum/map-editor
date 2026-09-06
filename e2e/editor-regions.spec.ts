@@ -6,6 +6,14 @@ import {
   type Page,
 } from "@playwright/test";
 import { seedGoogleSession } from "./fixtures/auth";
+import {
+  UNION_REGRESSION_TARGET,
+  UNION_REGRESSION_BOUNDARY,
+} from "../src/pages/editor/features/geometry-ops/model/fixtures/degenerateUnion";
+import type {
+  PolygonalGeometry,
+  EditorSceneInput,
+} from "../src/pages/editor/types/editorTypes";
 
 const REGION_FEATURE = {
   type: "Feature",
@@ -29,7 +37,11 @@ const REGION_FEATURE = {
 
 async function installRegionApiMock(
   context: BrowserContext,
-  options: { catalogError?: boolean; fullResolutionDelayMs?: number } = {},
+  options: {
+    catalogError?: boolean;
+    fullResolutionDelayMs?: number;
+    fullGeometry?: PolygonalGeometry;
+  } = {},
 ) {
   await seedGoogleSession(context);
   await context.route("**/region-api/functions/v1/regions", async (route) => {
@@ -91,7 +103,12 @@ async function installRegionApiMock(
           setTimeout(resolve, options.fullResolutionDelayMs),
         );
       }
-      await route.fulfill({ json: REGION_FEATURE });
+      await route.fulfill({
+        json: {
+          ...REGION_FEATURE,
+          geometry: options.fullGeometry ?? REGION_FEATURE.geometry,
+        },
+      });
       return;
     }
 
@@ -201,6 +218,108 @@ test("준비된 scene에서 경계 +는 원본 geometry를 새 편집 피처로 
   await expect(
     editorPage.getByRole("button", { name: "저장하고 편집 완료" }),
   ).toBeEnabled();
+  await Promise.all([
+    editorPage.waitForEvent("close"),
+    editorPage.getByRole("button", { name: "저장하고 편집 완료" }).click(),
+  ]);
+  await expect(page.getByText("완료됨 · 편집 결과 수신")).toBeVisible();
+});
+
+test("퇴화 ring을 만드는 경계 병합도 저장·부모 갱신·다시 열기까지 완료한다", async ({
+  context,
+  page,
+}) => {
+  await installRegionApiMock(context, { fullGeometry: UNION_REGRESSION_BOUNDARY });
+  const editorPage = await openEditorViaDemo(page);
+  // 실제 병합 오류에서 축소한 입력을 넣되 부모와 연결된 회차는 그대로 유지합니다.
+  await editorPage.evaluate(async (geometry) => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    useEditorStore.getState().updateFeatureGeometry("feature-7", geometry);
+  }, UNION_REGRESSION_TARGET);
+  await editorPage.getByRole("button", { name: "권역 C 선택", exact: true }).click();
+  await editorPage.getByRole("button", { name: "행정동 경계" }).click();
+  await expect(editorPage.getByText("현재 화면:")).toBeVisible();
+  const mergeButton = editorPage.getByRole("button", { name: "테스트 경계 병합" });
+  await hoverMapUntilVisible(
+    editorPage,
+    editorPage.getByLabel("OSM map editor"),
+    mergeButton,
+  );
+  await mergeButton.press("Enter");
+  await expect(async () => {
+    const geometry = await editorPage.evaluate(async () => {
+      const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+      return useEditorStore
+        .getState()
+        .scene?.layers.flatMap((l) => l.features)
+        .find((f) => f.id === "feature-7")?.feature.geometry;
+    });
+    expect(geometry).not.toEqual(UNION_REGRESSION_TARGET);
+  }).toPass();
+  await Promise.all([
+    editorPage.waitForEvent("close"),
+    editorPage.getByRole("button", { name: "저장하고 편집 완료" }).click(),
+  ]);
+  await expect(page.getByText("완료됨 · 편집 결과 수신")).toBeVisible();
+  const saved = JSON.parse(
+    (await page.getByTestId("parent-scene").textContent()) ?? "null",
+  ) as EditorSceneInput;
+  expect(saved.features).toHaveLength(8);
+  const geometry = saved.features.find((f) => f.name === "권역 C")?.geometry;
+  expect(geometry?.type).toBe("Polygon");
+  expect(geometry?.coordinates).toHaveLength(1);
+  const [reopened] = await Promise.all([
+    page.waitForEvent("popup"),
+    page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
+  ]);
+  await expect(
+    reopened.getByRole("button", { name: "권역 C 선택", exact: true }),
+  ).toBeVisible();
+  expect(
+    await reopened.evaluate(async () => {
+      const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+      return useEditorStore
+        .getState()
+        .scene?.layers.flatMap((l) => l.features)
+        .find((f) => f.id === "feature-7")?.feature.geometry;
+    }),
+  ).toEqual(geometry);
+});
+
+test("원본 경계의 반올림으로 무너진 내부 ring을 정리한 뒤 저장한다", async ({
+  context,
+  page,
+}) => {
+  const geometry = structuredClone(REGION_FEATURE.geometry) as PolygonalGeometry;
+  if (geometry.type !== "MultiPolygon") throw new Error("잘못된 fixture");
+  geometry.coordinates[0].push([
+    [126.98, 37.57],
+    [126.98, 37.57],
+    [126.981, 37.571],
+    [126.98, 37.57],
+  ]);
+  await installRegionApiMock(context, { fullGeometry: geometry });
+  const editorPage = await openEditorViaDemo(page);
+  await editorPage.getByRole("button", { name: "행정동 경계" }).click();
+  await expect(editorPage.getByText("현재 화면:")).toBeVisible();
+  const mergeButton = editorPage.getByRole("button", { name: "테스트 경계 병합" });
+  await hoverMapUntilVisible(
+    editorPage,
+    editorPage.getByLabel("OSM map editor"),
+    mergeButton,
+  );
+  await mergeButton.press("Enter");
+  await expect(editorPage.getByRole("button", { name: "도형 숨기기" })).toHaveCount(9);
+  await Promise.all([
+    editorPage.waitForEvent("close"),
+    editorPage.getByRole("button", { name: "저장하고 편집 완료" }).click(),
+  ]);
+  const saved = JSON.parse(
+    (await page.getByTestId("parent-scene").textContent()) ?? "null",
+  ) as EditorSceneInput;
+  expect(saved.features.find((f) => f.name === "테스트 경계")?.geometry).toEqual(
+    REGION_FEATURE.geometry,
+  );
 });
 
 test("원본 조회 중 새 INIT이 오면 이전 경계 연산 결과를 버린다", async ({
