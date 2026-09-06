@@ -1,4 +1,5 @@
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useBoundaryAccess } from "@/features/auth";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   attachRegionBoundaryHover,
@@ -78,9 +79,10 @@ function polygonGeomFromScene(
 async function fullResBoundaryGeom(
   queryClient: QueryClient,
   boundaryId: string | number,
+  subject: string,
 ): Promise<PolygonalGeometry> {
   const full = await queryClient.fetchQuery({
-    queryKey: ["region-full", String(boundaryId)],
+    queryKey: ["region-full", String(boundaryId), subject],
     queryFn: ({ signal }) => fetchRegionById(boundaryId, signal),
     staleTime: REGION_BOUNDARY_CACHE_MS,
     gcTime: REGION_BOUNDARY_CACHE_MS,
@@ -130,6 +132,7 @@ export function useRegionBoundaryOps({
   enabled,
   scopeKey,
 }: UseRegionBoundaryOpsArgs) {
+  const { allowed, subject } = useBoundaryAccess();
   const scene = useEditorStore((state) => state.scene);
   const sessionId = useEditorStore((state) => state.sessionId);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
@@ -143,7 +146,7 @@ export function useRegionBoundaryOps({
 
   // hover 위치는 adapter가 유지하고, 제거 가능 여부는 현재 scene·선택으로 매번 다시 계산합니다.
   const chip = useMemo<RegionOpHandle | null>(() => {
-    if (!hoveredBoundary) {
+    if (!hoveredBoundary || !allowed || !enabled) {
       return null;
     }
     const targetId = deriveGeometryOpTargets(
@@ -159,7 +162,7 @@ export function useRegionBoundaryOps({
         targetGeom && hasAreaOverlap(targetGeom, hoveredBoundary.displayGeometry),
       ),
     };
-  }, [hoveredBoundary, scene, selectedFeatureIds]);
+  }, [allowed, enabled, hoveredBoundary, scene, selectedFeatureIds]);
 
   useEffect(() => {
     operationGenerationRef.current += 1;
@@ -169,7 +172,7 @@ export function useRegionBoundaryOps({
     setHoveredBoundary(null);
     setError(null);
 
-    if (!map || !layer || !enabled || !scopeKey) {
+    if (!map || !layer || !enabled || !scopeKey || !allowed || !subject) {
       return;
     }
 
@@ -196,11 +199,11 @@ export function useRegionBoundaryOps({
       attachment.detach();
       boundaryByFeatureIdRef.current.clear();
     };
-  }, [map, layer, enabled, scopeKey, sessionId]);
+  }, [map, layer, enabled, scopeKey, sessionId, allowed, subject]);
 
   const onMerge = useCallback(
     async (featureId: string) => {
-      if (busyRef.current) {
+      if (busyRef.current || !allowed || !subject || !enabled) {
         return;
       }
       const boundary = boundaryByFeatureIdRef.current.get(featureId);
@@ -221,6 +224,7 @@ export function useRegionBoundaryOps({
         const boundaryGeom = await fullResBoundaryGeom(
           queryClient,
           boundary.boundaryId,
+          subject,
         );
         if (
           operationGeneration !== operationGenerationRef.current ||
@@ -261,12 +265,12 @@ export function useRegionBoundaryOps({
         }
       }
     },
-    [queryClient],
+    [allowed, enabled, queryClient, subject],
   );
 
   const onSubtract = useCallback(
     async (featureId: string) => {
-      if (busyRef.current) {
+      if (busyRef.current || !allowed || !subject || !enabled) {
         return;
       }
       const boundary = boundaryByFeatureIdRef.current.get(featureId);
@@ -284,6 +288,7 @@ export function useRegionBoundaryOps({
         const boundaryGeom = await fullResBoundaryGeom(
           queryClient,
           boundary.boundaryId,
+          subject,
         );
         if (
           operationGeneration !== operationGenerationRef.current ||
@@ -318,7 +323,7 @@ export function useRegionBoundaryOps({
         }
       }
     },
-    [queryClient],
+    [allowed, enabled, queryClient, subject],
   );
 
   return { overlays: chip ? [chip] : [], onMerge, onSubtract, error, busy };

@@ -1,4 +1,5 @@
 import "ol/ol.css";
+import { useBoundaryAccess } from "@/features/auth";
 import { MapCursorTooltip } from "@/shared/ui/MapCursorTooltip";
 import { useConfirmationDialogOpen } from "@/shared/ui/confirmation-dialog";
 import { useEditorClipboard } from "./features/clipboard";
@@ -33,13 +34,15 @@ export function EditorPage() {
   const renameInProgress = useEditorStore((state) => state.renamingFeatureId !== null);
   const confirmationOpen = useConfirmationDialogOpen();
   const activation = getToolActivation(activeMode);
+  const { allowed: boundaryAllowed } = useBoundaryAccess();
   const cursorHint = confirmationOpen
     ? null
     : (drawTool.hint ?? (editAffordance ? EDIT_HINTS[editAffordance] : null));
 
   // 좌측 rail의 경계 도구가 활성일 때만, 거기서 고른 종류(행정동/법정동/우편번호)의
   // 경계를 현재 줌·화면으로 받아 그린다. 다른 모드로 바꾸면 비운다.
-  const boundaryKind = activation.boundary ? activeBoundaryKind : null;
+  const boundaryKind =
+    activation.boundary && boundaryAllowed ? activeBoundaryKind : null;
   const { layer: regionLayer, status: regionStatus } = useRegionBoundaries(
     map,
     boundaryKind,

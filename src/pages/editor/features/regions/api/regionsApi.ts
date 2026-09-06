@@ -1,24 +1,5 @@
 import { z } from "zod";
-
-// Supabase 지역경계 API 호출부입니다. 브라우저에 노출되는 publishable 키도 환경별 설정으로
-// 분리하고, 누락을 숨긴 채 다른 프로젝트로 요청하지 않도록 호출 시점에 명시적으로 검증합니다.
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-
-function getSupabaseConfig() {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error("지역 경계 설정(VITE_SUPABASE_URL/ANON_KEY)이 없습니다.");
-  }
-
-  return {
-    url: SUPABASE_URL,
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      "Content-Type": "application/json",
-    },
-  };
-}
+import { getAuthenticatedFunctionRequest } from "@/features/auth/api/supabaseClient";
 
 const coordinateSchema = z.tuple([z.number(), z.number()]);
 const polygonalGeometrySchema = z.discriminatedUnion("type", [
@@ -70,6 +51,26 @@ async function parseResponse<T>(
   return result.data;
 }
 
+async function callRegionFunction<T>(
+  operation: string,
+  payload: Record<string, unknown>,
+  schema: z.ZodType<T>,
+  label: string,
+  signal?: AbortSignal,
+): Promise<T> {
+  const { headers, url } = await getAuthenticatedFunctionRequest();
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    signal,
+    body: JSON.stringify({ operation, ...payload }),
+  });
+  if (!response.ok) {
+    throw new Error(`${label} 호출 실패: ${response.status}`);
+  }
+  return parseResponse(response, schema, label);
+}
+
 // region_kind 카탈로그의 한 행(메뉴 종류와 줌 전용 상위 종류를 모두 포함).
 export type RegionKind = z.infer<typeof regionKindSchema>;
 
@@ -91,19 +92,13 @@ export async function fetchRegionKinds(
   country = "KR",
   signal?: AbortSignal,
 ): Promise<RegionKind[]> {
-  const { url: baseUrl, headers } = getSupabaseConfig();
-  const requestUrl = new URL(`${baseUrl.replace(/\/$/, "")}/rest/v1/region_kind`);
-  requestUrl.searchParams.set("country", `eq.${country}`);
-  requestUrl.searchParams.set(
-    "select",
-    "kind,label,level,min_zoom,sort_order,selectable",
+  return callRegionFunction(
+    "kinds",
+    { country },
+    z.array(regionKindSchema),
+    "region_kind",
+    signal,
   );
-  requestUrl.searchParams.set("order", "sort_order");
-  const res = await fetch(requestUrl.toString(), { headers, signal });
-  if (!res.ok) {
-    throw new Error(`region_kind 조회 실패: ${res.status}`);
-  }
-  return parseResponse(res, z.array(regionKindSchema), "region_kind");
 }
 
 // 원본 해상도 GeoJSON Feature(없으면 null).
@@ -115,17 +110,13 @@ export async function fetchRegionById(
   boundaryId: number | string,
   signal?: AbortSignal,
 ): Promise<RegionFeature> {
-  const { url, headers } = getSupabaseConfig();
-  const res = await fetch(`${url}/rest/v1/rpc/region_by_id`, {
-    method: "POST",
-    headers,
+  return callRegionFunction(
+    "byId",
+    { boundaryId },
+    regionFeatureSchema.nullable(),
+    "region_by_id",
     signal,
-    body: JSON.stringify({ boundary_id: boundaryId }),
-  });
-  if (!res.ok) {
-    throw new Error(`region_by_id 호출 실패: ${res.status}`);
-  }
-  return parseResponse(res, regionFeatureSchema.nullable(), "region_by_id");
+  );
 }
 
 // code 기반 원본 조회. 외부/편의 조회용으로 유지한다.
@@ -136,17 +127,13 @@ export async function fetchRegionByCode(
   country = "KR",
   signal?: AbortSignal,
 ): Promise<RegionFeature> {
-  const { url, headers } = getSupabaseConfig();
-  const res = await fetch(`${url}/rest/v1/rpc/region_by_code`, {
-    method: "POST",
-    headers,
+  return callRegionFunction(
+    "byCode",
+    { code, country, kind },
+    regionFeatureSchema.nullable(),
+    "region_by_code",
     signal,
-    body: JSON.stringify({ country, kind, code }),
-  });
-  if (!res.ok) {
-    throw new Error(`region_by_code 호출 실패: ${res.status}`);
-  }
-  return parseResponse(res, regionFeatureSchema.nullable(), "region_by_code");
+  );
 }
 
 // 현재 화면 bbox + 줌 + 선택 kind로 경계를 받습니다(서버가 줌 tier를 결정).
@@ -155,23 +142,19 @@ export async function fetchRegionsByView(
   q: RegionViewQuery,
   signal?: AbortSignal,
 ): Promise<RegionFeatureCollection> {
-  const { url, headers } = getSupabaseConfig();
-  const res = await fetch(`${url}/rest/v1/rpc/regions_by_view`, {
-    method: "POST",
-    headers,
-    signal,
-    body: JSON.stringify({
-      min_lng: q.minLng,
-      min_lat: q.minLat,
-      max_lng: q.maxLng,
-      max_lat: q.maxLat,
+  return callRegionFunction(
+    "byView",
+    {
+      minLng: q.minLng,
+      minLat: q.minLat,
+      maxLng: q.maxLng,
+      maxLat: q.maxLat,
       zoom: q.zoom,
       country: q.country ?? "KR",
       kind: q.kind,
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`regions_by_view 호출 실패: ${res.status}`);
-  }
-  return parseResponse(res, regionFeatureCollectionSchema, "regions_by_view");
+    },
+    regionFeatureCollectionSchema,
+    "regions_by_view",
+    signal,
+  );
 }

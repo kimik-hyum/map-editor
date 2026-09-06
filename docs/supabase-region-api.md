@@ -86,21 +86,26 @@ commit;
 
 ## 2. 접근 모델 (RLS / 권한)
 
-| 대상              | 직접 접근(PostgREST 테이블)     | RPC 경유 |
-| ----------------- | ------------------------------- | -------- |
-| `region_kind`     | `anon`/`authenticated` **읽기** | —        |
-| `region_boundary` | **불가** (직접 read/write 회수) | 가능     |
+브라우저는 지역 테이블이나 RPC에 직접 접근하지 않고 `POST /functions/v1/regions`만 호출한다.
 
-- 두 테이블 모두 RLS 활성화. `region_kind`만 공개 읽기 정책을 둔다(메뉴 구성용).
-- `region_boundary`는 **직접 SELECT를 회수**해 `/rest/v1/region_boundary` 직접 조회로 bbox/페이로드 제한을 우회하지 못하게 한다. 접근은 RPC로만.
-- 두 테이블 모두 `anon`/`authenticated`의 쓰기 권한(INSERT/UPDATE/DELETE/TRUNCATE)을 **회수**. 쓰기·적재는 `service_role`(관리자)만.
-- RPC는 `SECURITY DEFINER` + `search_path` 고정으로, 잠긴 `region_boundary`를 대신 읽어 결과만 돌려준다. 실행 권한은 `anon`/`authenticated`에만 부여(`public` 회수).
+1. `/editor`는 비로그인으로 진입한다. 경계 메뉴 선택 시 확인 모달을 띄우고, 동의한 경우에만 별도 팝업에서 Supabase Auth의 Google OAuth(PKCE)로 로그인한다. 취소 시 기존 도구와 편집 상태를 유지한다.
+2. 브라우저는 Edge Function에 로그인 사용자의 access token을 `Authorization: Bearer ...`로 보낸다.
+3. Edge Function은 정확한 Origin, JWT, Google identity, 선택적 이메일/도메인 허용 목록과 사용자별 호출량을 검사한다.
+4. 통과한 요청만 함수 내부의 secret key로 `region_kind` 및 지역 RPC를 호출한다.
+
+로그인 팝업의 복귀 주소는 앱의 `/auth/callback`이다. 원래 에디터 창은 이동하거나 다시 마운트하지 않으므로 부모의 INIT 데이터, `window.opener` 연결, 편집 이력과 지도 상태가 유지된다. 로그인 중 새 INIT 또는 편집/도구 변경이 발생하면 이전 경계 메뉴 전환 의도를 취소한다. 팝업의 완료 알림에는 성공 여부만 포함하며, 인증 토큰과 scene은 호스트에 전달하지 않는다.
+
+카탈로그·화면 경계·단건 원본 캐시는 인증 사용자별로 분리한다. 비로그인 상태에서는 경계 조회를 비활성화하고, 로그아웃 시 참고 경계와 진행 중 경계 연산을 해제한다. 편집 scene에 이미 복사한 도형은 일반 편집 데이터이므로 삭제하지 않는다. 서버 JWT/Origin/권한 설정은 그대로 유지한다.
+
+`anon`과 `authenticated`에는 `region_kind` SELECT 및 지역 RPC EXECUTE 권한이 없다. 따라서 publishable key나 사용자 JWT를 얻더라도 Data API를 직접 호출해 Edge Function 검사를 우회할 수 없다. 쓰기·적재 역시 관리자 역할만 가능하다.
+
+Origin/CORS 검사는 브라우저 오용을 줄이는 보조 장치다. `curl`은 Origin 헤더를 위조할 수 있으므로 실제 접근 통제는 검증된 Google 사용자 JWT와 서버 측 허용 목록이 담당한다. `MAPS_EDITOR_ALLOWED_EMAILS` 또는 `MAPS_EDITOR_ALLOWED_EMAIL_DOMAINS`를 설정하지 않으면 모든 Google 계정을 허용한다.
 
 ---
 
 ## 3. RPC API
 
-PostgREST 경유: `POST /rest/v1/rpc/<함수명>` (body는 JSON, 키 = 파라미터명).
+RPC는 Edge Function 내부에서만 호출한다. 브라우저 공개 엔드포인트는 `POST /functions/v1/regions`이며, 본문의 `operation`으로 아래 RPC를 선택한다.
 
 ### `regions_by_view` — 화면 기준 경계 조회 (주 사용)
 
@@ -201,7 +206,7 @@ floor(zoom) ≥ (선택 kind의 min_zoom)  →  선택한 kind 반환 (detail)
 ## 4. 클라이언트 사용 메모
 
 - 좌표계: 응답은 4326 GeoJSON → OpenLayers에서 `3857`로 표시할 때만 reprojection. 저장/편집은 4326 그대로.
-- 호출: `@supabase/supabase-js`의 `.rpc('regions_by_view', { … })` 또는 anon 키를 헤더에 실은 raw `fetch`. 비동기 상태는 기존 TanStack Query로 래핑. **`region_boundary` 테이블은 직접 조회 불가** — 반드시 RPC 사용. `region_kind`는 직접 읽기 가능.
+- 호출: 로그인 세션의 access token과 publishable key를 헤더에 넣어 `/functions/v1/regions`를 호출한다. 비동기 상태는 기존 TanStack Query로 래핑한다. **테이블과 RPC는 브라우저에서 직접 조회할 수 없다.**
 - 줌: 소수 줌을 그대로 보내도 된다(서버 `floor`). 클라이언트는 요청 bbox를 **해당 줌 타일 폭 격자로 스냅**해 보낸다 — 작은 팬으로는 재요청이 없고, 사용자 간 요청이 동일 키로 수렴해 이후 HTTP/서버 캐시 도입 시 그대로 캐시 키가 된다.
 - 편집 연산: `regions_by_view`의 표시 geometry는 절대 연산에 쓰지 않는다. `Feature.id`로 `region_by_id`를 호출해 원본 geometry를 받은 뒤 union/subtract를 수행한다.
 - 잘림: 응답의 `truncated=true`는 현재 bbox에서 상한까지만 받은 상태다. 우편번호처럼 밀도가 높은 kind에서 줌인/범위 축소 UI 신호로 사용한다.
@@ -219,4 +224,7 @@ floor(zoom) ≥ (선택 kind의 min_zoom)  →  선택한 kind 반환 (detail)
 - [x] `subdivision_code`(adm1) 추가 — 시도별 증분 적재 스코프 + 글로벌 계층/필터
 - [x] 서울(`subdivision_code='11'`) 경계 데이터 적재: 시군구/행정동/법정동/우편번호 (5179 → 4326, `ST_MakeValid`·`ST_Multi`)
 - [x] maps-editor 측 RPC 연동 및 경계 도구 결선 — 서버 카탈로그 메뉴, bbox 스냅·TanStack Query 캐시, 비선택 `sigungu` 표시, `truncated` 줌인 안내, 원본 기반 복사 병합/제거
+- [x] 경계 도구 선택 시에만 Google 로그인 안내, 별도 OAuth 팝업으로 부모 연결과 편집 상태 유지
+- [x] 비로그인 경계 요청 차단 및 사용자별 조회 캐시 분리
+- [x] 직접 Data API 권한 회수, Edge Function Origin/JWT/Google identity/호출량 검증
 - [ ] 시도별 증분 적재 운영(다운로드 → staging 검증 → 버전 스왑) + (필요 시) coarse tier 단순화
