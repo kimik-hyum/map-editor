@@ -57,8 +57,9 @@ export function DocsStartPage() {
         />
         <DocsText className="mt-4">
           <DocsCode>http://localhost:4174/demo</DocsCode>에서 ‘편집기 새 창으로 열기’를
-          누르면 부모 데이터 수신부터 반환까지 확인할 수 있습니다. 경계 조회를 제외한
-          편집·문서는 Supabase 설정 없이도 동작합니다.
+          누르면 부모 지도 → 새 창 편집 → 저장 후 지도 갱신을 확인할 수 있습니다. 다시
+          열면 직전 저장본으로 편집합니다. 경계 조회를 제외한 편집·문서는 Supabase 설정
+          없이도 동작합니다.
         </DocsText>
         <Callout className="mt-4" tone="note" title="에디터 주소만 직접 열었다면">
           부모 창이 없으므로 데이터를 기다리는 화면이 표시됩니다.{" "}
