@@ -12,6 +12,7 @@ npm run dev
 ## 사용 패키지
 
 - `react`, `react-dom`: UI
+- `@supabase/supabase-js`: Google 로그인 세션 및 Edge Function 인증 호출
 - `react-router`: Docs, Demo, Editor 라우팅
 - `@tanstack/react-query`: 비동기 상태/캐싱
 - `zustand`: 편집기 클라이언트 상태
@@ -67,3 +68,20 @@ npm run preview
 ```bash
 VITE_EDITOR_PARENT_ORIGINS=https://service.example.com,https://admin.example.com
 ```
+
+## Google 로그인과 지역 API
+
+`/editor`의 일반 편집과 부모 창 데이터 수신·반환은 로그인 없이 사용할 수 있다. 경계 메뉴를 선택할 때만 Google 로그인 안내를 표시한다. 취소하면 기존 도구와 진행 중 그리기를 유지하고, 확인하면 별도 OAuth 팝업에서 로그인한 뒤 경계 도구를 연다. 에디터 창은 새로고침하거나 이동하지 않아 부모 연결·도형·편집 이력이 유지된다.
+
+비로그인 상태에서는 경계 카탈로그와 도형 API를 요청하지 않는다. 지역 데이터는 테이블/RPC에 직접 요청하지 않고, 로그인 사용자의 access token을 첨부해 `regions` Edge Function을 통해서만 조회한다. 로그아웃 시 참고 경계는 사라지지만 이미 편집 scene에 채택한 도형은 유지된다.
+
+로컬 `.env`에는 다음 공개 값만 둔다. publishable key는 브라우저 공개용이며, secret/service-role key는 앱 저장소나 빌드 환경에 넣지 않는다.
+
+```bash
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+```
+
+Supabase Auth Redirect URLs에 각 사용 origin의 `/auth/callback`을 등록한다. 예: `https://maps-editor.pages.dev/auth/callback`, `https://google-sso-preview.maps-editor.pages.dev/auth/callback`. Google OAuth의 승인된 리디렉션 URI는 앱 주소가 아니라 Supabase Auth callback인 `https://<project-ref>.supabase.co/auth/v1/callback`이다.
+
+OAuth는 [Supabase PKCE 흐름](https://supabase.com/docs/guides/auth/sessions/pkce-flow)을 사용한다. 팝업과 에디터는 동일 origin의 인증 세션을 공유하며, 부모 호스트에는 인증 토큰이나 로그인 정보를 보내지 않는다. 팝업을 닫거나 차단한 경우에도 에디터는 유지되고, 로그인 취소 후 다시 시도할 수 있다. 이번 방식은 기존 `window.opener` 기반 새 창 연동을 대상으로 하며, 제3자 iframe의 브라우저 저장소 제한 지원을 추가한 것은 아니다.

@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { AuthProvider } from "@/features/auth";
 import { ConfirmationDialogProvider } from "@/shared/ui/confirmation-dialog";
 
 const queryClient = new QueryClient({
@@ -18,8 +19,10 @@ type AppProvidersProps = {
 
 export function AppProviders({ children }: AppProvidersProps) {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ConfirmationDialogProvider>{children}</ConfirmationDialogProvider>
-    </QueryClientProvider>
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <ConfirmationDialogProvider>{children}</ConfirmationDialogProvider>
+      </QueryClientProvider>
+    </AuthProvider>
   );
 }

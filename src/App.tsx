@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router";
+import { AuthCallbackPage } from "@/features/auth";
 import { DemoLayout } from "./pages/demo/DemoLayout";
 import { DemoPage } from "./pages/demo/DemoPage";
 import { DocsLayout } from "./pages/docs/DocsLayout";
@@ -35,6 +36,7 @@ function EditorRoute() {
 export function App() {
   return (
     <Routes>
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route path="/" element={<DocsLayout />}>
         <Route index element={<DocsPage />} />
       </Route>

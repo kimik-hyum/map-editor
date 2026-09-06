@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useBoundaryAccess } from "@/features/auth";
 import type OpenLayersMap from "ol/Map";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -37,6 +38,8 @@ export function useRegionBoundaries(
   map: OpenLayersMap | null,
   activeKind: string | null,
 ) {
+  const { allowed, subject } = useBoundaryAccess();
+  const visibleKind = allowed ? activeKind : null;
   const attachmentRef = useRef<ReturnType<typeof attachRegionBoundaryLayer> | null>(
     null,
   );
@@ -65,9 +68,9 @@ export function useRegionBoundaries(
   }, [map]);
 
   const query = useQuery({
-    queryKey: ["region-boundaries", "KR", activeKind, view],
+    queryKey: ["region-boundaries", "KR", visibleKind, view, subject],
     queryFn: ({ signal }) => {
-      if (!view || !activeKind) {
+      if (!view || !visibleKind || !allowed) {
         throw new Error("region query preconditions not met");
       }
       return fetchRegionsByView(
@@ -77,28 +80,32 @@ export function useRegionBoundaries(
           maxLng: view.maxLng,
           maxLat: view.maxLat,
           zoom: view.zoom,
-          kind: activeKind,
+          kind: visibleKind,
         },
         signal,
       );
     },
-    enabled: map !== null && activeKind !== null && view !== null,
+    enabled: allowed && map !== null && visibleKind !== null && view !== null,
     staleTime: REGION_BOUNDARY_CACHE_MS,
     gcTime: REGION_BOUNDARY_CACHE_MS,
     // kind 변경 때는 stale 경계를 비우고, 같은 kind의 pan/zoom 중에만 깜빡임을 줄입니다.
     placeholderData: (previousData, previousQuery) =>
-      previousQuery?.queryKey[2] === activeKind ? previousData : undefined,
+      allowed &&
+      previousQuery?.queryKey[2] === visibleKind &&
+      previousQuery?.queryKey[4] === subject
+        ? previousData
+        : undefined,
   });
 
   useEffect(() => {
-    attachmentRef.current?.sync(activeKind && query.data ? query.data : null);
-  }, [activeKind, query.data]);
+    attachmentRef.current?.sync(visibleKind && query.data ? query.data : null);
+  }, [visibleKind, query.data]);
 
   const status: RegionBoundaryStatus = {
     loading: query.isFetching,
-    kind: activeKind && query.data ? query.data.kind : null,
-    count: activeKind && query.data ? query.data.features.length : 0,
-    truncated: activeKind && query.data ? query.data.truncated : false,
+    kind: visibleKind && query.data ? query.data.kind : null,
+    count: visibleKind && query.data ? query.data.features.length : 0,
+    truncated: visibleKind && query.data ? query.data.truncated : false,
     error: query.isError
       ? query.error instanceof Error
         ? query.error.message

@@ -5,6 +5,7 @@ import {
   type Locator,
   type Page,
 } from "@playwright/test";
+import { seedGoogleSession } from "./fixtures/auth";
 
 const REGION_FEATURE = {
   type: "Feature",
@@ -30,10 +31,11 @@ async function installRegionApiMock(
   context: BrowserContext,
   options: { catalogError?: boolean; fullResolutionDelayMs?: number } = {},
 ) {
-  await context.route("**/region-api/rest/v1/**", async (route) => {
-    const url = route.request().url();
+  await seedGoogleSession(context);
+  await context.route("**/region-api/functions/v1/regions", async (route) => {
+    const body = route.request().postDataJSON() as { operation?: string };
 
-    if (url.includes("/region_kind?")) {
+    if (body.operation === "kinds") {
       if (options.catalogError) {
         await route.fulfill({ status: 503, json: { message: "catalog unavailable" } });
         return;
@@ -69,7 +71,7 @@ async function installRegionApiMock(
       return;
     }
 
-    if (url.endsWith("/regions_by_view")) {
+    if (body.operation === "byView") {
       await route.fulfill({
         json: {
           type: "FeatureCollection",
@@ -83,7 +85,7 @@ async function installRegionApiMock(
       return;
     }
 
-    if (url.endsWith("/region_by_id")) {
+    if (body.operation === "byId") {
       if (options.fullResolutionDelayMs) {
         await new Promise((resolve) =>
           setTimeout(resolve, options.fullResolutionDelayMs),
