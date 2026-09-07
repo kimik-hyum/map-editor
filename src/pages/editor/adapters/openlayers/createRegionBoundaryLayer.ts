@@ -19,24 +19,17 @@ const strokeStyle = new Style({
   }),
 });
 const label = new Text({
-  font: "800 14px ui-sans-serif, system-ui, sans-serif",
+  font: "600 14px ui-sans-serif, system-ui, sans-serif",
   fill: new Fill({ color: editorDefaultTheme.regionBoundary.labelColor }),
   stroke: new Stroke({ color: "#ffffff", width: 2 }),
-  backgroundFill: new Fill({
-    color: editorDefaultTheme.regionBoundary.labelBackground,
-  }),
-  backgroundStroke: new Stroke({
-    color: editorDefaultTheme.regionBoundary.labelBorder,
-    width: 1,
-  }),
-  padding: [4, 6, 4, 6],
+  padding: [1, 2, 1, 2],
   overflow: true,
 });
 const labelStyle = new Style({ text: label });
 
 function regionStyle(feature: FeatureLike, resolution: number): Style[] {
   const metrics = getMapAnnotationMetrics(getMapAnnotationZoom(resolution));
-  label.setFont(`800 ${metrics.labelFontSize}px ui-sans-serif, system-ui, sans-serif`);
+  label.setFont(`600 ${metrics.labelFontSize}px ui-sans-serif, system-ui, sans-serif`);
   label.setText(String(feature.get("name") ?? ""));
   return [strokeStyle, labelStyle];
 }

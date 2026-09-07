@@ -3,8 +3,6 @@ export const editorDefaultTheme = {
   regionBoundary: {
     strokeColor: "#0f766e",
     labelColor: "#172033",
-    labelBackground: "rgba(255, 255, 255, 0.96)",
-    labelBorder: "#9bcfc3",
   },
   holeFillPreview: {
     strokeColor: "#0f766e",

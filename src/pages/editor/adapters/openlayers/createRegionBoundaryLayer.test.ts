@@ -7,7 +7,7 @@ import {
 } from "./createRegionBoundaryLayer";
 
 describe("region boundary labels", () => {
-  it("줌 단계에 따라 글자 크기를 변경하고 이름 배경을 제공한다", () => {
+  it("줌별 이름은 얇은 글자 테두리만 사용하고 불투명한 배경은 그리지 않는다", () => {
     const feature = new Feature({
       name: "서울특별시 종로구 삼청동",
       geometry: new Polygon([
@@ -22,15 +22,17 @@ describe("region boundary labels", () => {
     const layer = createRegionBoundaryLayer();
     const style = layer.getStyleFunction();
     for (const [zoom, size] of [
-      [10, 14],
-      [12, 15],
-      [15, 16],
+      [10, 13],
+      [12, 14],
+      [15, 14],
     ]) {
       const styles = style?.(feature, 156543.03392804097 / 2 ** zoom);
       if (!Array.isArray(styles)) throw new Error("expected label styles");
       expect(styles[1].getText()?.getFont()).toContain(`${size}px`);
       expect(styles[1].getText()?.getText()).toContain("삼청동");
-      expect(styles[1].getText()?.getBackgroundFill()).not.toBeNull();
+      expect(styles[1].getText()?.getBackgroundFill()).toBeNull();
+      expect(styles[1].getText()?.getBackgroundStroke()).toBeNull();
+      expect(styles[1].getText()?.getStroke()?.getWidth()).toBe(2);
     }
   });
   it("작업 카드와 캔버스 이름을 중복 표시하지 않고 카드가 사라지면 복원한다", () => {

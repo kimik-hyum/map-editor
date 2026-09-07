@@ -8,7 +8,7 @@ import type OpenLayersMap from "ol/Map";
 import { unByKey } from "ol/Observable";
 import Overlay from "ol/Overlay";
 import {
-  estimateMapAnnotationHeight,
+  getMapAnnotationSize,
   getMapAnnotationMetrics,
 } from "@/pages/editor/theme/mapAnnotationTheme";
 import type { PolygonalGeometry } from "@/pages/editor/types/editorTypes";
@@ -123,13 +123,13 @@ export function attachRegionBoundaryOverlays(
         typeof feature.get("name") === "string"
           ? feature.get("name")
           : String(boundaryId);
-      const height = estimateMapAnnotationHeight(name, zoom);
+      const { width, height } = getMapAnnotationSize(name, zoom);
       const coordinate = visibleCoordinate(
         map,
         geometry,
         cached.coordinate,
         size,
-        metrics.cardWidth,
+        width,
         height,
       );
       const pixel = map.getPixelFromCoordinate(coordinate);
@@ -141,7 +141,7 @@ export function attachRegionBoundaryOverlays(
           name,
           coordinate,
           pixel,
-          width: metrics.cardWidth,
+          width,
           height,
           priority: geometry.getArea(),
           displayGeometry: cached.displayGeometry,

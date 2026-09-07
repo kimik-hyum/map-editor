@@ -96,7 +96,7 @@ test("행정동·법정동·우편번호 모두 호버 없이 이름과 작업 �
   await expect(card(editor)).toBeVisible();
   await expect(
     card(editor).getByRole("button", { name: "행정동 테스트 추가" }),
-  ).toHaveText("추가");
+  ).toHaveText("");
   await expect(
     card(editor).getByRole("button", { name: "행정동 테스트 겹친 부분 제거" }),
   ).toBeDisabled();
@@ -128,19 +128,20 @@ test("확대·축소에 따라 이름과 버튼이 커지고 상시 노출 및 �
   const editor = await openEditor(page);
   const name = card(editor).getByText("행정동 테스트", { exact: true });
   const add = card(editor).getByRole("button", { name: "행정동 테스트 추가" });
-  await expect(name).toHaveCSS("font-size", "15px");
-  await expect(add).toHaveCSS("min-height", "34px");
-  await expect(add).toHaveCSS("background-color", "rgb(15, 118, 110)");
-  await expect(add).toHaveCSS("color", "rgb(255, 255, 255)");
-  await editor.getByTitle("지도 축소", { exact: true }).click();
   await expect(name).toHaveCSS("font-size", "14px");
-  await expect(add).toHaveCSS("min-height", "32px");
+  await expect(add).toHaveCSS("height", "26px");
+  await expect(add).toHaveCSS("width", "26px");
+  await expect(add).toHaveCSS("background-color", "rgb(229, 243, 239)");
+  await expect(add).toHaveCSS("color", "rgb(17, 94, 89)");
+  await editor.getByTitle("지도 축소", { exact: true }).click();
+  await expect(name).toHaveCSS("font-size", "13px");
+  await expect(add).toHaveCSS("height", "24px");
   for (let i = 0; i < 4; i++) {
     await editor.getByTitle("지도 확대", { exact: true }).click();
     await expect(card(editor)).toHaveAttribute("data-map-zoom", String(12 + i));
   }
-  await expect(name).toHaveCSS("font-size", "16px");
-  await expect(add).toHaveCSS("min-height", "36px");
+  await expect(name).toHaveCSS("font-size", "14px");
+  await expect(add).toHaveCSS("height", "28px");
   await expect(add).toBeVisible();
   const zoom = editor.getByTitle("지도 확대", { exact: true });
   await expect(zoom).toHaveCSS("width", "36px");
@@ -159,14 +160,42 @@ test("선택 상태에 맞춰 추가와 합치기를 구분하고 겹칠 때만 
   await expect(subtract).toHaveAttribute("title", /폴리곤 하나를 선택/);
   await editor.getByRole("button", { name: "권역 C 선택", exact: true }).click();
   const merge = card(editor).getByRole("button", { name: "행정동 테스트 합치기" });
-  await expect(merge).toHaveText("합치기");
+  await expect(merge).toHaveText("");
+  await expect(merge).toHaveAttribute("title", "이 경계를 선택 도형과 합치기");
   await expect(subtract).toBeEnabled();
-  await expect(subtract).toHaveCSS("color", "rgb(190, 18, 60)");
+  await expect(subtract).toHaveCSS("color", "rgb(80, 97, 116)");
   await editor.getByRole("button", { name: "권역 C 잠금", exact: true }).click();
   await expect(
     card(editor).getByRole("button", { name: "행정동 테스트 추가" }),
   ).toBeEnabled();
   await expect(subtract).toBeDisabled();
+});
+
+test("큰 흰색 카드나 작업 문구 없이 한 줄 이름과 작은 아이콘만 표시한다", async ({
+  context,
+  page,
+}) => {
+  await mockBoundaries(context);
+  const editor = await openEditor(page);
+  const marker = card(editor);
+  await expect(marker).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(marker).toHaveCSS("border-width", "0px");
+  await expect(marker).toHaveCSS("box-shadow", "none");
+  await expect(marker).toHaveCSS("padding", "0px");
+  await expect(marker).toHaveText("행정동 테스트");
+  const bounds = await marker.boundingBox();
+  expect(bounds?.width).toBeLessThanOrEqual(144);
+  expect(bounds?.height).toBe(48);
+  const name = marker.getByText("행정동 테스트", { exact: true });
+  await expect(name).toHaveCSS("white-space", "nowrap");
+  await expect(name).toHaveCSS("text-overflow", "ellipsis");
+  await expect(name).toHaveAttribute("title", "행정동 테스트");
+  const add = marker.getByRole("button", { name: "행정동 테스트 추가" });
+  await expect(add.locator("svg")).toBeVisible();
+  await expect(add).toHaveAttribute("title", "이 경계를 새 도형으로 추가");
+  await add.hover();
+  await expect(add).toHaveCSS("background-color", "rgb(15, 118, 110)");
+  await expect(add).toHaveCSS("color", "rgb(255, 255, 255)");
 });
 
 test("밀집한 경계도 카드가 겹치지 않고 재배치만으로 원본 API를 호출하지 않는다", async ({

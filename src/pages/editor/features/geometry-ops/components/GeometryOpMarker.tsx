@@ -1,6 +1,9 @@
 import { Button } from "@base-ui/react/button";
-import { Blend, Combine, Minus, Plus } from "lucide-react";
-import { getMapAnnotationMetrics } from "@/pages/editor/theme/mapAnnotationTheme";
+import { Blend, Minus, Plus } from "lucide-react";
+import {
+  getMapAnnotationMetrics,
+  getMapAnnotationSize,
+} from "@/pages/editor/theme/mapAnnotationTheme";
 
 type GeometryOpMarkerProps = {
   // 후보 폴리곤 표시명(이름, 없으면 호출부가 id로 폴백해 항상 채워 보낸다).
@@ -18,9 +21,8 @@ type GeometryOpMarkerProps = {
 };
 
 // 후보 폴리곤 하나의 내부 대표점에 뜨는 칩입니다(위치는 ol/Overlay가 잡으므로 내용만 그림).
-// 이름과 텍스트가 있는 작업 버튼을 두 행으로 보여줍니다.
-// 추가(새 도형)와 합치기(선택 도형 수정)를 구분하고, 빼기는 색·문구로 함께 설명합니다.
-// 긴 이름은 최대 3줄과 native title로 제공하며 줌에 따라 읽기/조작 크기를 조정합니다.
+// 배경 카드 없이 이름 한 줄과 아이콘만 표시합니다. 동작 설명은 aria-label/native title에 둡니다.
+// 긴 이름은 말줄임으로 지도 가림을 제한하며 전체 이름은 native title로 제공합니다.
 export function GeometryOpMarker({
   name,
   canSubtract,
@@ -35,28 +37,35 @@ export function GeometryOpMarker({
 }: GeometryOpMarkerProps) {
   const metrics = getMapAnnotationMetrics(zoom);
   const primaryLabel = primaryAction === "create" ? "추가" : "합치기";
-  const PrimaryIcon = primaryAction === "create" ? Plus : Combine;
+  const showSubtractButton = canSubtract || showSubtract;
+  const size = getMapAnnotationSize(
+    name,
+    zoom,
+    1 + Number(canIntersect) + Number(showSubtractButton),
+  );
   const buttonStyle = {
-    minHeight: metrics.buttonHeight,
-    fontSize: metrics.buttonFontSize,
+    width: metrics.buttonSize,
+    height: metrics.buttonSize,
   };
   const iconStyle = { width: metrics.iconSize, height: metrics.iconSize };
   const sharedButtonClass =
-    "inline-flex shrink-0 cursor-pointer items-center justify-center gap-1 rounded-md border px-2 font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40";
+    "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-brand-line/70 bg-brand-soft p-0 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-35";
   return (
     <fieldset
       aria-label={`${name} 경계 작업`}
       data-map-annotation
       data-map-zoom={zoom}
-      className="m-0 flex min-w-0 flex-col items-center gap-1.5 rounded-xl border border-brand-line bg-white px-2.5 py-2 shadow-[0_2px_8px_rgba(23,32,51,0.18)]"
-      style={{ width: canIntersect ? metrics.cardWidth + 72 : metrics.cardWidth }}
+      className="m-0 flex min-w-0 flex-col items-center gap-0.5 border-0 p-0"
+      style={{ width: size.width }}
     >
       <span
-        className="line-clamp-3 w-full break-words text-center font-extrabold text-ink"
+        className="w-full truncate text-center font-semibold text-ink"
         title={name}
         style={{
           fontSize: metrics.labelFontSize,
           lineHeight: `${metrics.lineHeight}px`,
+          textShadow:
+            "0 1px 2px #fff, 0 -1px 2px #fff, 1px 0 2px #fff, -1px 0 2px #fff",
         }}
       >
         {name}
@@ -64,7 +73,7 @@ export function GeometryOpMarker({
       <div className="flex items-center gap-1">
         <Button
           aria-label={`${name} ${primaryLabel}`}
-          className={`${sharedButtonClass} border-brand bg-brand text-white hover:border-brand-strong hover:bg-brand-strong`}
+          className={`${sharedButtonClass} text-brand-strong hover:border-brand hover:bg-brand hover:text-white`}
           style={buttonStyle}
           disabled={disabled}
           onClick={onMerge}
@@ -77,27 +86,25 @@ export function GeometryOpMarker({
           }
           type="button"
         >
-          <PrimaryIcon aria-hidden style={iconStyle} strokeWidth={2.5} />
-          {primaryLabel}
+          <Plus aria-hidden style={iconStyle} strokeWidth={2} />
         </Button>
         {canIntersect ? (
           <Button
             aria-label={`${name} 교집합`}
-            className={`${sharedButtonClass} border-brand-line bg-brand-soft text-brand-strong hover:border-brand hover:bg-white`}
+            className={`${sharedButtonClass} text-brand-strong hover:border-brand hover:bg-brand hover:text-white`}
             style={buttonStyle}
             disabled={disabled}
             onClick={onIntersect}
             title="교집합 (선택 도형과 겹치는 부분만 남기기)"
             type="button"
           >
-            <Blend aria-hidden style={iconStyle} strokeWidth={2.5} />
-            교집합
+            <Blend aria-hidden style={iconStyle} strokeWidth={2} />
           </Button>
         ) : null}
-        {canSubtract || showSubtract ? (
+        {showSubtractButton ? (
           <Button
             aria-label={`${name} 겹친 부분 제거`}
-            className={`${sharedButtonClass} border-danger-line bg-danger-soft text-danger hover:border-danger hover:bg-white`}
+            className={`${sharedButtonClass} text-ink-soft hover:border-danger hover:bg-danger-soft hover:text-danger`}
             style={buttonStyle}
             disabled={disabled || !canSubtract}
             onClick={onSubtract}
@@ -110,8 +117,7 @@ export function GeometryOpMarker({
             }
             type="button"
           >
-            <Minus aria-hidden style={iconStyle} strokeWidth={2.5} />
-            빼기
+            <Minus aria-hidden style={iconStyle} strokeWidth={2} />
           </Button>
         ) : null}
       </div>
