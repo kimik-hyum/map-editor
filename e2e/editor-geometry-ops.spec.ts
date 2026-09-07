@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { dragAnnotation, readEditorEdits } from "./fixtures/mapNavigation";
 
 type PolygonGeometry = {
   type: "Polygon";
@@ -120,6 +121,33 @@ async function platformModifier(page: Page): Promise<"Meta" | "Control"> {
     /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control",
   );
 }
+
+test("도형 이름·세 연산 버튼 위 드래그는 지도만 이동하고 키보드 교집합은 유지한다", async ({
+  page,
+}) => {
+  const editor = await openEditorWithOverlappingPolygons(page);
+  await editor.getByRole("button", { name: "교집합 대상 선택" }).click();
+  const marker = editor.getByRole("group", {
+    name: "겹치는 도형 경계 작업",
+    exact: true,
+  });
+  const before = await readEditorEdits(editor);
+  for (const target of [
+    marker.getByText("겹치는 도형", { exact: true }),
+    ...(await marker.getByRole("button").all()),
+  ]) {
+    await dragAnnotation(editor, target, marker);
+    expect(await readEditorEdits(editor)).toEqual(before);
+  }
+  const intersection = marker.getByRole("button", { name: "겹치는 도형 교집합" });
+  await intersection.focus();
+  await editor.keyboard.press("Enter");
+  await expect
+    .poll(async () => (await readEditorEdits(editor)).past)
+    .toBe(before.past + 1);
+  await editor.waitForTimeout(300);
+  expect((await readEditorEdits(editor)).selected).toEqual(before.selected);
+});
 
 test("교집합은 선택 도형만 겹치는 면으로 바꾸고 undo 한 단계로 기록한다", async ({
   page,

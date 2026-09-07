@@ -6,6 +6,7 @@ import {
   attachEditorSelection,
   attachFeatureTranslate,
   attachGeometryOpOverlays,
+  attachMapAnnotationNavigation,
   attachVertexDetail,
   attachVertexModify,
   createOpenLayersMap,
@@ -208,6 +209,7 @@ export function useOpenLayersEditorMap() {
     }
 
     const map = createOpenLayersMap({ target: mapElementRef.current });
+    const annotationNavigation = attachMapAnnotationNavigation(map);
     mapRef.current = map;
     setMap(map);
 
@@ -345,6 +347,7 @@ export function useOpenLayersEditorMap() {
     });
 
     return () => {
+      annotationNavigation.detach();
       selection.detach();
       detail.detach();
       translate.detach();

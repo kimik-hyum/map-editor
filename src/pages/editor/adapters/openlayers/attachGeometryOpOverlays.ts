@@ -54,7 +54,7 @@ function interiorCoordinate(map: OpenLayersMap, featureId: string): Coordinate |
 
 // 후보 도형마다 ol/Overlay(빈 div)를 만들어 도형 내부 대표점에 고정합니다.
 // OL이 팬/줌/애니메이션 매 프레임 위치를 갱신하므로 moveend 수동 보정이 필요 없습니다.
-// stopEvent로 마커 클릭/드래그가 지도로 전파되지 않습니다.
+// 클릭/드래그 구분은 attachMapAnnotationNavigation이 공통으로 처리합니다.
 export function attachGeometryOpOverlays(map: OpenLayersMap) {
   const overlays = new Map<string, { overlay: Overlay; element: HTMLElement }>();
   let interactive = true;
@@ -102,7 +102,9 @@ export function attachGeometryOpOverlays(map: OpenLayersMap) {
           element,
           // 앵커(도형 내부 대표점)에 칩 중앙을 맞춰 도형 "안쪽"에 둔다(이웃 비침범·소속 명확).
           positioning: "center-center",
-          stopEvent: true,
+          stopEvent: false,
+          className:
+            "ol-overlay-container map-annotation-overlay select-none touch-none",
         });
         map.addOverlay(overlay);
         syncInteraction(element);

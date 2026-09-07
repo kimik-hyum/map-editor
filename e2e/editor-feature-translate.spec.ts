@@ -80,12 +80,24 @@ async function platformModifier(page: Page): Promise<"Meta" | "Control"> {
   );
 }
 
-test("선택 도형의 일반 드래그는 geometry를 변경하지 않는다", async ({ page }) => {
+test("패널에 포커스가 있어도 폴리곤 내부 첫 드래그는 지도만 이동한다", async ({
+  page,
+}) => {
   const editorPage = await openEditorViaDemo(page);
   await selectAndCenterFeature(editorPage, "권역 C");
   const before = await readFeatureSnapshot(editorPage, "권역 C");
+  const anchor = editorPage.locator("[data-map-annotation]").first();
+  const position = await anchor.boundingBox();
+  if (!position) throw new Error("지도 이동을 관찰할 라벨이 없습니다.");
+  await editorPage.getByRole("button", { name: "권역 C 선택", exact: true }).focus();
 
   await dragFromMapCenter(editorPage);
+  await expect
+    .poll(async () => {
+      const next = await anchor.boundingBox();
+      return next ? Math.hypot(next.x - position.x, next.y - position.y) : 0;
+    })
+    .toBeGreaterThan(20);
 
   const after = await readFeatureSnapshot(editorPage, "권역 C");
   expect(after.geometry).toEqual(before.geometry);

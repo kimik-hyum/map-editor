@@ -172,7 +172,9 @@ export function attachRegionBoundaryOverlays(
         const overlay = new Overlay({
           element,
           positioning: "center-center",
-          stopEvent: true,
+          stopEvent: false,
+          className:
+            "ol-overlay-container map-annotation-overlay select-none touch-none",
         });
         map.addOverlay(overlay);
         entry = { element, overlay };

@@ -1,5 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { seedGoogleSession } from "./fixtures/auth";
+import { dragAnnotation, readEditorEdits } from "./fixtures/mapNavigation";
 
 const names: Record<string, string> = {
   adminDong: "행정동 테스트",
@@ -86,6 +87,42 @@ async function openEditor(page: Page) {
 }
 const card = (page: Page, name = "행정동 테스트") =>
   page.getByRole("group", { name: `${name} 경계 작업`, exact: true });
+
+for (const [kind, label] of [
+  ["adminDong", "행정동"],
+  ["legalDong", "법정동"],
+  ["postalCode", "우편번호"],
+]) {
+  test(`${label} 이름·추가·비활성 빼기 위 드래그는 지도만 이동하고 다음 클릭은 정상 실행된다`, async ({
+    context,
+    page,
+  }) => {
+    const requests = await mockBoundaries(context);
+    const editor = await openEditor(page);
+    if (kind !== "adminDong") {
+      await editor.getByRole("button", { name: "행정동 경계", exact: true }).click();
+      await editor.getByRole("button", { name: `${label} z12부터 표시` }).click();
+      await editor.getByRole("button", { name: "경계 종류 닫기" }).click();
+    }
+    const marker = card(editor, names[kind]);
+    const before = await readEditorEdits(editor);
+    for (const target of [
+      marker,
+      marker.getByText(names[kind], { exact: true }),
+      marker.getByRole("button").first(),
+      marker.getByRole("button").last(),
+    ]) {
+      await dragAnnotation(editor, target, marker);
+      expect(await readEditorEdits(editor)).toEqual(before);
+    }
+    expect(requests.filter((request) => request.operation === "byId")).toHaveLength(0);
+    await marker.getByRole("button").first().click();
+    await expect
+      .poll(async () => (await readEditorEdits(editor)).past)
+      .toBe(before.past + 1);
+    expect(requests.filter((request) => request.operation === "byId")).toHaveLength(1);
+  });
+}
 
 test("행정동·법정동·우편번호 모두 호버 없이 이름과 작업 버튼을 표시한다", async ({
   context,
