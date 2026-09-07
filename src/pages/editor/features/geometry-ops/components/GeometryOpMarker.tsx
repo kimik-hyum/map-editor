@@ -49,7 +49,7 @@ export function GeometryOpMarker({
   };
   const iconStyle = { width: metrics.iconSize, height: metrics.iconSize };
   const sharedButtonClass =
-    "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-brand-line/70 bg-brand-soft p-0 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-35";
+    "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border p-0 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-35";
   return (
     <fieldset
       aria-label={`${name} 경계 작업`}
@@ -73,7 +73,7 @@ export function GeometryOpMarker({
       <div className="flex items-center gap-1">
         <Button
           aria-label={`${name} ${primaryLabel}`}
-          className={`${sharedButtonClass} text-brand-strong hover:border-brand hover:bg-brand hover:text-white`}
+          className={`${sharedButtonClass} border-brand-line/70 bg-brand-soft text-brand-strong hover:border-brand hover:bg-brand hover:text-white focus-visible:outline-brand`}
           style={buttonStyle}
           disabled={disabled}
           onClick={onMerge}
@@ -91,7 +91,7 @@ export function GeometryOpMarker({
         {canIntersect ? (
           <Button
             aria-label={`${name} 교집합`}
-            className={`${sharedButtonClass} text-brand-strong hover:border-brand hover:bg-brand hover:text-white`}
+            className={`${sharedButtonClass} border-brand-line/70 bg-brand-soft text-brand-strong hover:border-brand hover:bg-brand hover:text-white focus-visible:outline-brand`}
             style={buttonStyle}
             disabled={disabled}
             onClick={onIntersect}
@@ -104,7 +104,7 @@ export function GeometryOpMarker({
         {showSubtractButton ? (
           <Button
             aria-label={`${name} 겹친 부분 제거`}
-            className={`${sharedButtonClass} text-ink-soft hover:border-danger hover:bg-danger-soft hover:text-danger`}
+            className={`${sharedButtonClass} border-danger-line/70 bg-danger-soft text-danger hover:border-danger hover:bg-danger hover:text-white focus-visible:outline-danger`}
             style={buttonStyle}
             disabled={disabled || !canSubtract}
             onClick={onSubtract}

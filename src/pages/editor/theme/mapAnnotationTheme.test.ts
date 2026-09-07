@@ -57,6 +57,7 @@ describe("map annotation theme", () => {
     for (const [fg, bg] of [
       ["#ffffff", color("brand")],
       ["#ffffff", color("brand-strong")],
+      ["#ffffff", color("danger")],
       [color("brand-strong"), color("brand-soft")],
       [color("danger"), color("danger-soft")],
       [color("ink-soft"), color("brand-soft")],

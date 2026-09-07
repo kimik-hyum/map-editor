@@ -163,12 +163,21 @@ test("선택 상태에 맞춰 추가와 합치기를 구분하고 겹칠 때만 
   await expect(merge).toHaveText("");
   await expect(merge).toHaveAttribute("title", "이 경계를 선택 도형과 합치기");
   await expect(subtract).toBeEnabled();
-  await expect(subtract).toHaveCSS("color", "rgb(80, 97, 116)");
+  await expect(merge).toHaveCSS("color", "rgb(17, 94, 89)");
+  await expect(merge).toHaveCSS("background-color", "rgb(229, 243, 239)");
+  await expect(subtract).toHaveCSS("color", "rgb(190, 18, 60)");
+  await expect(subtract).toHaveCSS("background-color", "rgb(255, 241, 242)");
+  await expect(subtract).toHaveCSS("width", "26px");
+  await expect(subtract).toHaveText("");
+  await subtract.hover();
+  await expect(subtract).toHaveCSS("background-color", "rgb(190, 18, 60)");
+  await expect(subtract).toHaveCSS("color", "rgb(255, 255, 255)");
   await editor.getByRole("button", { name: "권역 C 잠금", exact: true }).click();
   await expect(
     card(editor).getByRole("button", { name: "행정동 테스트 추가" }),
   ).toBeEnabled();
   await expect(subtract).toBeDisabled();
+  await expect(subtract).toHaveCSS("opacity", "0.35");
 });
 
 test("큰 흰색 카드나 작업 문구 없이 한 줄 이름과 작은 아이콘만 표시한다", async ({
