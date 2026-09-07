@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { fromLonLat } from "ol/proj.js";
+import { sampleSceneInput } from "../src/pages/demo/fixtures/sampleEditorScene";
 import { dragAnnotation, readEditorEdits } from "./fixtures/mapNavigation";
 
 type PolygonGeometry = {
@@ -121,6 +123,53 @@ async function platformModifier(page: Page): Promise<"Meta" | "Control"> {
     /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control",
   );
 }
+
+test("지도·도형·정점·선 커서를 구분하고 창 포커스를 잃으면 쥔 손을 해제한다", async ({
+  page,
+}) => {
+  const editor = await openEditorWithOverlappingPolygons(page);
+  const viewport = editor.locator(".editor-map-viewport");
+  await expect(viewport).toBeVisible();
+  await editor.waitForTimeout(600);
+  const box = await viewport.boundingBox();
+  if (!box) throw new Error("지도 영역이 없습니다.");
+  // 재INIT은 콘텐츠만 바꾸고 기존 지도 뷰를 유지하므로 최초 Demo 뷰를 기준으로 합니다.
+  const initialViewport = sampleSceneInput.viewport;
+  if (!initialViewport) throw new Error("Demo 최초 뷰가 없습니다.");
+  const center = fromLonLat(initialViewport.center);
+  const resolution = 156543.03392804097 / 2 ** initialViewport.zoom;
+  const hover = async (coordinate: number[]) => {
+    const projected = fromLonLat(coordinate);
+    await editor.mouse.move(
+      box.x + box.width / 2 + (projected[0] - center[0]) / resolution,
+      box.y + box.height / 2 - (projected[1] - center[1]) / resolution,
+    );
+  };
+  await hover([126.94, 37.565]);
+  await expect(viewport).toHaveCSS("cursor", "grab");
+  await hover([126.967, 37.558]);
+  await expect(viewport).toHaveCSS("cursor", "pointer");
+  // 패널의 자동 중심 이동 없이 선택만 바꿔 같은 지도 좌표로 정점 히트를 검증합니다.
+  await editor.evaluate(async () => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    useEditorStore.getState().setSelectedFeatureIds(["intersection-target"]);
+  });
+  const before = await readEditorEdits(editor);
+  await hover([126.96, 37.55]);
+  await expect(viewport).toHaveCSS("cursor", "move");
+  await hover([126.96, 37.565]);
+  await expect(viewport).toHaveCSS("cursor", "crosshair");
+  await hover([126.94, 37.565]);
+  await expect(viewport).toHaveCSS("cursor", "grab");
+  await editor.mouse.down();
+  await hover([126.945, 37.568]);
+  await expect(viewport).toHaveCSS("cursor", "grabbing");
+  await editor.evaluate(() => window.dispatchEvent(new Event("blur")));
+  await expect(viewport).not.toHaveAttribute("data-map-panning");
+  await expect(viewport).toHaveCSS("cursor", "grab");
+  await editor.mouse.up();
+  expect(await readEditorEdits(editor)).toEqual(before);
+});
 
 test("도형 이름·세 연산 버튼 위 드래그는 지도만 이동하고 키보드 교집합은 유지한다", async ({
   page,

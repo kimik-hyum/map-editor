@@ -57,3 +57,29 @@
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
 }
+
+/* 지도 탐색 → 선택 → 정점 편집. 그리기 도구의 inline 커서는 그대로 우선합니다. */
+.editor-map-viewport {
+  cursor: var(--editor-hover-cursor, grab);
+}
+
+.editor-map-viewport.ol-grab,
+.editor-map-viewport .map-annotation-overlay {
+  cursor: grab;
+}
+
+.editor-map-viewport.ol-grabbing {
+  cursor: grabbing;
+}
+
+.editor-map-viewport .ol-control button {
+  cursor: pointer;
+}
+
+/* 팬 중에는 버튼의 pointer/not-allowed보다 쥔 손이 우선하며 놓는 즉시 원래 커서로 복구합니다. */
+.editor-map-viewport[data-map-panning="true"],
+.editor-map-viewport[data-map-panning="true"] .map-annotation-overlay,
+.editor-map-viewport[data-map-panning="true"] .map-annotation-overlay * {
+  /* biome-ignore lint/complexity/noImportantStyles: 실제 팬 동안만 기존 그리기 도구의 inline 커서보다 우선합니다. */
+  cursor: grabbing !important;
+}

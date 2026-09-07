@@ -2,6 +2,7 @@ export * from "./attachEditAffordance";
 export * from "./attachEditorSelection";
 export * from "./attachFeatureTranslate";
 export * from "./attachMapAnnotationNavigation";
+export * from "./attachMapCursor";
 export * from "./attachFeatureDraw";
 export * from "./attachGeometryOpOverlays";
 export * from "./attachRegionBoundaryOverlays";

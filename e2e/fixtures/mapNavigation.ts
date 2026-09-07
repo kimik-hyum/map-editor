@@ -18,6 +18,8 @@ export async function dragAnnotation(page: Page, target: Locator, anchor: Locato
   await expect(target).toBeVisible();
   // 선택 시 중심 이동과 이전 드래그의 관성이 끝난 뒤 측정합니다.
   await page.waitForTimeout(600);
+  const cursor = await target.evaluate((element) => getComputedStyle(element).cursor);
+  expect(["grab", "pointer", "not-allowed"]).toContain(cursor);
   const start = await target.boundingBox();
   const before = await anchor.boundingBox();
   if (!start || !before) throw new Error("지도 작업 아이콘을 찾을 수 없습니다.");
@@ -31,7 +33,13 @@ export async function dragAnnotation(page: Page, target: Locator, anchor: Locato
   await page.mouse.move(x, y);
   await page.mouse.down();
   await page.mouse.move(x + dx, y + dy, { steps: 12 });
+  await expect(page.locator(".editor-map-viewport")).toHaveCSS("cursor", "grabbing");
+  await expect(target).toHaveCSS("cursor", "grabbing");
   await page.mouse.up();
+  await expect(page.locator(".editor-map-viewport")).not.toHaveAttribute(
+    "data-map-panning",
+  );
+  await expect(target).toHaveCSS("cursor", cursor);
   await expect
     .poll(async () => {
       const after = await anchor.boundingBox();

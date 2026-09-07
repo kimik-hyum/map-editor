@@ -7,6 +7,7 @@ import {
   attachFeatureTranslate,
   attachGeometryOpOverlays,
   attachMapAnnotationNavigation,
+  attachMapCursor,
   attachVertexDetail,
   attachVertexModify,
   createOpenLayersMap,
@@ -41,6 +42,7 @@ import {
   resolveSelection,
 } from "@/pages/editor/features/selection";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
+import { resolveMapHoverCursor } from "@/pages/editor/theme/mapCursorTheme";
 import {
   canSelectLayer,
   EditorMode,
@@ -128,6 +130,7 @@ function applyIntersect(targetId: string, otherId: string) {
 export function useOpenLayersEditorMap() {
   const mapElementRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<OpenLayersMap | null>(null);
+  const cursorRef = useRef<ReturnType<typeof attachMapCursor> | null>(null);
   const vertexLayerRef = useRef<ReturnType<typeof createVertexOverlayLayer> | null>(
     null,
   );
@@ -210,6 +213,8 @@ export function useOpenLayersEditorMap() {
 
     const map = createOpenLayersMap({ target: mapElementRef.current });
     const annotationNavigation = attachMapAnnotationNavigation(map);
+    const cursor = attachMapCursor(map);
+    cursorRef.current = cursor;
     mapRef.current = map;
     setMap(map);
 
@@ -347,6 +352,8 @@ export function useOpenLayersEditorMap() {
     });
 
     return () => {
+      cursor.detach();
+      cursorRef.current = null;
       annotationNavigation.detach();
       selection.detach();
       detail.detach();
@@ -369,6 +376,16 @@ export function useOpenLayersEditorMap() {
       geometryOpOverlaysRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const activation = getToolActivation(activeMode);
+    cursorRef.current?.setHoverCursor(
+      resolveMapHoverCursor(
+        activation.selection && hoveredFeatureId !== null,
+        activation.affordance ? editAffordance : null,
+      ),
+    );
+  }, [activeMode, editAffordance, hoveredFeatureId]);
 
   useEffect(() => {
     const map = mapRef.current;

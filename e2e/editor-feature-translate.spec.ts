@@ -62,6 +62,7 @@ async function dragFromMapCenter(
   try {
     await page.mouse.down();
     await page.mouse.move(startX + 80, startY + 40, { steps: 8 });
+    await expect(page.locator(".editor-map-viewport")).toHaveCSS("cursor", "grabbing");
     if (options.modifier && options.releaseModifierBeforePointerUp) {
       await page.keyboard.up(options.modifier);
       modifierReleased = true;
