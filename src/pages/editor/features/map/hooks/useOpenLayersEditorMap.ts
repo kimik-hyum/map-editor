@@ -260,6 +260,8 @@ export function useOpenLayersEditorMap() {
     // Cmd/Ctrl+몸통 드래그 = 도형 통째 이동. Modify보다 "먼저" 추가해야 정점/외곽선은 Modify가 우선 잡는다.
     const translate = attachFeatureTranslate(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
+      onActiveChange: (active) =>
+        geometryOpOverlaysRef.current?.setInteractive(!active),
       onDragStart: () => {
         // 이동 중에는 정점 핸들/상세를 치운다(끝나면 onDragEnd에서 복구).
         vertexLayerRef.current?.getSource()?.clear(true);

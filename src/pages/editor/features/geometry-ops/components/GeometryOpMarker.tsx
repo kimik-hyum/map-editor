@@ -1,4 +1,6 @@
-import { Blend, Minus, Plus } from "lucide-react";
+import { Button } from "@base-ui/react/button";
+import { Blend, Combine, Minus, Plus } from "lucide-react";
+import { getMapAnnotationMetrics } from "@/pages/editor/theme/mapAnnotationTheme";
 
 type GeometryOpMarkerProps = {
   // 후보 폴리곤 표시명(이름, 없으면 호출부가 id로 폴백해 항상 채워 보낸다).
@@ -9,13 +11,16 @@ type GeometryOpMarkerProps = {
   onMerge: () => void;
   onSubtract: () => void;
   onIntersect: () => void;
+  primaryAction?: "create" | "merge";
+  showSubtract?: boolean;
+  disabled?: boolean;
+  zoom?: number;
 };
 
 // 후보 폴리곤 하나의 내부 대표점에 뜨는 칩입니다(위치는 ol/Overlay가 잡으므로 내용만 그림).
-// 이름과 +/- 버튼을 "두 행"으로 보여준다 — 이름 행(전체 표시, 길면 줄바꿈) + 버튼 행.
-// 한 행에 욱여넣다 긴 이름이 잘려 사라지던 문제를 피한다.
-// +(병합): 두 도형을 합칩니다. 겹침 아이콘(교집합): 겹친 면만 남깁니다.
-// −(제거): 선택 도형에서 후보와 겹친 부분을 뺍니다.
+// 이름과 텍스트가 있는 작업 버튼을 두 행으로 보여줍니다.
+// 추가(새 도형)와 합치기(선택 도형 수정)를 구분하고, 빼기는 색·문구로 함께 설명합니다.
+// 긴 이름은 최대 3줄과 native title로 제공하며 줌에 따라 읽기/조작 크기를 조정합니다.
 export function GeometryOpMarker({
   name,
   canSubtract,
@@ -23,45 +28,93 @@ export function GeometryOpMarker({
   onMerge,
   onSubtract,
   onIntersect,
+  primaryAction = "merge",
+  showSubtract = false,
+  disabled = false,
+  zoom = 12,
 }: GeometryOpMarkerProps) {
+  const metrics = getMapAnnotationMetrics(zoom);
+  const primaryLabel = primaryAction === "create" ? "추가" : "합치기";
+  const PrimaryIcon = primaryAction === "create" ? Plus : Combine;
+  const buttonStyle = {
+    minHeight: metrics.buttonHeight,
+    fontSize: metrics.buttonFontSize,
+  };
+  const iconStyle = { width: metrics.iconSize, height: metrics.iconSize };
+  const sharedButtonClass =
+    "inline-flex shrink-0 cursor-pointer items-center justify-center gap-1 rounded-md border px-2 font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40";
   return (
-    <div className="flex max-w-[200px] flex-col items-center gap-1 rounded-2xl bg-white/95 px-2 py-1 shadow-lg ring-1 ring-slate-200">
-      <span className="w-full break-words text-center text-[11px] font-bold leading-tight text-slate-700">
+    <fieldset
+      aria-label={`${name} 경계 작업`}
+      data-map-annotation
+      data-map-zoom={zoom}
+      className="m-0 flex min-w-0 flex-col items-center gap-1.5 rounded-xl border border-brand-line bg-white px-2.5 py-2 shadow-[0_2px_8px_rgba(23,32,51,0.18)]"
+      style={{ width: canIntersect ? metrics.cardWidth + 72 : metrics.cardWidth }}
+    >
+      <span
+        className="line-clamp-3 w-full break-words text-center font-extrabold text-ink"
+        title={name}
+        style={{
+          fontSize: metrics.labelFontSize,
+          lineHeight: `${metrics.lineHeight}px`,
+        }}
+      >
         {name}
       </span>
       <div className="flex items-center gap-1">
-        <button
-          aria-label={`${name} 병합`}
-          className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-emerald-50 p-0 text-emerald-600 hover:bg-emerald-100"
+        <Button
+          aria-label={`${name} ${primaryLabel}`}
+          className={`${sharedButtonClass} border-brand bg-brand text-white hover:border-brand-strong hover:bg-brand-strong`}
+          style={buttonStyle}
+          disabled={disabled}
           onClick={onMerge}
-          title="병합 (선택 도형과 합치기)"
+          title={
+            disabled
+              ? "경계 연산이 완료될 때까지 기다려주세요"
+              : primaryAction === "create"
+                ? "이 경계를 새 도형으로 추가"
+                : "이 경계를 선택 도형과 합치기"
+          }
           type="button"
         >
-          <Plus aria-hidden className="h-3.5 w-3.5" />
-        </button>
+          <PrimaryIcon aria-hidden style={iconStyle} strokeWidth={2.5} />
+          {primaryLabel}
+        </Button>
         {canIntersect ? (
-          <button
+          <Button
             aria-label={`${name} 교집합`}
-            className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-violet-50 p-0 text-violet-600 hover:bg-violet-100"
+            className={`${sharedButtonClass} border-brand-line bg-brand-soft text-brand-strong hover:border-brand hover:bg-white`}
+            style={buttonStyle}
+            disabled={disabled}
             onClick={onIntersect}
             title="교집합 (선택 도형과 겹치는 부분만 남기기)"
             type="button"
           >
-            <Blend aria-hidden className="h-3.5 w-3.5" />
-          </button>
+            <Blend aria-hidden style={iconStyle} strokeWidth={2.5} />
+            교집합
+          </Button>
         ) : null}
-        {canSubtract ? (
-          <button
+        {canSubtract || showSubtract ? (
+          <Button
             aria-label={`${name} 겹친 부분 제거`}
-            className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-rose-50 p-0 text-rose-600 hover:bg-rose-100"
+            className={`${sharedButtonClass} border-danger-line bg-danger-soft text-danger hover:border-danger hover:bg-white`}
+            style={buttonStyle}
+            disabled={disabled || !canSubtract}
             onClick={onSubtract}
-            title="제거 (선택 도형에서 겹친 부분 빼기)"
+            title={
+              disabled
+                ? "경계 연산이 완료될 때까지 기다려주세요"
+                : !canSubtract
+                  ? "편집 가능한 폴리곤 하나를 선택하고 이 경계와 겹칠 때 사용할 수 있습니다"
+                  : "선택 도형에서 이 경계와 겹친 부분 빼기"
+            }
             type="button"
           >
-            <Minus aria-hidden className="h-3.5 w-3.5" />
-          </button>
+            <Minus aria-hidden style={iconStyle} strokeWidth={2.5} />
+            빼기
+          </Button>
         ) : null}
       </div>
-    </div>
+    </fieldset>
   );
 }

@@ -1,5 +1,11 @@
 export const editorDefaultTheme = {
   name: "default",
+  regionBoundary: {
+    strokeColor: "#0f766e",
+    labelColor: "#172033",
+    labelBackground: "rgba(255, 255, 255, 0.96)",
+    labelBorder: "#9bcfc3",
+  },
   holeFillPreview: {
     strokeColor: "#0f766e",
     fillColor: "rgba(13, 148, 136, 0.45)",

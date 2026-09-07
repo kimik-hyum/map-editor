@@ -125,3 +125,35 @@ test("이동 중 Cmd/Ctrl을 먼저 놓으면 원래 geometry로 취소한다", 
   expect(after.geometry).toEqual(before.geometry);
   expect(after.pastCount).toBe(before.pastCount);
 });
+
+test("큰 작업 카드가 이동 보조키를 가로채지 않고 키 해제·창 복귀 뒤 다시 조작된다", async ({
+  page,
+}) => {
+  const editorPage = await openEditorViaDemo(page);
+  await selectAndCenterFeature(editorPage, "권역 C");
+  const card = editorPage.locator("[data-map-annotation]").first();
+  const modifier = await platformModifier(editorPage);
+  const hitState = () =>
+    card.evaluate((element) => {
+      const overlay = element.closest(".ol-overlay-container");
+      if (!overlay) throw new Error("작업 카드의 지도 오버레이가 없습니다.");
+      return {
+        inert: element.closest("[inert]") !== null,
+        pointerEvents: getComputedStyle(overlay).pointerEvents,
+      };
+    });
+
+  await expect(card).toBeVisible();
+  await editorPage.keyboard.down(modifier);
+  await expect(card).toBeVisible();
+  await expect.poll(hitState).toEqual({ inert: true, pointerEvents: "none" });
+  await editorPage.keyboard.up(modifier);
+  await expect.poll(hitState).toEqual({ inert: false, pointerEvents: "auto" });
+
+  await editorPage.keyboard.down(modifier);
+  await editorPage.evaluate(() => window.dispatchEvent(new Event("blur")));
+  await expect.poll(hitState).toEqual({ inert: false, pointerEvents: "auto" });
+  await editorPage.keyboard.up(modifier);
+  await card.getByRole("button").first().focus();
+  await expect(card.getByRole("button").first()).toBeFocused();
+});

@@ -48,7 +48,7 @@ export function EditorPage() {
     map,
     boundaryKind,
   );
-  // 경계 구역마다 +(추가/병합)·−(겹친 부분 빼기) 칩. 호버한 경계에만 노출.
+  // 현재 화면의 경계에 이름·추가/합치기·빼기 카드를 상시 표시합니다.
   const regionOps = useRegionBoundaryOps({
     map,
     layer: regionLayer,

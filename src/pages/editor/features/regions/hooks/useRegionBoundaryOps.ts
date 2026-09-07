@@ -2,11 +2,14 @@ import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useBoundaryAccess } from "@/features/auth";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  attachRegionBoundaryHover,
+  attachRegionBoundaryOverlays,
+  type RegionBoundaryOverlay,
   type RegionBoundaryLayer,
 } from "@/pages/editor/adapters/openlayers";
 import {
   deriveGeometryOpTargets,
+  bboxesOverlap,
+  geometryBbox,
   hasAreaOverlap,
   normalizePolygonalGeometry,
   subtractGeometry,
@@ -29,17 +32,15 @@ type RegionOpHandle = {
   element: HTMLElement;
   name: string;
   canSubtract: boolean;
+  primaryAction: "create" | "merge";
+  showSubtract: boolean;
+  disabled: boolean;
+  zoom: number;
 };
 
 type BoundaryMetadata = {
   boundaryId: string | number;
   name: string;
-};
-
-type HoveredBoundary = BoundaryMetadata & {
-  featureId: string;
-  element: HTMLElement;
-  displayGeometry: PolygonalGeometry;
 };
 
 type RegionOperationContext = {
@@ -54,7 +55,7 @@ type UseRegionBoundaryOpsArgs = {
   layer: RegionBoundaryLayer | null;
   // 경계 도구가 활성이고 host scene이 준비됐을 때만 +/- 칩을 켭니다.
   enabled: boolean;
-  // 같은 layer를 재사용해도 경계 종류가 바뀌면 hover와 진행 중 연산을 폐기합니다.
+  // 같은 layer를 재사용해도 경계 종류가 바뀌면 카드와 진행 중 연산을 폐기합니다.
   scopeKey: string | null;
 };
 
@@ -129,7 +130,7 @@ function isOperationContextCurrent(context: RegionOperationContext): boolean {
   );
 }
 
-// 경계 구역에 +/- 칩을 붙입니다. OpenLayers hover/overlay 수명은 adapter가 담당하고,
+// 경계 구역의 상시 작업 카드를 붙입니다. OpenLayers 배치/overlay 수명은 adapter가 담당하고,
 // 이 훅은 편집 정책과 원본 geometry fetch만 결정합니다.
 export function useRegionBoundaryOps({
   map,
@@ -141,7 +142,9 @@ export function useRegionBoundaryOps({
   const scene = useEditorStore((state) => state.scene);
   const sessionId = useEditorStore((state) => state.sessionId);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
-  const [hoveredBoundary, setHoveredBoundary] = useState<HoveredBoundary | null>(null);
+  const [visibleBoundaries, setVisibleBoundaries] = useState<RegionBoundaryOverlay[]>(
+    [],
+  );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const queryClient = useQueryClient();
@@ -149,53 +152,55 @@ export function useRegionBoundaryOps({
   const busyRef = useRef(false);
   const operationGenerationRef = useRef(0);
 
-  // hover 위치는 adapter가 유지하고, 제거 가능 여부는 현재 scene·선택으로 매번 다시 계산합니다.
-  const chip = useMemo<RegionOpHandle | null>(() => {
-    if (!hoveredBoundary || !allowed || !enabled) {
-      return null;
+  // 현재 화면에 배치된 후보만 연산 가능 여부를 계산합니다(전국 전체 도형을 비교하지 않음).
+  const chips = useMemo<RegionOpHandle[]>(() => {
+    if (!allowed || !enabled) {
+      return [];
     }
     const targetId = deriveGeometryOpTargets(
       scene,
       new Set(selectedFeatureIds),
     ).targetId;
     const targetGeom = targetId ? polygonGeomFromScene(scene, targetId) : null;
-    return {
-      featureId: hoveredBoundary.featureId,
-      element: hoveredBoundary.element,
-      name: hoveredBoundary.name,
+    const targetBounds = targetGeom ? geometryBbox(targetGeom) : null;
+    return visibleBoundaries.map((boundary) => ({
+      featureId: boundary.featureId,
+      element: boundary.element,
+      name: boundary.name,
       canSubtract: Boolean(
-        targetGeom && hasAreaOverlap(targetGeom, hoveredBoundary.displayGeometry),
+        targetGeom &&
+        targetBounds &&
+        bboxesOverlap(targetBounds, geometryBbox(boundary.displayGeometry)) &&
+        hasAreaOverlap(targetGeom, boundary.displayGeometry),
       ),
-    };
-  }, [allowed, enabled, hoveredBoundary, scene, selectedFeatureIds]);
+      primaryAction: targetId ? "merge" : "create",
+      showSubtract: true,
+      disabled: busy,
+      zoom: boundary.zoom,
+    }));
+  }, [allowed, enabled, visibleBoundaries, scene, selectedFeatureIds, busy]);
 
   useEffect(() => {
     operationGenerationRef.current += 1;
     busyRef.current = false;
     setBusy(false);
     boundaryByFeatureIdRef.current.clear();
-    setHoveredBoundary(null);
+    setVisibleBoundaries([]);
     setError(null);
 
     if (!map || !layer || !enabled || !scopeKey || !allowed || !subject) {
       return;
     }
 
-    const attachment = attachRegionBoundaryHover(map, layer, {
-      onHover: ({ featureId, boundaryId, element, name, displayGeometry }) => {
-        if (useEditorStore.getState().sessionId !== sessionId) {
-          return;
-        }
+    const attachment = attachRegionBoundaryOverlays(map, layer, (boundaries) => {
+      if (useEditorStore.getState().sessionId !== sessionId) {
+        return;
+      }
+      boundaryByFeatureIdRef.current.clear();
+      for (const { featureId, boundaryId, name } of boundaries) {
         boundaryByFeatureIdRef.current.set(featureId, { boundaryId, name });
-        setHoveredBoundary({
-          featureId,
-          boundaryId,
-          element,
-          name,
-          displayGeometry,
-        });
-      },
-      onClear: () => setHoveredBoundary(null),
+      }
+      setVisibleBoundaries(boundaries);
     });
 
     return () => {
@@ -331,5 +336,5 @@ export function useRegionBoundaryOps({
     [allowed, enabled, queryClient, subject],
   );
 
-  return { overlays: chip ? [chip] : [], onMerge, onSubtract, error, busy };
+  return { overlays: chips, onMerge, onSubtract, error, busy };
 }

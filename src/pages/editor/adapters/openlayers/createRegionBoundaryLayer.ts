@@ -5,20 +5,38 @@ import Fill from "ol/style/Fill";
 import Stroke from "ol/style/Stroke";
 import Style from "ol/style/Style";
 import Text from "ol/style/Text";
+import { editorDefaultTheme } from "@/pages/editor/theme/editorTheme";
+import {
+  getMapAnnotationMetrics,
+  getMapAnnotationZoom,
+} from "@/pages/editor/theme/mapAnnotationTheme";
 
 // 외부 지역 경계는 편집 scene과 분리된 참고 레이어로 표시합니다.
 const strokeStyle = new Style({
-  stroke: new Stroke({ color: "#000000", width: 1 }),
+  stroke: new Stroke({
+    color: editorDefaultTheme.regionBoundary.strokeColor,
+    width: 1.5,
+  }),
 });
 const label = new Text({
-  font: "600 11px ui-sans-serif, system-ui, sans-serif",
-  fill: new Fill({ color: "#111827" }),
-  stroke: new Stroke({ color: "#ffffff", width: 3 }),
+  font: "800 14px ui-sans-serif, system-ui, sans-serif",
+  fill: new Fill({ color: editorDefaultTheme.regionBoundary.labelColor }),
+  stroke: new Stroke({ color: "#ffffff", width: 2 }),
+  backgroundFill: new Fill({
+    color: editorDefaultTheme.regionBoundary.labelBackground,
+  }),
+  backgroundStroke: new Stroke({
+    color: editorDefaultTheme.regionBoundary.labelBorder,
+    width: 1,
+  }),
+  padding: [4, 6, 4, 6],
   overflow: true,
 });
 const labelStyle = new Style({ text: label });
 
-function regionStyle(feature: FeatureLike): Style[] {
+function regionStyle(feature: FeatureLike, resolution: number): Style[] {
+  const metrics = getMapAnnotationMetrics(getMapAnnotationZoom(resolution));
+  label.setFont(`800 ${metrics.labelFontSize}px ui-sans-serif, system-ui, sans-serif`);
   label.setText(String(feature.get("name") ?? ""));
   return [strokeStyle, labelStyle];
 }
@@ -26,7 +44,14 @@ function regionStyle(feature: FeatureLike): Style[] {
 export function createRegionBoundaryLayer() {
   const layer = new VectorLayer({
     source: new VectorSource(),
-    style: regionStyle,
+    style: (feature, resolution) => {
+      const actionIds = layer.get("boundaryActionIds") as
+        | ReadonlySet<string>
+        | undefined;
+      return actionIds?.has(String(feature.getId()))
+        ? [strokeStyle]
+        : regionStyle(feature, resolution);
+    },
     declutter: true,
   });
 
@@ -36,3 +61,13 @@ export function createRegionBoundaryLayer() {
 }
 
 export type RegionBoundaryLayer = ReturnType<typeof createRegionBoundaryLayer>;
+
+export function setRegionBoundaryActionIds(
+  layer: RegionBoundaryLayer,
+  ids: ReadonlySet<string>,
+) {
+  const previous = layer.get("boundaryActionIds") as ReadonlySet<string> | undefined;
+  if (previous?.size === ids.size && [...ids].every((id) => previous.has(id))) return;
+  layer.set("boundaryActionIds", ids, true);
+  layer.changed();
+}

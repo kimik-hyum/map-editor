@@ -8,6 +8,10 @@ type GeometryOpOverlayHandle = {
   name: string;
   canSubtract: boolean;
   canIntersect?: boolean;
+  primaryAction?: "create" | "merge";
+  showSubtract?: boolean;
+  disabled?: boolean;
+  zoom?: number;
 };
 
 type GeometryOpMarkersProps = {
@@ -31,6 +35,10 @@ export function GeometryOpMarkers({
       {overlays.map((handle) =>
         createPortal(
           <GeometryOpMarker
+            primaryAction={handle.primaryAction}
+            showSubtract={handle.showSubtract}
+            disabled={handle.disabled}
+            zoom={handle.zoom}
             canSubtract={handle.canSubtract}
             canIntersect={Boolean(handle.canIntersect && onIntersect)}
             name={handle.name}

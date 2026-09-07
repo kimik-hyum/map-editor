@@ -11,6 +11,46 @@
   --color-surface: #f8fafc;
   --color-surface-warm: #fbf9f5;
   --color-brand: #0f766e;
+  --color-brand-strong: #115e59;
   --color-brand-soft: #e5f3ef;
   --color-brand-line: #9bcfc3;
+  --color-danger: #be123c;
+  --color-danger-soft: #fff1f2;
+  --color-danger-line: #fda4af;
+}
+
+/* 지도 확대/축소와 도형 연산은 서로 다른 조작임을 위치·형태·설명으로 구분합니다. */
+.ol-zoom.ol-control {
+  left: 12px;
+  top: auto;
+  bottom: 36px;
+  display: grid;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 2px 10px rgb(23 32 51 / 15%);
+}
+
+.ol-zoom.ol-control button {
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  border: 1px solid var(--color-brand-line);
+  border-radius: 8px;
+  background: var(--color-brand-soft);
+  color: var(--color-brand);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.ol-zoom.ol-control button:hover {
+  background: var(--color-brand);
+  color: white;
+}
+
+.ol-zoom.ol-control button:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
 }

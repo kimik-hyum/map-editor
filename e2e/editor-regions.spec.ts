@@ -1,10 +1,4 @@
-import {
-  expect,
-  test,
-  type BrowserContext,
-  type Locator,
-  type Page,
-} from "@playwright/test";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { seedGoogleSession } from "./fixtures/auth";
 import {
   UNION_REGRESSION_TARGET,
@@ -127,25 +121,6 @@ async function openEditorViaDemo(page: Page): Promise<Page> {
   return editorPage;
 }
 
-async function hoverMapUntilVisible(
-  page: Page,
-  map: Locator,
-  target: Locator,
-  position = { x: 620, y: 360 },
-) {
-  const mapBox = await map.boundingBox();
-  if (!mapBox) {
-    throw new Error("지도 영역을 찾을 수 없습니다.");
-  }
-
-  await expect(async () => {
-    // 레이어 sync 전에 단발 hover가 지나가도 pointermove를 다시 발생시켜 준비 완료를 기다립니다.
-    await page.mouse.move(mapBox.x + 8, mapBox.y + 8);
-    await map.hover({ position });
-    await expect(target).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: 10_000, intervals: [100, 250, 500] });
-}
-
 test("카탈로그 조회 실패 때 사이드메뉴가 기본 경계 종류를 제공한다", async ({
   context,
   page,
@@ -191,7 +166,7 @@ test("서버 경계 카탈로그와 조회 상태를 경계 도구에 표시한�
   await expect(editorPage.getByText("일부만 표시됨 — 지도를 확대하세요")).toBeVisible();
 });
 
-test("준비된 scene에서 경계 +는 원본 geometry를 새 편집 피처로 복사한다", async ({
+test("경계의 추가 버튼은 호버 없이 표시되고 원본 geometry를 새 편집 피처로 복사한다", async ({
   context,
   page,
 }) => {
@@ -203,11 +178,10 @@ test("준비된 scene에서 경계 +는 원본 geometry를 새 편집 피처로 
   await boundaryTool.click();
   await expect(editorPage.getByText("현재 화면:")).toBeVisible();
 
-  const map = editorPage.getByLabel("OSM map editor");
   const mergeButton = editorPage.getByRole("button", {
-    name: "테스트 경계 병합",
+    name: "테스트 경계 추가",
   });
-  await hoverMapUntilVisible(editorPage, map, mergeButton);
+  await expect(mergeButton).toBeVisible();
   await mergeButton.click();
 
   await expect(
@@ -239,12 +213,8 @@ test("퇴화 ring을 만드는 경계 병합도 저장·부모 갱신·다시 �
   await editorPage.getByRole("button", { name: "권역 C 선택", exact: true }).click();
   await editorPage.getByRole("button", { name: "행정동 경계" }).click();
   await expect(editorPage.getByText("현재 화면:")).toBeVisible();
-  const mergeButton = editorPage.getByRole("button", { name: "테스트 경계 병합" });
-  await hoverMapUntilVisible(
-    editorPage,
-    editorPage.getByLabel("OSM map editor"),
-    mergeButton,
-  );
+  const mergeButton = editorPage.getByRole("button", { name: "테스트 경계 합치기" });
+  await expect(mergeButton).toBeVisible();
   await mergeButton.press("Enter");
   await expect(async () => {
     const geometry = await editorPage.evaluate(async () => {
@@ -302,12 +272,8 @@ test("원본 경계의 반올림으로 무너진 내부 ring을 정리한 뒤 �
   const editorPage = await openEditorViaDemo(page);
   await editorPage.getByRole("button", { name: "행정동 경계" }).click();
   await expect(editorPage.getByText("현재 화면:")).toBeVisible();
-  const mergeButton = editorPage.getByRole("button", { name: "테스트 경계 병합" });
-  await hoverMapUntilVisible(
-    editorPage,
-    editorPage.getByLabel("OSM map editor"),
-    mergeButton,
-  );
+  const mergeButton = editorPage.getByRole("button", { name: "테스트 경계 추가" });
+  await expect(mergeButton).toBeVisible();
   await mergeButton.press("Enter");
   await expect(editorPage.getByRole("button", { name: "도형 숨기기" })).toHaveCount(9);
   await Promise.all([
@@ -331,9 +297,8 @@ test("원본 조회 중 새 INIT이 오면 이전 경계 연산 결과를 버린
 
   await editorPage.getByRole("button", { name: "행정동 경계" }).click();
   await expect(editorPage.getByText("현재 화면:")).toBeVisible();
-  const map = editorPage.getByLabel("OSM map editor");
-  const mergeButton = editorPage.getByRole("button", { name: "테스트 경계 병합" });
-  await hoverMapUntilVisible(editorPage, map, mergeButton);
+  const mergeButton = editorPage.getByRole("button", { name: "테스트 경계 추가" });
+  await expect(mergeButton).toBeVisible();
   await mergeButton.click();
 
   await page.evaluate(() => {

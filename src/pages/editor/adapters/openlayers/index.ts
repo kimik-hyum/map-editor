@@ -3,7 +3,7 @@ export * from "./attachEditorSelection";
 export * from "./attachFeatureTranslate";
 export * from "./attachFeatureDraw";
 export * from "./attachGeometryOpOverlays";
-export * from "./attachRegionBoundaryHover";
+export * from "./attachRegionBoundaryOverlays";
 export * from "./attachRegionBoundaryLayer";
 export * from "./attachRadiusPreview";
 export * from "./attachVertexDetail";
