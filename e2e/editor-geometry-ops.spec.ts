@@ -131,6 +131,14 @@ test("교집합은 선택 도형만 겹치는 면으로 바꾸고 undo 한 단�
     name: "겹치는 도형 교집합",
   });
   await expect(intersectButton).toBeVisible();
+  await expect(intersectButton).toHaveText("");
+  await expect(intersectButton).toHaveCSS("width", "26px");
+  await expect(intersectButton).toHaveCSS("color", "rgb(109, 40, 217)");
+  await expect(intersectButton).toHaveCSS("background-color", "rgb(245, 243, 255)");
+  await expect(intersectButton).toHaveAttribute("title", /교집합/);
+  await intersectButton.hover();
+  await expect(intersectButton).toHaveCSS("background-color", "rgb(109, 40, 217)");
+  await expect(intersectButton).toHaveCSS("color", "rgb(255, 255, 255)");
   const before = await readGeometryOpSnapshot(editorPage);
 
   await intersectButton.click();

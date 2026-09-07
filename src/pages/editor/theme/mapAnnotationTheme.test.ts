@@ -58,6 +58,8 @@ describe("map annotation theme", () => {
       ["#ffffff", color("brand")],
       ["#ffffff", color("brand-strong")],
       ["#ffffff", color("danger")],
+      ["#ffffff", color("intersection")],
+      [color("intersection"), color("intersection-soft")],
       [color("brand-strong"), color("brand-soft")],
       [color("danger"), color("danger-soft")],
       [color("ink-soft"), color("brand-soft")],

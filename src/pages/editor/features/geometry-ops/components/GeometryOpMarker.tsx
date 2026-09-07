@@ -91,7 +91,7 @@ export function GeometryOpMarker({
         {canIntersect ? (
           <Button
             aria-label={`${name} 교집합`}
-            className={`${sharedButtonClass} border-brand-line/70 bg-brand-soft text-brand-strong hover:border-brand hover:bg-brand hover:text-white focus-visible:outline-brand`}
+            className={`${sharedButtonClass} border-intersection-line/70 bg-intersection-soft text-intersection hover:border-intersection hover:bg-intersection hover:text-white focus-visible:outline-intersection`}
             style={buttonStyle}
             disabled={disabled}
             onClick={onIntersect}

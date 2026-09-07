@@ -17,6 +17,9 @@
   --color-danger: #be123c;
   --color-danger-soft: #fff1f2;
   --color-danger-line: #fda4af;
+  --color-intersection: #6d28d9;
+  --color-intersection-soft: #f5f3ff;
+  --color-intersection-line: #c4b5fd;
 }
 
 /* 지도 확대/축소와 도형 연산은 서로 다른 조작임을 위치·형태·설명으로 구분합니다. */
