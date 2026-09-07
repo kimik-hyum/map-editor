@@ -18,12 +18,6 @@ const strokeStyle = new Style({
     width: editorDefaultTheme.regionBoundary.strokeWidth,
   }),
 });
-const adminDongStrokeStyle = new Style({
-  stroke: new Stroke({
-    color: editorDefaultTheme.regionBoundary.adminDongStrokeColor,
-    width: editorDefaultTheme.regionBoundary.adminDongStrokeWidth,
-  }),
-});
 const label = new Text({
   font: "600 14px ui-sans-serif, system-ui, sans-serif",
   fill: new Fill({ color: editorDefaultTheme.regionBoundary.labelColor }),
@@ -33,29 +27,23 @@ const label = new Text({
 });
 const labelStyle = new Style({ text: label });
 
-function regionStyle(
-  feature: FeatureLike,
-  resolution: number,
-  boundaryStroke: Style,
-): Style[] {
+function regionStyle(feature: FeatureLike, resolution: number): Style[] {
   const metrics = getMapAnnotationMetrics(getMapAnnotationZoom(resolution));
   label.setFont(`600 ${metrics.labelFontSize}px ui-sans-serif, system-ui, sans-serif`);
   label.setText(String(feature.get("name") ?? ""));
-  return [boundaryStroke, labelStyle];
+  return [strokeStyle, labelStyle];
 }
 
 export function createRegionBoundaryLayer() {
   const layer = new VectorLayer({
     source: new VectorSource(),
     style: (feature, resolution) => {
-      const boundaryStroke: Style =
-        layer.get("boundaryKind") === "adminDong" ? adminDongStrokeStyle : strokeStyle;
       const actionIds = layer.get("boundaryActionIds") as
         | ReadonlySet<string>
         | undefined;
       return actionIds?.has(String(feature.getId()))
-        ? [boundaryStroke]
-        : regionStyle(feature, resolution, boundaryStroke);
+        ? [strokeStyle]
+        : regionStyle(feature, resolution);
     },
     declutter: true,
   });
@@ -66,13 +54,6 @@ export function createRegionBoundaryLayer() {
 }
 
 export type RegionBoundaryLayer = ReturnType<typeof createRegionBoundaryLayer>;
-
-// 조회 응답의 실제 종류를 사용합니다. 줌 축소 시 sigungu로 대체된 경계는 기존 선을 유지합니다.
-export function setRegionBoundaryKind(layer: RegionBoundaryLayer, kind: unknown) {
-  if (layer.get("boundaryKind") === kind) return;
-  layer.set("boundaryKind", kind, true);
-  layer.changed();
-}
 
 export function setRegionBoundaryActionIds(
   layer: RegionBoundaryLayer,

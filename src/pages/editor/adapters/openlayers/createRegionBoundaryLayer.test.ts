@@ -10,7 +10,7 @@ import {
 } from "./createRegionBoundaryLayer";
 
 describe("region boundary labels", () => {
-  it("응답 종류가 행정동일 때만 검은색 2.5px 선을 쓰고 다른 종류로 바뀌면 복원한다", () => {
+  it("모든 참고 경계는 종류·줌·작업 버튼 유무에 관계없이 검은색 4px 선을 쓴다", () => {
     const map = Object.assign(new Observable(), {
       getSize: () => undefined,
       addLayer: () => {},
@@ -20,6 +20,7 @@ describe("region boundary labels", () => {
     const feature = new Feature({ name: "테스트 경계" });
     feature.setId(1);
     for (const kind of [
+      undefined,
       "adminDong",
       "legalDong",
       "adminDong",
@@ -29,18 +30,18 @@ describe("region boundary labels", () => {
       attachment.sync({ type: "FeatureCollection", kind, features: [] });
       for (const withCard of [false, true]) {
         setRegionBoundaryActionIds(attachment.layer, new Set(withCard ? ["1"] : []));
-        const styles = attachment.layer.getStyleFunction()?.(feature, 100);
-        if (!Array.isArray(styles)) throw new Error("expected boundary styles");
-        expect(styles[0].getStroke()?.getColor()).toBe(
-          kind === "adminDong" ? "#000000" : "#0f766e",
-        );
-        expect(styles[0].getStroke()?.getWidth()).toBe(
-          kind === "adminDong" ? 2.5 : 1.5,
-        );
+        for (const zoom of [10, 12, 15]) {
+          const styles = attachment.layer.getStyleFunction()?.(
+            feature,
+            156543.03392804097 / 2 ** zoom,
+          );
+          if (!Array.isArray(styles)) throw new Error("expected boundary styles");
+          expect(styles[0].getStroke()?.getColor()).toBe("#000000");
+          expect(styles[0].getStroke()?.getWidth()).toBe(4);
+        }
       }
     }
     attachment.sync(null);
-    expect(attachment.layer.get("boundaryKind")).toBeUndefined();
     attachment.detach();
   });
   it("줌별 이름은 얇은 글자 테두리만 사용하고 불투명한 배경은 그리지 않는다", () => {

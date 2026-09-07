@@ -1,10 +1,8 @@
 export const editorDefaultTheme = {
   name: "default",
   regionBoundary: {
-    strokeColor: "#0f766e",
-    strokeWidth: 1.5,
-    adminDongStrokeColor: "#000000",
-    adminDongStrokeWidth: 2.5,
+    strokeColor: "#000000",
+    strokeWidth: 4,
     labelColor: "#172033",
   },
   holeFillPreview: {

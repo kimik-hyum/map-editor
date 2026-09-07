@@ -4,7 +4,6 @@ import { unByKey } from "ol/Observable";
 import { transformExtent } from "ol/proj";
 import {
   createRegionBoundaryLayer,
-  setRegionBoundaryKind,
   type RegionBoundaryLayer,
 } from "./createRegionBoundaryLayer";
 
@@ -68,10 +67,6 @@ export function attachRegionBoundaryLayer(
   const moveEndKey = map.on("moveend", reportView);
 
   const sync = (collection: object | null) => {
-    setRegionBoundaryKind(
-      layer,
-      collection && "kind" in collection ? collection.kind : undefined,
-    );
     const source = layer.getSource();
     if (!source) {
       return;
