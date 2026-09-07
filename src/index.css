@@ -22,6 +22,11 @@
   --color-intersection-line: #c4b5fd;
 }
 
+/* OSM 배경만 저채도로 표시합니다. 도형·경계·작업 버튼의 색은 유지합니다. */
+.osm-basemap {
+  filter: saturate(0.35);
+}
+
 /* 지도 확대/축소와 도형 연산은 서로 다른 조작임을 위치·형태·설명으로 구분합니다. */
 .ol-zoom.ol-control {
   left: 12px;
