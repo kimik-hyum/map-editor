@@ -20,6 +20,9 @@
   --color-intersection: #6d28d9;
   --color-intersection-soft: #f5f3ff;
   --color-intersection-line: #c4b5fd;
+  --color-map-add: #000000;
+  --color-map-subtract: #e60000;
+  --color-map-intersect: #8000ff;
 }
 
 /* OSM 배경만 저채도로 표시합니다. 도형·경계·작업 버튼의 색은 유지합니다. */
