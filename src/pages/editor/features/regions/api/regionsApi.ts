@@ -38,6 +38,16 @@ const regionFeatureCollectionSchema = z.object({
   features: z.array(regionFeatureSchema),
 });
 
+export class RegionApiError extends Error {
+  constructor(
+    label: string,
+    public readonly status: number,
+  ) {
+    super(`${label} 호출 실패: ${status}`);
+    this.name = "RegionApiError";
+  }
+}
+
 async function parseResponse<T>(
   response: Response,
   schema: z.ZodType<T>,
@@ -66,7 +76,7 @@ async function callRegionFunction<T>(
     body: JSON.stringify({ operation, ...payload }),
   });
   if (!response.ok) {
-    throw new Error(`${label} 호출 실패: ${response.status}`);
+    throw new RegionApiError(label, response.status);
   }
   return parseResponse(response, schema, label);
 }
@@ -137,7 +147,7 @@ export async function fetchRegionByCode(
 }
 
 // 현재 화면 bbox + 줌 + 선택 kind로 경계를 받습니다(서버가 줌 tier를 결정).
-// 좌표는 서버가 줌 티어별 허용오차로 단순화해 내려줍니다(표시용, 시각 손실 없음).
+// 좌표는 서버가 줌 티어별로 단순화해 내려줍니다(표시용; 편집 채택 시 원본 재조회).
 export async function fetchRegionsByView(
   q: RegionViewQuery,
   signal?: AbortSignal,

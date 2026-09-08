@@ -10,6 +10,74 @@ import {
 } from "./createRegionBoundaryLayer";
 
 describe("region boundary labels", () => {
+  it("지구 전체로 축소해도 스냅 bbox가 극점을 넘지 않는다", () => {
+    const map = Object.assign(new Observable(), {
+      getSize: () => [1200, 800],
+      getView: () => ({
+        calculateExtent: () => [-25000000, -22000000, 25000000, 22000000],
+        getZoom: () => 0,
+        getCenter: () => [0, 0],
+      }),
+      addLayer: () => {},
+      removeLayer: () => {},
+    }) as unknown as OpenLayersMap;
+    const attachment = attachRegionBoundaryLayer(map, {
+      onViewChange: (view) => {
+        expect(view).toMatchObject({
+          minLng: -180,
+          minLat: -85,
+          maxLng: 180,
+          maxLat: 85,
+        });
+      },
+    });
+    attachment.detach();
+  });
+  it("부분 응답을 추가해도 기존 OL feature를 지우지 않고 이전 화면의 ID만 제거한다", () => {
+    const map = Object.assign(new Observable(), {
+      getSize: () => undefined,
+      addLayer: () => {},
+      removeLayer: () => {},
+    }) as unknown as OpenLayersMap;
+    const attachment = attachRegionBoundaryLayer(map, { onViewChange: () => {} });
+    const source = attachment.layer.getSource();
+    if (!source) throw new Error("expected boundary source");
+    const a = {
+      type: "Feature",
+      id: 1,
+      properties: { name: "A" },
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, 0],
+          ],
+        ],
+      },
+    };
+    const b = { ...a, id: 2 };
+    attachment.sync({ features: [a] });
+    const first = source.getFeatureById(1);
+    let clears = 0;
+    source.on("clear", () => {
+      clears++;
+    });
+    attachment.sync({ features: [a, a, b] });
+    expect(source.getFeatures()).toHaveLength(2);
+    expect(source.getFeatureById(1)).toBe(first);
+    expect(clears).toBe(0);
+    attachment.sync({ features: [b] });
+    expect(source.getFeatureById(1)).toBeNull();
+    expect(source.getFeatures()).toHaveLength(1);
+    attachment.sync({ features: [{ ...b, properties: { name: "새 버전" } }] });
+    expect(source.getFeatureById(2)?.get("name")).toBe("새 버전");
+    attachment.sync(null);
+    expect(source.getFeatures()).toHaveLength(0);
+    attachment.detach();
+  });
   it("모든 참고 경계는 종류·줌·작업 버튼 유무에 관계없이 검은색 4px 선을 쓴다", () => {
     const map = Object.assign(new Observable(), {
       getSize: () => undefined,
