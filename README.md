@@ -74,3 +74,19 @@ npm run preview
 `E2E_BASE_URL=https://maps-editor.pages.dev npm run test:e2e -- e2e/editor-postmessage.spec.ts`는 로컬 서버 없이 공개 배포를 검사합니다. 이 모드는 localhost origin 이동 검사만 제외하며, 로컬 전체 테스트에서는 해당 보안 검사를 계속 수행합니다.
 
 `deploy:cloudflare`는 상용 설정 검증을 포함한 `deploy:production`의 호환 명령입니다. `public/_headers`는 iframe 차단 등 보안 헤더와 해시 자산의 장기 캐시를 적용합니다. 부모 연동은 새 창 방식으로 유지합니다.
+
+### GitHub Actions 자동 배포
+
+저장소 Actions 설정에 다음 값을 등록합니다. 공개 Supabase 키는 브라우저용이며 서버 키를 등록하면 안 됩니다.
+
+| 구분     | 이름                            | 용도                                        |
+| -------- | ------------------------------- | ------------------------------------------- |
+| Secret   | `CLOUDFLARE_API_TOKEN`          | 대상 계정의 Cloudflare Pages Edit 권한 토큰 |
+| Variable | `CLOUDFLARE_ACCOUNT_ID`         | 기존 `maps-editor` 프로젝트의 계정          |
+| Variable | `VITE_SUPABASE_URL`             | 한국 상용 Supabase URL                      |
+| Variable | `VITE_SUPABASE_PUBLISHABLE_KEY` | 해당 프로젝트의 공개 키                     |
+| Variable | `CLOUDFLARE_DEPLOY_ENABLED`     | 토큰과 위 설정을 준비한 뒤 `true`로 활성화  |
+
+활성화 전에는 자동 배포 작업을 건너뜁니다. 로컬 Wrangler의 임시 OAuth/refresh token을 GitHub Secret으로 복사하지 마세요. 활성화 후 `main` push 또는 `main`의 수동 실행에서만 타입·린트·포맷·단위·전체 E2E·상용 빌드 검사를 통과한 동일 커밋을 배포합니다. 업로드 직전 최신 `main`인지 다시 확인하고 배포를 직렬화하므로, 오래된 실행의 재시도로 운영을 되돌리지 않습니다.
+
+배포 후 익명 편집·Google 로그인 진입·취소·부모 저장을 검사합니다. 이 검사는 실제 계정 로그인 완료나 데이터 조회를 대신하지 않고, 실패해도 자동 롤백하지 않습니다. 토큰을 아직 등록하지 않았다면 `npm run deploy:production`으로 수동 배포할 수 있습니다.
