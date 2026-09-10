@@ -18,6 +18,7 @@ export function EditorSessionActions({
   }
 
   const statusText =
+    messaging.errorMessage ??
     actions.submitBlockedReason ??
     (actions.hasReturnablePolygon ? null : "반환할 폴리곤이 없습니다.");
 
@@ -28,9 +29,12 @@ export function EditorSessionActions({
     >
       {statusText ? (
         <p
+          role={messaging.errorMessage ? "alert" : undefined}
           aria-live="polite"
           className={`m-0 min-w-0 flex-1 text-sm font-bold leading-5 ${
-            actions.submitBlockedReason ? "text-amber-700" : "text-slate-500"
+            actions.submitBlockedReason || messaging.errorMessage
+              ? "text-amber-700"
+              : "text-slate-500"
           }`}
         >
           {statusText}

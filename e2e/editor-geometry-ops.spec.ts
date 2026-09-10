@@ -1,4 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
+import { fromLonLat } from "ol/proj.js";
+import { sampleSceneInput } from "../src/pages/demo/fixtures/sampleEditorScene";
+import { dragAnnotation, readEditorEdits } from "./fixtures/mapNavigation";
+import {
+  installGeometryOverlapProbe,
+  readGeometryOverlapChecks,
+} from "./fixtures/geometryOverlapProbe";
 
 type PolygonGeometry = {
   type: "Polygon";
@@ -121,6 +128,139 @@ async function platformModifier(page: Page): Promise<"Meta" | "Control"> {
   );
 }
 
+test("도형 연산 버튼은 팬/줌에서 판정을 재사용하고 편집/undo/redo에 따라 갱신한다", async ({
+  context,
+  page,
+}) => {
+  await installGeometryOverlapProbe(context);
+  const editor = await openEditorWithOverlappingPolygons(page);
+  await editor.getByRole("button", { name: "교집합 대상 선택" }).click();
+  const marker = editor.getByRole("group", {
+    name: "겹치는 도형 경계 작업",
+    exact: true,
+  });
+  await expect(
+    marker.getByRole("button", { name: "겹치는 도형 교집합" }),
+  ).toBeVisible();
+  await editor.waitForTimeout(700);
+  const checks = await readGeometryOverlapChecks(editor);
+  expect(checks).toBeGreaterThan(0);
+  const before = await readEditorEdits(editor);
+  await dragAnnotation(
+    editor,
+    marker.getByText("겹치는 도형", { exact: true }),
+    marker,
+  );
+  for (const title of ["지도 확대", "지도 축소", "지도 확대", "지도 축소"]) {
+    await editor.getByTitle(title, { exact: true }).click();
+    await editor.waitForTimeout(600);
+  }
+  expect(await readGeometryOverlapChecks(editor)).toBe(checks);
+  expect(await readEditorEdits(editor)).toEqual(before);
+
+  // bbox는 겹치지만 실제 면적은 없는 인접 도형으로 편집해 stale true도 방지합니다.
+  await editor.evaluate(async () => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    useEditorStore.getState().updateFeatureGeometry("intersection-target", {
+      type: "Polygon",
+      coordinates: [
+        [
+          [126.96, 37.55],
+          [126.98, 37.55],
+          [126.98, 37.6],
+          [126.96, 37.6],
+          [126.96, 37.55],
+        ],
+      ],
+    });
+  });
+  await expect.poll(() => readGeometryOverlapChecks(editor)).toBeGreaterThan(checks);
+  const intersection = marker.getByRole("button", { name: "겹치는 도형 교집합" });
+  await expect(intersection).toHaveCount(0);
+  const afterEdit = await readGeometryOverlapChecks(editor);
+  const modifier = await platformModifier(editor);
+  await editor.keyboard.press(`${modifier}+z`);
+  await expect(intersection).toBeVisible();
+  expect(await readGeometryOverlapChecks(editor)).toBe(afterEdit);
+  await editor.keyboard.press(`${modifier}+Shift+z`);
+  await expect(intersection).toHaveCount(0);
+  expect(await readGeometryOverlapChecks(editor)).toBe(afterEdit);
+});
+
+test("지도·도형·정점·선 커서를 구분하고 창 포커스를 잃으면 쥔 손을 해제한다", async ({
+  page,
+}) => {
+  const editor = await openEditorWithOverlappingPolygons(page);
+  const viewport = editor.locator(".editor-map-viewport");
+  await expect(viewport).toBeVisible();
+  await editor.waitForTimeout(600);
+  const box = await viewport.boundingBox();
+  if (!box) throw new Error("지도 영역이 없습니다.");
+  // 재INIT은 콘텐츠만 바꾸고 기존 지도 뷰를 유지하므로 최초 Demo 뷰를 기준으로 합니다.
+  const initialViewport = sampleSceneInput.viewport;
+  if (!initialViewport) throw new Error("Demo 최초 뷰가 없습니다.");
+  const center = fromLonLat(initialViewport.center);
+  const resolution = 156543.03392804097 / 2 ** initialViewport.zoom;
+  const hover = async (coordinate: number[]) => {
+    const projected = fromLonLat(coordinate);
+    await editor.mouse.move(
+      box.x + box.width / 2 + (projected[0] - center[0]) / resolution,
+      box.y + box.height / 2 - (projected[1] - center[1]) / resolution,
+    );
+  };
+  await hover([126.94, 37.565]);
+  await expect(viewport).toHaveCSS("cursor", "grab");
+  await hover([126.967, 37.558]);
+  await expect(viewport).toHaveCSS("cursor", "pointer");
+  // 패널의 자동 중심 이동 없이 선택만 바꿔 같은 지도 좌표로 정점 히트를 검증합니다.
+  await editor.evaluate(async () => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    useEditorStore.getState().setSelectedFeatureIds(["intersection-target"]);
+  });
+  const before = await readEditorEdits(editor);
+  await hover([126.96, 37.55]);
+  await expect(viewport).toHaveCSS("cursor", "move");
+  await hover([126.96, 37.565]);
+  await expect(viewport).toHaveCSS("cursor", "crosshair");
+  await hover([126.94, 37.565]);
+  await expect(viewport).toHaveCSS("cursor", "grab");
+  await editor.mouse.down();
+  await hover([126.945, 37.568]);
+  await expect(viewport).toHaveCSS("cursor", "grabbing");
+  await editor.evaluate(() => window.dispatchEvent(new Event("blur")));
+  await expect(viewport).not.toHaveAttribute("data-map-panning");
+  await expect(viewport).toHaveCSS("cursor", "grab");
+  await editor.mouse.up();
+  expect(await readEditorEdits(editor)).toEqual(before);
+});
+
+test("도형 이름·세 연산 버튼 위 드래그는 지도만 이동하고 키보드 교집합은 유지한다", async ({
+  page,
+}) => {
+  const editor = await openEditorWithOverlappingPolygons(page);
+  await editor.getByRole("button", { name: "교집합 대상 선택" }).click();
+  const marker = editor.getByRole("group", {
+    name: "겹치는 도형 경계 작업",
+    exact: true,
+  });
+  const before = await readEditorEdits(editor);
+  for (const target of [
+    marker.getByText("겹치는 도형", { exact: true }),
+    ...(await marker.getByRole("button").all()),
+  ]) {
+    await dragAnnotation(editor, target, marker);
+    expect(await readEditorEdits(editor)).toEqual(before);
+  }
+  const intersection = marker.getByRole("button", { name: "겹치는 도형 교집합" });
+  await intersection.focus();
+  await editor.keyboard.press("Enter");
+  await expect
+    .poll(async () => (await readEditorEdits(editor)).past)
+    .toBe(before.past + 1);
+  await editor.waitForTimeout(300);
+  expect((await readEditorEdits(editor)).selected).toEqual(before.selected);
+});
+
 test("교집합은 선택 도형만 겹치는 면으로 바꾸고 undo 한 단계로 기록한다", async ({
   page,
 }) => {
@@ -131,6 +271,14 @@ test("교집합은 선택 도형만 겹치는 면으로 바꾸고 undo 한 단�
     name: "겹치는 도형 교집합",
   });
   await expect(intersectButton).toBeVisible();
+  await expect(intersectButton).toHaveText("");
+  await expect(intersectButton).toHaveCSS("width", "26px");
+  await expect(intersectButton).toHaveCSS("color", "rgb(255, 255, 255)");
+  await expect(intersectButton).toHaveCSS("background-color", "rgb(128, 0, 255)");
+  await expect(intersectButton).toHaveAttribute("title", /교집합/);
+  await intersectButton.hover();
+  await expect(intersectButton).toHaveCSS("background-color", "rgb(128, 0, 255)");
+  await expect(intersectButton).toHaveCSS("color", "rgb(255, 255, 255)");
   const before = await readGeometryOpSnapshot(editorPage);
 
   await intersectButton.click();

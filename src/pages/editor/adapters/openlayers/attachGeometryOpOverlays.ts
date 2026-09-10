@@ -22,6 +22,7 @@ export type GeometryOpOverlayHandle = {
   name: string;
   canSubtract: boolean;
   canIntersect: boolean;
+  zoom: number;
 };
 
 // 콘텐츠 레이어에서 도형을 찾아 "면 내부 대표점"(지도 좌표)을 구합니다.
@@ -53,9 +54,26 @@ function interiorCoordinate(map: OpenLayersMap, featureId: string): Coordinate |
 
 // 후보 도형마다 ol/Overlay(빈 div)를 만들어 도형 내부 대표점에 고정합니다.
 // OL이 팬/줌/애니메이션 매 프레임 위치를 갱신하므로 moveend 수동 보정이 필요 없습니다.
-// stopEvent로 마커 클릭/드래그가 지도로 전파되지 않습니다.
+// 클릭/드래그 구분은 attachMapAnnotationNavigation이 공통으로 처리합니다.
 export function attachGeometryOpOverlays(map: OpenLayersMap) {
   const overlays = new Map<string, { overlay: Overlay; element: HTMLElement }>();
+  let interactive = true;
+
+  const syncInteraction = (element: HTMLElement) => {
+    // OL이 만든 래퍼에도 pointer-events:auto가 있어 자식만 막으면 지도로 전달되지 않습니다.
+    // 보조키 이동 중에는 이름/버튼을 유지하되 키보드·포인터 연산을 함께 잠시 쉬게 합니다.
+    element.inert = !interactive;
+    if (element.parentElement) {
+      element.parentElement.style.pointerEvents = interactive ? "auto" : "none";
+    }
+  };
+
+  const setInteractive = (next: boolean) => {
+    interactive = next;
+    for (const { element } of overlays.values()) {
+      syncInteraction(element);
+    }
+  };
 
   // 입력 목록에 맞춰 오버레이를 생성/이동/제거하고, React가 portal할 핸들 목록을 반환합니다.
   // 내부점을 못 구한 후보(잘못된 도형·OL 피처 없음)는 건너뜁니다.
@@ -84,9 +102,12 @@ export function attachGeometryOpOverlays(map: OpenLayersMap) {
           element,
           // 앵커(도형 내부 대표점)에 칩 중앙을 맞춰 도형 "안쪽"에 둔다(이웃 비침범·소속 명확).
           positioning: "center-center",
-          stopEvent: true,
+          stopEvent: false,
+          className:
+            "ol-overlay-container map-annotation-overlay select-none touch-none",
         });
         map.addOverlay(overlay);
+        syncInteraction(element);
         entry = { overlay, element };
         overlays.set(input.featureId, entry);
       }
@@ -97,6 +118,7 @@ export function attachGeometryOpOverlays(map: OpenLayersMap) {
         name: input.name,
         canSubtract: input.canSubtract,
         canIntersect: input.canIntersect,
+        zoom: Math.floor(map.getView().getZoom() ?? 12),
       });
     }
     return handles;
@@ -109,5 +131,5 @@ export function attachGeometryOpOverlays(map: OpenLayersMap) {
     overlays.clear();
   };
 
-  return { sync, detach };
+  return { sync, setInteractive, detach };
 }

@@ -4,8 +4,6 @@ export enum EditorMessageType {
   Ready = "MAP_EDITOR_READY",
   // 부모 창이 에디터에 초기 씬, 레이어, 도형 데이터를 전달합니다.
   Init = "MAP_EDITOR_INIT",
-  // 편집 중 도형이나 레이어 상태가 변경되었음을 알립니다.
-  Change = "MAP_EDITOR_CHANGE",
   // 사용자가 편집 결과를 확정해 부모 창으로 반환합니다.
   Submit = "MAP_EDITOR_SUBMIT",
   // 사용자가 편집을 취소했음을 알립니다.
@@ -118,7 +116,7 @@ export enum SelectionState {
 // 좌측 모드 패널과 editorStore가 공유하는 단일 모드 개념이며, 화면 표시용 카탈로그는
 // features/modes/model/editorModeModel.ts의 editorModeOptions가 담당합니다.
 export enum EditorMode {
-  // 도형 선택·정점 편집(기본). 클릭=선택, editable 도형 더블클릭=정점 편집.
+  // 도형 선택·정점 편집(기본). 클릭=선택, editable 도형 단일 선택=정점 편집.
   Select = "select",
   // 폴리곤·패스를 새로 그립니다.
   Draw = "draw",

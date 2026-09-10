@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  getMessageType,
   isAllowedParentOrigin,
   resolveReadyTargetOrigins,
 } from "./editorMessageChannel";
+import { EditorMessageType } from "../types/editorTypes";
 
 const editorOrigin = "http://127.0.0.1:4174";
 
@@ -65,5 +67,17 @@ describe("resolveReadyTargetOrigins", () => {
         editorOrigin,
       ),
     ).toEqual(["https://service.example.com", "https://admin.example.com"]);
+  });
+});
+
+describe("getMessageType", () => {
+  it("현재 공개 계약의 메시지만 인식한다", () => {
+    expect(getMessageType({ type: EditorMessageType.Ready })).toBe(
+      EditorMessageType.Ready,
+    );
+    expect(getMessageType({ type: EditorMessageType.Submit })).toBe(
+      EditorMessageType.Submit,
+    );
+    expect(getMessageType({ type: "MAP_EDITOR_CHANGE" })).toBeNull();
   });
 });

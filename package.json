@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs",
+    "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs && npm run test:build",
+    "build:production": "node scripts/verify-production-config.mjs && npm run build && node scripts/verify-production-config.mjs --built",
+    "deploy:production": "npm run build:production && wrangler pages deploy dist --project-name maps-editor --branch main --commit-dirty=true",
+    "test:production-auth": "node scripts/smoke-production-auth.mjs",
+    "test:build": "node --test scripts/production-config.test.mjs && node scripts/verify-static-build.mjs",
     "typecheck": "tsc -b",
     "lint": "biome lint .",
     "lint:fix": "biome lint . --write",
@@ -14,6 +18,7 @@
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test:unit",
     "test:unit": "vitest run --config vitest.config.ts",
     "test:e2e": "playwright test",
+    "deploy:cloudflare": "npm run deploy:production",
     "prepare": "husky",
     "preview": "vite preview --host 0.0.0.0"
   },
@@ -35,6 +40,7 @@
     "@turf/union": "^7.3.5",
     "lucide-react": "^1.17.0",
     "ol": "^10.9.0",
+    "prism-react-renderer": "^2.4.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-rnd": "^10.5.3",

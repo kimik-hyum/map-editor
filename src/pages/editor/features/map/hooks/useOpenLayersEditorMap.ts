@@ -6,6 +6,8 @@ import {
   attachEditorSelection,
   attachFeatureTranslate,
   attachGeometryOpOverlays,
+  attachMapAnnotationNavigation,
+  attachMapCursor,
   attachVertexDetail,
   attachVertexModify,
   createOpenLayersMap,
@@ -25,6 +27,7 @@ import {
 } from "@/pages/editor/adapters/openlayers";
 import {
   buildGeometryOpMarkerInputs,
+  createGeometryOverlapCache,
   deriveGeometryOpTargets,
   type GeometryOpTargets,
   intersectGeometries,
@@ -40,6 +43,7 @@ import {
   resolveSelection,
 } from "@/pages/editor/features/selection";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
+import { resolveMapHoverCursor } from "@/pages/editor/theme/mapCursorTheme";
 import {
   canSelectLayer,
   EditorMode,
@@ -127,6 +131,7 @@ function applyIntersect(targetId: string, otherId: string) {
 export function useOpenLayersEditorMap() {
   const mapElementRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<OpenLayersMap | null>(null);
+  const cursorRef = useRef<ReturnType<typeof attachMapCursor> | null>(null);
   const vertexLayerRef = useRef<ReturnType<typeof createVertexOverlayLayer> | null>(
     null,
   );
@@ -158,6 +163,7 @@ export function useOpenLayersEditorMap() {
   const suppressSelectUntilRef = useRef(0);
   // 불리언 연산 후보(병합/제거/교집합 대상). 마커 클릭 시점에 최신 target을 읽도록 ref로도 둔다.
   const geometryOpTargetsRef = useRef<GeometryOpTargets>(EMPTY_GEOMETRY_OP_TARGETS);
+  const [geometryOverlapCache] = useState(createGeometryOverlapCache);
   // 후보 도형 위 ol/Overlay 마커 핸들. OL이 팬/줌 위치 추적을 맡는다.
   const geometryOpOverlaysRef = useRef<ReturnType<
     typeof attachGeometryOpOverlays
@@ -208,6 +214,9 @@ export function useOpenLayersEditorMap() {
     }
 
     const map = createOpenLayersMap({ target: mapElementRef.current });
+    const annotationNavigation = attachMapAnnotationNavigation(map);
+    const cursor = attachMapCursor(map);
+    cursorRef.current = cursor;
     mapRef.current = map;
     setMap(map);
 
@@ -260,6 +269,8 @@ export function useOpenLayersEditorMap() {
     // Cmd/Ctrl+몸통 드래그 = 도형 통째 이동. Modify보다 "먼저" 추가해야 정점/외곽선은 Modify가 우선 잡는다.
     const translate = attachFeatureTranslate(map, {
       getScene: () => useEditorStore.getState().scene as EditorScene | null,
+      onActiveChange: (active) =>
+        geometryOpOverlaysRef.current?.setInteractive(!active),
       onDragStart: () => {
         // 이동 중에는 정점 핸들/상세를 치운다(끝나면 onDragEnd에서 복구).
         vertexLayerRef.current?.getSource()?.clear(true);
@@ -337,12 +348,15 @@ export function useOpenLayersEditorMap() {
       );
     });
 
-    // 팬/줌이 끝나면 화면 범위가 바뀌므로 병합/제거 후보 effect를 다시 돌린다(화면 안 한정 갱신).
+    // 팬/줌 후 후보의 표시 범위만 갱신합니다. 변하지 않은 도형 쌍의 판정은 재사용합니다.
     const viewportMoveEndKey = map.on("moveend", () => {
       setViewportTick((tick) => tick + 1);
     });
 
     return () => {
+      cursor.detach();
+      cursorRef.current = null;
+      annotationNavigation.detach();
       selection.detach();
       detail.detach();
       translate.detach();
@@ -364,6 +378,16 @@ export function useOpenLayersEditorMap() {
       geometryOpOverlaysRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const activation = getToolActivation(activeMode);
+    cursorRef.current?.setHoverCursor(
+      resolveMapHoverCursor(
+        activation.selection && hoveredFeatureId !== null,
+        activation.affordance ? editAffordance : null,
+      ),
+    );
+  }, [activeMode, editAffordance, hoveredFeatureId]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -588,11 +612,12 @@ export function useOpenLayersEditorMap() {
       scene,
       new Set(selectedFeatureIds),
       getViewportFeatureIds(map),
+      geometryOverlapCache.hasOverlap,
     );
     geometryOpTargetsRef.current = targets;
     applyChips(overlays.sync(buildGeometryOpMarkerInputs(scene, targets)));
     // viewportTick: 팬/줌으로 화면이 바뀌면 후보를 다시 도출한다.
-  }, [scene, selectedFeatureIds, activeMode, viewportTick]);
+  }, [scene, selectedFeatureIds, activeMode, viewportTick, geometryOverlapCache]);
 
   return {
     mapElementRef,

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   EditabilityState,
   FeatureLifecycle,
@@ -16,7 +16,10 @@ import {
 import {
   buildGeometryOpMarkerInputs,
   deriveGeometryOpTargets,
+  findGeometryOpTarget,
 } from "./geometryOpsModel";
+import { createGeometryOverlapCache } from "./geometryOverlapCache";
+import { hasAreaOverlap } from "./booleanOps";
 
 function square(x0: number, y0: number, x1: number, y1: number): PolygonalGeometry {
   return {
@@ -109,7 +112,71 @@ const HIDDEN_OVERRIDE: Partial<EditorLayer> = {
   },
 };
 
+describe("findGeometryOpTarget", () => {
+  it("ID/geometry 조회에는 좌표 순회나 후보 교집합 연산이 없다", () => {
+    const geometry = square(0, 0, 2, 2);
+    const coordinates = vi.fn(() => {
+      throw new Error("좌표를 읽으면 안 됨");
+    });
+    Object.defineProperty(geometry, "coordinates", { get: coordinates });
+    const s = scene([
+      layer("layer-a", [feature("a", geometry)]),
+      layer("layer-b", [feature("b", square(1, 1, 3, 3))]),
+    ]);
+    const target = findGeometryOpTarget(s, new Set(["a"]));
+    expect(target?.id).toBe("a");
+    expect(target?.geometry).toBe(geometry);
+    expect(coordinates).not.toHaveBeenCalled();
+  });
+
+  it("단일 선택·편집 권한·도형 숨김·viewport 정책을 동일하게 유지한다", () => {
+    const hidden = feature("feature-hidden", square(0, 0, 2, 2));
+    hidden.view = { visibility: VisibilityState.Hidden };
+    const s = scene([
+      layer("layer-a", [feature("a", square(0, 0, 2, 2))]),
+      layer("layer-locked", [feature("locked", square(0, 0, 2, 2))], LOCKED_OVERRIDE),
+      layer("layer-hidden", [feature("hidden", square(0, 0, 2, 2))], HIDDEN_OVERRIDE),
+      layer("layer-path", [feature("path", PATH)]),
+      layer("layer-feature-hidden", [hidden]),
+    ]);
+    for (const ids of [
+      [],
+      ["a", "path"],
+      ["missing"],
+      ["locked"],
+      ["hidden"],
+      ["path"],
+      ["feature-hidden"],
+    ]) {
+      expect(findGeometryOpTarget(s, new Set(ids))).toBeNull();
+    }
+    expect(findGeometryOpTarget(null, new Set(["a"]))).toBeNull();
+    expect(findGeometryOpTarget(s, new Set(["a"]), new Set())).toBeNull();
+    expect(findGeometryOpTarget(s, new Set(["a"]), new Set(["a"]))?.id).toBe("a");
+  });
+});
+
 describe("deriveGeometryOpTargets", () => {
+  it("viewport 변화는 후보 표시만 갱신하고 이미 본 도형의 판정은 재사용한다", () => {
+    const measure = vi.fn(hasAreaOverlap);
+    const cache = createGeometryOverlapCache(measure);
+    const s = scene([
+      layer("layer-a", [feature("a", square(0, 0, 2, 2))]),
+      layer("layer-b", [feature("b", square(1, 1, 3, 3))]),
+      layer("layer-c", [feature("c", square(0.5, 0.5, 3, 3))]),
+    ]);
+    const derive = (ids: string[]) =>
+      deriveGeometryOpTargets(s, new Set(["a"]), new Set(ids), cache.hasOverlap);
+    expect(derive(["a", "b"]).subtractCandidateIds).toEqual(["b"]);
+    expect(measure).toHaveBeenCalledTimes(1);
+    expect(derive(["a"]).subtractCandidateIds).toEqual([]);
+    expect(derive(["b"]).targetId).toBeNull();
+    expect(derive(["a", "b"]).subtractCandidateIds).toEqual(["b"]);
+    expect(measure).toHaveBeenCalledTimes(1);
+    expect(derive(["a", "b", "c"]).intersectCandidateIds).toEqual(["b", "c"]);
+    expect(measure).toHaveBeenCalledTimes(2);
+  });
+
   it("폴리곤 1개 선택: 다른 폴리곤은 병합 후보, 겹치는 것만 제거·교집합 후보", () => {
     const s = scene([
       layer("layer-a", [feature("a", square(0, 0, 2, 2))]),

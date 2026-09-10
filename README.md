@@ -1,87 +1,92 @@
 # Maps Editor
 
-## 실행
+부모 서비스가 보낸 도형을 편집하고 결과를 돌려주는 클라이언트 전용 지도 편집기입니다. Vite·React·TypeScript·OpenLayers로 구성합니다.
+
+- **일반 편집:** 로그인 없이 사용
+- **외부 경계 조회:** 경계 선택 시 Google 로그인, Supabase Edge Function 경유
+- **데이터 저장:** 에디터가 아니라 부모 서비스의 책임
+
+## 빠른 실행
+
+Node.js **22 이상**과 npm을 사용합니다.
 
 ```bash
-npm install
-npm run dev
+npm ci
+npm run dev -- --port 4174
 ```
 
-기본 Vite + React + TypeScript 상태에서 시작합니다.
+[로컬 데모](http://localhost:4174/demo/)에서 **편집기 새 창으로 열기**를 누르세요. 편집기 URL만 직접 열면 부모 데이터를 기다립니다. 문서·일반 편집은 환경 변수 없이도 실행할 수 있습니다.
 
-## 사용 패키지
+Demo의 부모 지도는 현재 scene을 표시합니다. 새 창에서 저장하면 지도와 데이터가 갱신되고 다음 편집도 수정본에서 시작합니다. 취소·창 닫기는 부모 데이터를 바꾸지 않습니다. 서버 저장은 없으며 부모 페이지를 새로고침하면 최초 샘플로 돌아갑니다.
 
-- `react`, `react-dom`: UI
-- `@supabase/supabase-js`: Google 로그인 세션 및 Edge Function 인증 호출
-- `react-router`: Docs, Demo, Editor 라우팅
-- `@tanstack/react-query`: 비동기 상태/캐싱
-- `zustand`: 편집기 클라이언트 상태
-- `zod`: `postMessage`와 geometry 입력 검증
-- `tailwindcss`, `@tailwindcss/vite`: 스타일링
-- `ol`: OpenLayers 지도/편집 엔진
-- `@turf/area`, `@turf/length`, `@turf/bbox`, `@turf/helpers`: GeoJSON 계산 유틸
+경계 API를 사용할 때만 `.env.example`을 참고해 로컬 `.env`에 공개 Supabase URL·publishable key를 설정합니다. 환경 변수를 바꾸면 개발 서버를 재시작합니다. **secret/service-role key와 Google Client Secret을 VITE 변수나 소스에 넣지 마세요.**
 
-## 정적 빌드 확인
+## 어디부터 읽을까요?
+
+| 목적                      | 문서                                                                                        | 웹 페이지         |
+| ------------------------- | ------------------------------------------------------------------------------------------- | ----------------- |
+| 부모 서비스에 연결        | [연동 계약과 예제](docs/integration.md)                                                     | `/integration`    |
+| 경계 API·인증·배포 설정   | [경계 데이터 API](docs/supabase-region-api.md)                                              | `/authentication` |
+| 도구 동작을 수정하거나 QA | [도구·상태 모델](docs/editor-tool-model.md)                                                 | `/editing`        |
+| 앱 내부 기능 개발         | [에디터 아키텍처](src/pages/editor/ARCHITECTURE.md)                                         | —                 |
+| 현재 범위·후속 작업       | [지원 범위](docs/editor-mvp-roadmap.md) · [운영 점검](docs/editor-open-questions-review.md) | —                 |
+
+문서 웹은 `/`에서 시작합니다. 이전 `/screen` 주소는 `/editing#screen`으로 연결합니다.
+
+## 부모 연동의 최소 계약
+
+`READY → INIT(sessionId, scene) → SUBMIT(sessionId, scene) 또는 CANCEL(sessionId)`
+
+- scene은 `{ version: 2, features: [...] }` 형식입니다. 각 도형의 필수 필드는 `geometry`입니다.
+- 부모는 자신이 연 팝업의 `source`, 미리 정한 에디터 `origin`, 완료 메시지의 `sessionId`를 검증합니다.
+- 결과는 공개 v2 scene 전체입니다. 내부 레이어·히스토리·인증 토큰을 반환하지 않으며, 중간 CHANGE 메시지도 보내지 않습니다.
+- 부모가 결과를 자신의 상태에 반영하고 필요한 저장 API를 호출합니다. 예제는 서버 저장을 하지 않습니다.
+- iframe·`noopener` 연동이 아니라 `window.opener`가 유지되는 새 창 방식입니다.
+
+실행 가능한 네 파일은 [연동 예제 폴더](src/pages/docs/content/examples)에 있습니다. 웹 문서는 이 파일을 직접 불러오므로 복사용 코드와 테스트 대상이 같습니다.
+
+## 검증과 빌드
 
 ```bash
+npm run verify
+npm run test:e2e
 npm run build
+npm run test:build
 npm run preview
 ```
 
-빌드 결과는 `dist/`에 생성됩니다. `vite.config.ts`의 `base: "./"` 설정으로 asset 경로는 상대 경로로 출력됩니다.
+- `verify`: 타입·린트·포맷·단위 테스트
+- `test:e2e`: 로컬 모의 API로 문서·부모 연동·Google 팝업 인증·편집 회귀 검사
+- `test:build`: 빌드한 문서 경로와 callback의 HTML·JS·CSS 참조 검사
 
-현재 빌드는 루트 docs 페이지를 `dist/index.html`에 prerender하고, `/demo`, `/editor`는 SPA shell로 생성합니다. 다만 `dist/index.html`을 더블클릭해서 `file://`로 열면 브라우저가 module script를 CORS 정책으로 막을 수 있습니다. 정적 빌드 결과는 아래처럼 HTTP로 확인하세요.
+`dist/`를 HTTP 정적 호스팅에 배포합니다. 문서 4개 경로는 사전 렌더링하고, `demo`·`editor`·`screen`·`auth/callback`은 SPA shell로 생성합니다. `auth/callback/index.html`을 누락하면 로그인 복귀가 실패합니다. `file://`로 실행하지 마세요.
 
-```bash
-npm run preview
-```
+### 상용 Cloudflare Pages 배포
 
-## 부모 도메인 연결 정책
+`.env.production.local`(Git 제외)에 실제 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_PUBLISHABLE_KEY`를 설정하고 `npm run deploy:production`을 실행합니다. Cloudflare에 로그인된 Wrangler가 필요합니다. 이 명령은 환경 변수 검사 → 빌드 → 산출물의 실제 공개 설정 검사 → 기존 `maps-editor` 상용 배포 순서로 실행합니다. 공개 키 대신 서버/개발 키를 넣거나 설정 없이 빌드한 산출물을 사용하면 중단합니다.
 
-에디터는 기본적으로 모든 HTTPS 부모 도메인이 새 창을 열어 `postMessage`로 scene을 전달할 수 있게 허용합니다. 로컬 개발에서는 에디터와 동일한 HTTP origin도 허용합니다. `file://`, sandbox iframe처럼 origin이 `null`인 메시지와 다른 HTTP origin은 거부합니다.
+`npm run build`는 설정 없이도 문서/일반 편집을 검증하는 CI용 빌드를 허용합니다. **상용에는 `build:production`/`deploy:production`을 사용하세요.** 로컬에서 빌드한 `dist`를 업로드할 때 Cloudflare 대시보드 환경 변수는 이미 생성된 JS에 주입되지 않습니다. 반드시 로컬 빌드 시 설정해야 합니다. 배포 후 `npm run test:production-auth`로 로그인 안내창뿐 아니라 **Google로 로그인 버튼을 눌러 실제 Google 화면까지 이동하는지** 확인합니다(Playwright Chromium 필요, 계정 로그인은 수행하지 않음).
 
-최초 `MAP_EDITOR_READY`는 geometry나 session ID가 없는 연결 신호만 전달합니다. 첫 번째로 유효한 `MAP_EDITOR_INIT`을 보낸 `window.opener`와 origin을 해당 팝업의 통신 상대로 고정하며, 이후 다른 origin에서 온 메시지는 같은 창에서 보내더라도 처리하지 않습니다. 오류와 향후 편집 결과는 고정된 정확한 origin으로만 반환해야 합니다.
+부모 origin 제한, Google/Supabase callback, 함수 origin 허용 목록은 [배포 설정](docs/supabase-region-api.md#배포-설정)에서 구분해 확인합니다. 이 저장소에는 Supabase 서버 함수·마이그레이션의 배포 코드가 포함되어 있지 않습니다.
 
-부모 서비스는 반대로 자신이 연 편집기의 고정된 origin만 메시지 대상으로 사용해야 합니다. 팝업에서 수신한 `event.origin`을 그대로 신뢰하거나 geometry 전송에 `"*"`를 사용하지 않습니다.
+### 공개 배포의 부모 연동 확인
 
-## 편집 결과 반환
+`E2E_BASE_URL=https://maps-editor.pages.dev npm run test:e2e -- e2e/editor-postmessage.spec.ts`는 로컬 서버 없이 공개 배포를 검사합니다. 이 모드는 localhost origin 이동 검사만 제외하며, 로컬 전체 테스트에서는 해당 보안 검사를 계속 수행합니다.
 
-사용자가 우측 상단의 **저장하고 완료**를 누르면 편집기는 연결된 부모의 정확한 origin으로 `MAP_EDITOR_SUBMIT`을 전송합니다. 반환하는 `scene`은 부모가 보낸 것과 같은 공개 `EditorSceneInput v2` 형식이며, 내부 `layers`, selection, validation, lifecycle 상태는 포함하지 않습니다. `features` 배열은 현재 지도 쌓임 순서이고 새 도형에는 에디터가 만든 ID가 포함됩니다.
+`deploy:cloudflare`는 상용 설정 검증을 포함한 `deploy:production`의 호환 명령입니다. `public/_headers`는 iframe 차단 등 보안 헤더와 해시 자산의 장기 캐시를 적용합니다. 부모 연동은 새 창 방식으로 유지합니다.
 
-```ts
-{
-  type: "MAP_EDITOR_SUBMIT",
-  sessionId: "부모가 INIT에서 보낸 값",
-  scene: {
-    version: 2,
-    features: [
-      { id: "feature-0", geometry: { type: "Point", coordinates: [127, 37.5] } }
-    ]
-  }
-}
-```
+### GitHub Actions 자동 배포
 
-**취소**는 `{ type: "MAP_EDITOR_CANCEL", sessionId }`만 전송합니다. 미저장 변경이 있으면 먼저 확인하며, 유효하지 않은 도형이나 완료되지 않은 그리기·반경 작업이 있으면 저장 완료를 막습니다. 부모는 `event.source`, 에디터의 정확한 `event.origin`, 자신이 발급한 `sessionId`를 모두 확인한 뒤 결과를 반영하고 자신이 연 팝업을 닫아야 합니다.
+저장소 Actions 설정에 다음 값을 등록합니다. 공개 Supabase 키는 브라우저용이며 서버 키를 등록하면 안 됩니다.
 
-특정 부모만 허용해야 하는 배포에서는 빌드 환경 변수에 콤마로 구분한 정확한 origin을 지정합니다.
+| 구분     | 이름                            | 용도                                        |
+| -------- | ------------------------------- | ------------------------------------------- |
+| Secret   | `CLOUDFLARE_API_TOKEN`          | 대상 계정의 Cloudflare Pages Edit 권한 토큰 |
+| Variable | `CLOUDFLARE_ACCOUNT_ID`         | 기존 `maps-editor` 프로젝트의 계정          |
+| Variable | `VITE_SUPABASE_URL`             | 한국 상용 Supabase URL                      |
+| Variable | `VITE_SUPABASE_PUBLISHABLE_KEY` | 해당 프로젝트의 공개 키                     |
+| Variable | `CLOUDFLARE_DEPLOY_ENABLED`     | 토큰과 위 설정을 준비한 뒤 `true`로 활성화  |
 
-```bash
-VITE_EDITOR_PARENT_ORIGINS=https://service.example.com,https://admin.example.com
-```
+활성화 전에는 자동 배포 작업을 건너뜁니다. 로컬 Wrangler의 임시 OAuth/refresh token을 GitHub Secret으로 복사하지 마세요. 활성화 후 `main` push 또는 `main`의 수동 실행에서만 타입·린트·포맷·단위·전체 E2E·상용 빌드 검사를 통과한 동일 커밋을 배포합니다. 업로드 직전 최신 `main`인지 다시 확인하고 배포를 직렬화하므로, 오래된 실행의 재시도로 운영을 되돌리지 않습니다.
 
-## Google 로그인과 지역 API
-
-`/editor`의 일반 편집과 부모 창 데이터 수신·반환은 로그인 없이 사용할 수 있다. 경계 메뉴를 선택할 때만 Google 로그인 안내를 표시한다. 취소하면 기존 도구와 진행 중 그리기를 유지하고, 확인하면 별도 OAuth 팝업에서 로그인한 뒤 경계 도구를 연다. 에디터 창은 새로고침하거나 이동하지 않아 부모 연결·도형·편집 이력이 유지된다.
-
-비로그인 상태에서는 경계 카탈로그와 도형 API를 요청하지 않는다. 지역 데이터는 테이블/RPC에 직접 요청하지 않고, 로그인 사용자의 access token을 첨부해 `regions` Edge Function을 통해서만 조회한다. 로그아웃 시 참고 경계는 사라지지만 이미 편집 scene에 채택한 도형은 유지된다.
-
-로컬 `.env`에는 다음 공개 값만 둔다. publishable key는 브라우저 공개용이며, secret/service-role key는 앱 저장소나 빌드 환경에 넣지 않는다.
-
-```bash
-VITE_SUPABASE_URL=https://<project-ref>.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-```
-
-Supabase Auth Redirect URLs에 각 사용 origin의 `/auth/callback`을 등록한다. 예: `https://maps-editor.pages.dev/auth/callback`, `https://google-sso-preview.maps-editor.pages.dev/auth/callback`. Google OAuth의 승인된 리디렉션 URI는 앱 주소가 아니라 Supabase Auth callback인 `https://<project-ref>.supabase.co/auth/v1/callback`이다.
-
-OAuth는 [Supabase PKCE 흐름](https://supabase.com/docs/guides/auth/sessions/pkce-flow)을 사용한다. 팝업과 에디터는 동일 origin의 인증 세션을 공유하며, 부모 호스트에는 인증 토큰이나 로그인 정보를 보내지 않는다. 팝업을 닫거나 차단한 경우에도 에디터는 유지되고, 로그인 취소 후 다시 시도할 수 있다. 이번 방식은 기존 `window.opener` 기반 새 창 연동을 대상으로 하며, 제3자 iframe의 브라우저 저장소 제한 지원을 추가한 것은 아니다.
+배포 후 익명 편집·Google 로그인 진입·취소·부모 저장을 검사합니다. 이 검사는 실제 계정 로그인 완료나 데이터 조회를 대신하지 않고, 실패해도 자동 롤백하지 않습니다. 토큰을 아직 등록하지 않았다면 `npm run deploy:production`으로 수동 배포할 수 있습니다.
