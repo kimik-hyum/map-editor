@@ -44,6 +44,20 @@ export function canEditLayerVertices(scene: EditorScene, layerId: string): boole
   );
 }
 
+// 이름은 geometry와 별개의 편집 메타데이터지만, 잠금/읽기 전용 정책은 동일하게 따릅니다.
+// 숨김 도형도 패널에서는 접근할 수 있으므로 visibility는 이름 변경 권한에 포함하지 않습니다.
+export function canRenameFeature(
+  layer: DeepReadonly<EditorLayer>,
+  feature: DeepReadonly<EditorFeature>,
+): boolean {
+  return (
+    feature.state.lifecycle !== FeatureLifecycle.Deleted &&
+    feature.behavior?.editability !== EditabilityState.Readonly &&
+    layer.behavior.editability === EditabilityState.Editable &&
+    layer.behavior.lock === LockState.Unlocked
+  );
+}
+
 // 부모가 준 원본(Clean/Updated)은 보호하고, 에디터에서 새로 만든 도형만 삭제합니다.
 // 레이어 권한과 잠금도 함께 확인해 UI와 store가 같은 정책을 사용하게 합니다.
 export function canDeleteCreatedFeature(

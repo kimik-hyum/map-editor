@@ -6,6 +6,7 @@ import intersect from "@turf/intersect";
 import union from "@turf/union";
 import type { Feature, MultiPolygon, Polygon } from "geojson";
 import type { PolygonalGeometry } from "@/pages/editor/types/editorTypes";
+import { normalizePolygonalGeometry } from "./normalizePolygonalGeometry";
 
 // React/OpenLayers를 모르는 순수 Turf 연산 모음입니다(단위 테스트 우선 대상).
 // 입력 geometry는 EPSG:4326(경도/위도)이라 Turf가 추가 투영 없이 그대로 다룹니다.
@@ -19,11 +20,14 @@ function toTurf(geometry: PolygonalGeometry): TurfPolygonFeature {
   return toFeature(geometry as Polygon | MultiPolygon);
 }
 
-function fromTurf(result: TurfPolygonFeature | null): PolygonalGeometry | null {
+function fromTurf(
+  result: TurfPolygonFeature | null,
+): PolygonalGeometry | null | undefined {
   if (!result?.geometry) {
     return null;
   }
-  return result.geometry as PolygonalGeometry;
+  // 정규화 실패는 정상적인 빈 결과(null)와 구분해 호출부의 도형 삭제를 막습니다.
+  return normalizePolygonalGeometry(result.geometry as PolygonalGeometry) ?? undefined;
 }
 
 // 입력 Zod는 좌표 "구조"만 검증하므로(자가 교차·불완전 ring 등 기하 유효성은 보장 X),
@@ -43,8 +47,9 @@ export function unionGeometries(
   a: PolygonalGeometry,
   b: PolygonalGeometry,
 ): PolygonalGeometry | null {
-  return fromTurf(
-    safeTurf(() => union(featureCollection([toTurf(a), toTurf(b)])), null),
+  return (
+    fromTurf(safeTurf(() => union(featureCollection([toTurf(a), toTurf(b)])), null)) ??
+    null
   );
 }
 

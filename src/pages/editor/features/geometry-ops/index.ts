@@ -1,5 +1,8 @@
 export { GeometryOpMarkers } from "./components/GeometryOpMarkers";
+export { normalizePolygonalGeometry } from "./model/normalizePolygonalGeometry";
 export {
+  bboxesOverlap,
+  geometryBbox,
   hasAreaOverlap,
   intersectGeometries,
   subtractGeometry,

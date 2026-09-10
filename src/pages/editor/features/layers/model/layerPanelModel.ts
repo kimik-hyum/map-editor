@@ -1,6 +1,7 @@
 import { resolvePolygonStyle } from "@/pages/editor/theme/editorStyleResolver";
 import {
   canDeleteCreatedFeature,
+  canRenameFeature,
   LockState,
   VisibilityState,
   geometryKindLabels,
@@ -26,6 +27,8 @@ export type FeatureStackRowViewModel = {
   isLocked: boolean;
   // 로컬 생성물이며 레이어 삭제 권한이 있고 잠금 해제된 경우에만 true.
   canDelete: boolean;
+  // 잠금 해제된 편집 가능 도형은 원본/생성 여부와 관계없이 이름을 바꿀 수 있습니다.
+  canRename: boolean;
   // 런타임 선택(selectedFeatureIds) 기준. 지도/패널 어느 쪽 선택이든 같은 값을 본다.
   isSelected: boolean;
   accentColor: string;
@@ -74,6 +77,7 @@ function createFeatureStackRowViewModel(
     isDimmed: layer.view.visibility === VisibilityState.Dimmed,
     isLocked: layer.behavior.lock === LockState.Locked,
     canDelete: canDeleteCreatedFeature(layer, feature),
+    canRename: canRenameFeature(layer, feature),
     isSelected: selectedIds.has(feature.id),
     // 스타일 리졸버는 읽기 전용 입력을 받지 않으므로 경계에서 mutable로 캐스팅한다(변경하지 않음).
     accentColor: resolvePolygonStyle(feature as EditorFeature, layer as EditorLayer)

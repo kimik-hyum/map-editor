@@ -109,7 +109,7 @@ export const editorSceneInputSchema = z.object({
 
 const initInputSchema = z.object({
   type: z.literal(EditorMessageType.Init),
-  sessionId: z.string(),
+  sessionId: z.string().min(1),
   scene: editorSceneInputSchema,
 });
 

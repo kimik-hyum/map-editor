@@ -58,10 +58,6 @@ export function BoundaryKindPopup({
           <div aria-live="polite" className="text-[11px] font-semibold text-slate-500">
             {activeBoundaryKind === null ? (
               <span>경계 종류를 선택하면 화면에 표시됩니다.</span>
-            ) : boundaryStatus.loading ? (
-              <span>경계 불러오는 중…</span>
-            ) : statusError ? (
-              <span className="text-red-600">{statusError}</span>
             ) : (
               <span>
                 현재 화면: <b className="text-slate-700">{returnedLabel}</b> ·{" "}
@@ -75,9 +71,33 @@ export function BoundaryKindPopup({
                     · 일부만 표시됨 — 지도를 확대하세요
                   </span>
                 ) : null}
+                {boundaryStatus.loading ? (
+                  <span className="block">
+                    경계 불러오는 중…
+                    {boundaryStatus.totalRequests > 1
+                      ? ` ${boundaryStatus.completedRequests}/${boundaryStatus.totalRequests}개 구역`
+                      : ""}
+                  </span>
+                ) : null}
               </span>
             )}
+            {activeBoundaryKind !== null && statusError ? (
+              <span className="block text-red-600" role="alert">
+                {statusError}
+              </span>
+            ) : null}
           </div>
+          {activeBoundaryKind !== null &&
+          boundaryStatus.failedRequests > 0 &&
+          !boundaryStatus.loading ? (
+            <button
+              className="justify-self-start rounded-md px-2 py-1 text-[11px] font-bold text-ink hover:bg-slate-100"
+              onClick={boundaryStatus.retryFailed}
+              type="button"
+            >
+              실패 구역 다시 불러오기
+            </button>
+          ) : null}
           {activeBoundaryKind !== null ? (
             <button
               className="justify-self-start rounded-md px-2 py-1 text-[11px] font-bold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"

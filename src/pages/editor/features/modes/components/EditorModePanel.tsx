@@ -1,12 +1,15 @@
 import { Toggle } from "@base-ui/react/toggle";
 import { ToggleGroup } from "@base-ui/react/toggle-group";
 import type { LucideIcon } from "lucide-react";
-import { type RefObject, useRef, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
+import { useBoundaryAccess } from "@/features/auth";
 import { MovingHighlight, MovingHighlightItem } from "@/shared/ui/MovingHighlight";
 import { cn } from "@/shared/utils/cn";
 import {
   type RegionBoundaryStatus,
   useRegionKinds,
+  useBoundaryLogin,
+  BoundaryLoginStatus,
 } from "@/pages/editor/features/regions";
 import { RadiusInputPopup } from "@/pages/editor/features/radius/components/RadiusInputPopup";
 import type { RadiusToolController } from "@/pages/editor/features/radius";
@@ -57,6 +60,20 @@ export function EditorModePanel({
   const radiusAnchorRef = useRef<HTMLButtonElement>(null);
   const [boundaryPopupOpen, setBoundaryPopupOpen] = useState(false);
   const [drawPopupOpen, setDrawPopupOpen] = useState(false);
+  const { allowed } = useBoundaryAccess();
+  const previousAllowedRef = useRef(allowed);
+  const login = useBoundaryLogin();
+
+  useEffect(() => {
+    const lostAccess = previousAllowedRef.current && !allowed;
+    previousAllowedRef.current = allowed;
+    // Zustand의 도구 전환이 React 인증 상태보다 먼저 렌더될 수 있습니다.
+    // 초기 비로그인 렌더가 아니라 실제 인증 상실 때만 도구를 되돌립니다.
+    if (lostAccess && useEditorStore.getState().activeMode === EditorMode.Boundary) {
+      setActiveMode(EditorMode.Select);
+      setBoundaryPopupOpen(false);
+    }
+  }, [allowed, setActiveMode]);
 
   return (
     <>
@@ -75,6 +92,18 @@ export function EditorModePanel({
             if (next) {
               void (async () => {
                 const context = useEditorStore.getState();
+                // 로그인 안내 취소는 진행 중 sketch를 버리거나 도구를 바꾸지 않습니다.
+                if (
+                  next === EditorMode.Boundary &&
+                  !(await login.requestBoundaryAccess())
+                ) {
+                  if (useEditorStore.getState().scene === context.scene) {
+                    setDrawPopupOpen(
+                      useEditorStore.getState().activeMode === EditorMode.Draw,
+                    );
+                  }
+                  return;
+                }
                 if (
                   activeMode === EditorMode.Draw &&
                   next !== EditorMode.Draw &&
@@ -157,6 +186,12 @@ export function EditorModePanel({
           })}
         </ToggleGroup>
       </MovingHighlight>
+
+      <BoundaryLoginStatus
+        isSigningIn={login.isSigningIn}
+        error={login.error}
+        onCancel={login.cancel}
+      />
 
       <BoundaryKindPopup
         anchor={boundaryAnchorRef}

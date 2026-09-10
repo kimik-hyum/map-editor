@@ -15,6 +15,9 @@ export function useLayerPanelActions() {
   const setSelectedFeatureIds = useEditorStore((state) => state.setSelectedFeatureIds);
   const requestFeatureFocus = useEditorStore((state) => state.requestFeatureFocus);
   const deleteCreatedFeature = useEditorStore((state) => state.deleteCreatedFeature);
+  const renameFeature = useEditorStore((state) => state.renameFeature);
+  const beginFeatureRename = useEditorStore((state) => state.beginFeatureRename);
+  const endFeatureRename = useEditorStore((state) => state.endFeatureRename);
 
   // 행(도형)의 표시 토글. 1레이어 = 1도형이라 도형을 담은 내부 레이어의 표시를 바꾼다.
   const toggleRowVisibility = useCallback(
@@ -101,11 +104,32 @@ export function useLayerPanelActions() {
     [deleteCreatedFeature],
   );
 
+  const renameRow = useCallback(
+    (row: FeatureStackRowViewModel, name: string) => {
+      if (row.canRename) {
+        renameFeature(row.id, name);
+      }
+    },
+    [renameFeature],
+  );
+
+  const beginRenameRow = useCallback(
+    (row: FeatureStackRowViewModel) => {
+      if (row.canRename) {
+        beginFeatureRename(row.id);
+      }
+    },
+    [beginFeatureRename],
+  );
+
   return {
     toggleRowVisibility,
     toggleRowLock,
     selectFeature,
     reorderRow,
     deleteRow,
+    renameRow,
+    beginRenameRow,
+    endRenameRow: endFeatureRename,
   };
 }

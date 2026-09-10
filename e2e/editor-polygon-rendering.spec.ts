@@ -56,15 +56,20 @@ test("에디터 지도에 샘플 폴리곤이 렌더링된다", async ({ page })
   const editorPage = await openEditorViaDemo(page);
 
   const map = editorPage.getByLabel("OSM map editor");
-  const mapCanvas = map.locator("canvas");
+  const mapCanvas = map.locator(".ol-layer canvas");
 
   await expect(map).toBeVisible();
   await expect(editorPage.locator(".ol-viewport")).toBeVisible();
   await expect(mapCanvas).toHaveCount(1);
+  await expect(map.locator(".osm-basemap canvas")).toHaveCount(1);
+  await expect(map.locator(".osm-basemap")).toHaveCSS("filter", "saturate(0.35)");
+  await expect(map.locator(".ol-layer")).toHaveCSS("filter", "none");
+  await expect(map.locator(".ol-viewport")).toHaveCSS("filter", "none");
+  await expect(map.locator(".ol-zoom button").first()).toHaveCSS("filter", "none");
 
   await editorPage.waitForFunction(() => {
     const canvas = document.querySelector<HTMLCanvasElement>(
-      '[aria-label="OSM map editor"] canvas',
+      '[aria-label="OSM map editor"] .ol-layer canvas',
     );
 
     return Boolean(canvas && canvas.width > 0 && canvas.height > 0);

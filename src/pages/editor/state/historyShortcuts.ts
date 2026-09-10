@@ -12,6 +12,7 @@ type ShortcutEventLike = {
 };
 
 type HistoryShortcutOptions = {
+  isDisabled?: () => boolean;
   // 진행 중 도구가 있으면 로컬 handler가 소비하지 못한 shortcut도 scene으로 넘기지 않습니다.
   isInProgress?: () => boolean;
   // 진행 중인 도구가 정점 등 자기 로컬 history를 소비했으면 true를 반환합니다.
@@ -62,6 +63,7 @@ export function useEditorHistoryShortcuts(options: HistoryShortcutOptions = {}):
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (options.isDisabled?.()) return;
       const intent = resolveHistoryShortcut(event, isConfirmationDialogOpen());
       if (!intent) {
         return;
@@ -94,6 +96,7 @@ export function useEditorHistoryShortcuts(options: HistoryShortcutOptions = {}):
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
+    options.isDisabled,
     options.isInProgress,
     options.onDiscardInProgressRedo,
     options.onRedoInProgress,

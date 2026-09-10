@@ -9,6 +9,7 @@ import {
 import {
   canDeleteCreatedFeature,
   canEditLayerVertices,
+  canRenameFeature,
   canSelectLayer,
 } from "./layerAccess";
 
@@ -135,5 +136,35 @@ describe("canDeleteCreatedFeature", () => {
       behavior: { ...layer.behavior, deletable: true },
     };
     expect(canDeleteCreatedFeature(deletable, protectedCreated)).toBe(false);
+  });
+});
+
+describe("canRenameFeature", () => {
+  const editableLayer = sceneWithLayer(editableVisible).layers[0];
+  const cleanFeature = {
+    state: { lifecycle: FeatureLifecycle.Clean },
+  } as Parameters<typeof canRenameFeature>[1];
+
+  it("잠금 해제된 편집 가능 원본도 이름을 바꿀 수 있다", () => {
+    expect(canRenameFeature(editableLayer, cleanFeature)).toBe(true);
+  });
+
+  it("잠금·읽기 전용·삭제 상태에서는 이름을 바꿀 수 없다", () => {
+    const lockedLayer = {
+      ...editableLayer,
+      behavior: { ...editableLayer.behavior, lock: LockState.Locked },
+    };
+    const readonlyFeature = {
+      ...cleanFeature,
+      behavior: { editability: EditabilityState.Readonly },
+    };
+    const deletedFeature = {
+      ...cleanFeature,
+      state: { lifecycle: FeatureLifecycle.Deleted },
+    } as Parameters<typeof canRenameFeature>[1];
+
+    expect(canRenameFeature(lockedLayer, cleanFeature)).toBe(false);
+    expect(canRenameFeature(editableLayer, readonlyFeature)).toBe(false);
+    expect(canRenameFeature(editableLayer, deletedFeature)).toBe(false);
   });
 });

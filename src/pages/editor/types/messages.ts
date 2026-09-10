@@ -22,18 +22,10 @@ export type EditorReadyMessage = {
   sessionId?: string;
 };
 
-export type EditorChangeMessage = {
-  type: EditorMessageType.Change;
-  sessionId: string;
-  scene: EditorScene;
-  changedFeatureIds: string[];
-  changedLayerIds: string[];
-};
-
 export type EditorSubmitMessage = {
   type: EditorMessageType.Submit;
   sessionId: string;
-  scene: EditorScene;
+  scene: EditorSceneInput;
 };
 
 export type EditorCancelMessage = {
@@ -51,7 +43,6 @@ export type EditorErrorMessage = {
 export type EditorMessage =
   | EditorReadyMessage
   | EditorInitMessage
-  | EditorChangeMessage
   | EditorSubmitMessage
   | EditorCancelMessage
   | EditorErrorMessage;

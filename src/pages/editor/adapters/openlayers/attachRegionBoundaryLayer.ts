@@ -13,10 +13,17 @@ export type SnappedRegionView = {
   minLat: number;
   maxLng: number;
   maxLat: number;
+  center?: number[];
 };
 
 type RegionBoundaryLayerOptions = {
-  onViewChange: (view: SnappedRegionView) => void;
+  onViewChange: (view: SnappedRegionView | null) => void;
+  onMoveStart?: () => void;
+};
+
+type BoundaryCollection = {
+  features: readonly { id: string | number; [key: string]: unknown }[];
+  [key: string]: unknown;
 };
 
 const geojson = new GeoJSON({
@@ -39,13 +46,18 @@ function readSnappedView(map: OpenLayersMap): SnappedRegionView | null {
   const zoom = Math.floor(map.getView().getZoom() ?? 12);
   const step = 360 / 2 ** zoom;
 
-  return {
+  // 매우 낮은 줌에서 격자 맞춤이 극점을 넘으면 Mercator 분할이 NaN이 됩니다.
+  const clamp = (value: number, limit: number) =>
+    Math.max(-limit, Math.min(limit, value));
+  const result = {
     zoom,
-    minLng: Math.floor(minLng / step) * step,
-    minLat: Math.floor(minLat / step) * step,
-    maxLng: Math.ceil(maxLng / step) * step,
-    maxLat: Math.ceil(maxLat / step) * step,
+    center: map.getView().getCenter()?.slice(),
+    minLng: clamp(Math.floor(minLng / step) * step, 180),
+    minLat: clamp(Math.floor(minLat / step) * step, 85),
+    maxLng: clamp(Math.ceil(maxLng / step) * step, 180),
+    maxLat: clamp(Math.ceil(maxLat / step) * step, 85),
   };
+  return result.minLng < result.maxLng && result.minLat < result.maxLat ? result : null;
 }
 
 // 참고 레이어를 부착하고, 화면 변화와 GeoJSON 동기화를 공통 핸들로 감쌉니다.
@@ -57,34 +69,56 @@ export function attachRegionBoundaryLayer(
   map.addLayer(layer);
 
   const reportView = () => {
-    const view = readSnappedView(map);
-    if (view) {
-      options.onViewChange(view);
-    }
+    options.onViewChange(readSnappedView(map));
   };
 
   reportView();
   const moveEndKey = map.on("moveend", reportView);
+  const moveStartKey = map.on("movestart", () => options.onMoveStart?.());
+  const previousById = new Map<string, BoundaryCollection["features"][number]>();
 
-  const sync = (collection: object | null) => {
+  const sync = (collection: BoundaryCollection | null) => {
     const source = layer.getSource();
     if (!source) {
       return;
     }
-    source.clear();
-    if (collection) {
-      source.addFeatures(geojson.readFeatures(collection));
+    if (!collection) {
+      if (previousById.size) source.clear();
+      previousById.clear();
+      return;
     }
+    const incoming = new Map(
+      collection.features.map((feature) => [String(feature.id), feature]),
+    );
+    for (const [id, previous] of previousById) {
+      if (incoming.get(id) !== previous) {
+        const feature = source.getFeatureById(id);
+        if (feature) source.removeFeature(feature);
+      }
+    }
+    const added = [...incoming].filter(
+      ([id, feature]) => previousById.get(id) !== feature,
+    );
+    if (added.length)
+      source.addFeatures(
+        geojson.readFeatures({
+          type: "FeatureCollection",
+          features: added.map(([, feature]) => feature),
+        }),
+      );
+    previousById.clear();
+    for (const [id, feature] of incoming) previousById.set(id, feature);
   };
 
   const detach = () => {
-    unByKey(moveEndKey);
+    unByKey([moveEndKey, moveStartKey]);
+    previousById.clear();
     map.removeLayer(layer);
   };
 
   return { layer, sync, detach } as {
     layer: RegionBoundaryLayer;
-    sync: (collection: object | null) => void;
+    sync: (collection: BoundaryCollection | null) => void;
     detach: () => void;
   };
 }

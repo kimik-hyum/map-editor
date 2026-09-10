@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { seedGoogleSession } from "./fixtures/auth";
 
 type EditorSnapshot = {
   layerCount: number;
@@ -493,7 +494,9 @@ test("진행 중 sketch를 두고 도형이나 모드를 바꾸면 취소 확인
 
 test("새 INIT은 이전 session의 draw 확인과 지연된 모드·도형 전환을 취소한다", async ({
   page,
+  context,
 }) => {
+  await seedGoogleSession(context);
   const editorPage = await openEditorViaDemo(page);
   await activateDrawShape(editorPage, "패스");
   await clickMapPoint(editorPage, 0.5, 0.25);
@@ -679,7 +682,9 @@ test("지도 크기가 바뀌면 커서 툴팁을 새 경계 안으로 다시 �
   const map = editorPage.getByLabel("OSM map editor");
   const tooltip = editorPage.locator('main > [role="status"]');
 
-  await editorPage.mouse.move(760, 580);
+  // 축소 후에도 포인터가 새 하단 완료 바가 아니라 지도 안에 남는 좌표를 사용합니다.
+  // 지도 밖으로 나가면 툴팁이 숨는 것이 정상이라 재배치 검증 대상이 아닙니다.
+  await editorPage.mouse.move(760, 500);
   await expect(tooltip).toBeVisible();
   await editorPage.setViewportSize({ width: 800, height: 600 });
 

@@ -15,6 +15,8 @@ import { olGeometryToEditorGeometry } from "./olGeometryToEditorGeometry";
 type FeatureTranslateOptions = {
   // 항상 최신 scene을 읽어 이동 대상 레이어 상태를 확인합니다.
   getScene: () => EditorScene | null;
+  // 이동 보조키를 누른 순간 카드의 포인터 가로채기를 해제합니다(드래그 시작 전부터 필요).
+  onActiveChange?: (active: boolean) => void;
   // "실제로" 움직이기 시작했을 때 제스처당 1회 호출(정점 핸들 숨김 등).
   // 단순 클릭(눌렀다 뗌)에는 호출되지 않아 핸들이 깜빡이지 않는다.
   onDragStart: () => void;
@@ -141,6 +143,7 @@ export function attachFeatureTranslate(
 
   const applyActiveState = () => {
     const next = modeActive && modifierActive;
+    const previous = translate.getActive();
     if (!next && originals.size > 0) {
       const shouldRestoreOverlays = dragSignaled && modeActive;
       features.forEach((feature) => {
@@ -158,6 +161,9 @@ export function attachFeatureTranslate(
     originals.clear();
     dragSignaled = false;
     translate.setActive(next);
+    if (previous !== next) {
+      options.onActiveChange?.(next);
+    }
   };
 
   const handleModifierChange = (event: KeyboardEvent) => {

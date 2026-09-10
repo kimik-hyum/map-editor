@@ -1,5 +1,14 @@
 export const editorDefaultTheme = {
   name: "default",
+  regionBoundary: {
+    strokeColor: "#000000",
+    strokeWidth: 4,
+    labelColor: "#172033",
+  },
+  holeFillPreview: {
+    strokeColor: "#0f766e",
+    fillColor: "rgba(13, 148, 136, 0.45)",
+  },
   polygon: {
     editable: {
       strokeColor: "#2563eb",
