@@ -10,6 +10,8 @@ import {
 import type { RegionFeatureCollection } from "../api/regionsApi";
 import { REGION_SPLIT_MAX_ZOOM } from "../model/regionQueryPolicy";
 import { useRegionViewQueries } from "./useRegionViewQueries";
+import { useRegionTileManifest } from "./useRegionTileManifest";
+import { selectFixedRegionTiles, usesRegionTileCache } from "../model/fixedRegionTiles";
 
 // 경계 레이어의 현재 상태(사이드메뉴 경계 도구 표시용).
 export type RegionBoundaryStatus = {
@@ -81,16 +83,44 @@ export function useRegionBoundaries(
     };
   }, [map]);
 
+  const lowZoom = !!view && usesRegionTileCache(view.zoom);
+  const manifest = useRegionTileManifest(!!visibleKind && !!map && lowZoom, subject);
+  const tilePlan = useMemo(() => {
+    if (!view || !map || moving || !visibleKind || !lowZoom || !manifest.data)
+      return null;
+    return {
+      manifest: manifest.data,
+      tiles: selectFixedRegionTiles(view, manifest.data),
+      zoom: view.zoom,
+    };
+  }, [view, map, moving, visibleKind, lowZoom, manifest.data]);
+  const legacy = !lowZoom || (manifest.isSuccess && manifest.data === null);
   const views = useMemo(() => {
-    if (!view || !map || moving || !visibleKind) return [];
+    if (!view || !map || moving || !visibleKind || !legacy) return [];
     const split = view.zoom <= REGION_SPLIT_MAX_ZOOM;
     return splitRegionView(view, split ? 2 : 1, split ? 4 : 1);
-  }, [view, map, moving, visibleKind]);
+  }, [view, map, moving, visibleKind, legacy]);
   // 이동 시작·종류 변경·인증 해제로 구독을 해제하면 대기/실행 중인 요청도 취소됩니다.
-  const query = useRegionViewQueries(views, visibleKind, subject);
+  const query = useRegionViewQueries(views, visibleKind, subject, tilePlan);
+  const conflictVersionRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      query.versionConflict &&
+      manifest.data &&
+      conflictVersionRef.current !== manifest.data.version
+    ) {
+      conflictVersionRef.current = manifest.data.version;
+      void manifest.refetch();
+    }
+  }, [query.versionConflict, manifest.data, manifest.refetch]);
   const scope =
     visibleKind && map && view
-      ? JSON.stringify([visibleKind, subject, view.zoom])
+      ? JSON.stringify([
+          visibleKind,
+          subject,
+          view.zoom,
+          lowZoom ? manifest.data?.version : null,
+        ])
       : null;
   const data =
     query.data ??
@@ -106,15 +136,28 @@ export function useRegionBoundaries(
   }, [layer, scope, data, query.data]);
 
   const status: RegionBoundaryStatus = {
-    loading: Boolean(visibleKind) && (moving || query.loading),
+    loading:
+      Boolean(visibleKind) &&
+      (moving || query.loading || (lowZoom && manifest.isPending)),
     kind: scope && data ? data.kind : null,
     count: scope && data ? data.features.length : 0,
     truncated: scope && data ? data.truncated : false,
-    error: query.error,
+    error: (lowZoom ? manifest.error?.message : null) ?? query.error,
     completedRequests: query.completedRequests,
-    totalRequests: query.totalRequests,
-    failedRequests: query.failedRequests,
-    retryFailed: query.retryFailed,
+    totalRequests:
+      lowZoom && manifest.isError
+        ? Math.max(1, query.totalRequests)
+        : query.totalRequests,
+    failedRequests:
+      lowZoom && manifest.isError
+        ? Math.max(1, query.failedRequests)
+        : query.failedRequests,
+    retryFailed:
+      lowZoom && (manifest.isError || query.versionConflict)
+        ? () => {
+            void manifest.refetch();
+          }
+        : query.retryFailed,
   };
 
   return { layer, status };

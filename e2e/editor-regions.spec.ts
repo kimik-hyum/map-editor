@@ -1,5 +1,10 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { seedGoogleSession } from "./fixtures/auth";
+import { dragAnnotation, readEditorEdits } from "./fixtures/mapNavigation";
+import {
+  installGeometryOverlapProbe,
+  readGeometryOverlapChecks,
+} from "./fixtures/geometryOverlapProbe";
 import {
   UNION_REGRESSION_TARGET,
   UNION_REGRESSION_BOUNDARY,
@@ -8,6 +13,54 @@ import type {
   PolygonalGeometry,
   EditorSceneInput,
 } from "../src/pages/editor/types/editorTypes";
+
+// INIT 누락 시 양쪽 창의 메시지/탐색을 남깁니다. 재전송이나 재시도로 실패를 숨기지 않습니다.
+const handshakeLogs = new WeakMap<BrowserContext, string[]>();
+test.beforeEach(async ({ context }) => {
+  const events: string[] = [];
+  handshakeLogs.set(context, events);
+  const record = (event: string) => events.push(`${Date.now()} ${event}`);
+  context.on("page", (page) => {
+    page.on("framenavigated", (frame) => {
+      if (frame === page.mainFrame()) record(`navigate ${page.url()}`);
+    });
+    page.on("pageerror", (error) => record(`pageerror ${page.url()} ${error.message}`));
+    page.on("console", (message) => {
+      if (message.text().startsWith("[vite]")) record(message.text());
+    });
+  });
+  await context.exposeBinding(
+    "__recordRegionHandshake",
+    ({ page }, event: { type: string; origin: string; fromOpener: boolean }) =>
+      record(`${page.url()} ${JSON.stringify(event)}`),
+  );
+  await context.addInitScript(() => {
+    window.addEventListener("message", (event) => {
+      const type = event.data?.type;
+      if (typeof type !== "string" || !type.startsWith("MAP_EDITOR_")) return;
+      const target = window as typeof window & {
+        __recordRegionHandshake: (event: {
+          type: string;
+          origin: string;
+          fromOpener: boolean;
+        }) => Promise<void>;
+      };
+      void target.__recordRegionHandshake({
+        type,
+        origin: event.origin,
+        fromOpener: event.source === window.opener,
+      });
+    });
+  });
+});
+test.afterEach(async ({ context }, testInfo) => {
+  if (testInfo.status !== testInfo.expectedStatus) {
+    await testInfo.attach("region-handshake", {
+      body: (handshakeLogs.get(context) ?? []).join("\n"),
+      contentType: "text/plain",
+    });
+  }
+});
 
 const REGION_FEATURE = {
   type: "Feature",
@@ -117,9 +170,77 @@ async function openEditorViaDemo(page: Page): Promise<Page> {
     page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
   ]);
   await editorPage.waitForLoadState();
+  await expect(page.getByText("연결됨 · scene 전달 완료")).toBeVisible();
   await expect(editorPage.getByText("권역 A")).toBeVisible();
   return editorPage;
 }
+
+test("경계 버튼은 팬/줌에서 교집합을 재계산하지 않고 실제 도형 변경 때 갱신한다", async ({
+  context,
+  page,
+}) => {
+  await installGeometryOverlapProbe(context);
+  await installRegionApiMock(context);
+  const editor = await openEditorViaDemo(page);
+  await editor.getByRole("button", { name: "행정동 경계", exact: true }).click();
+  await editor.getByRole("button", { name: "테스트 경계 추가", exact: true }).click();
+  const marker = editor.getByRole("group", {
+    name: "테스트 경계 경계 작업",
+    exact: true,
+  });
+  const subtract = editor.getByRole("button", {
+    name: "테스트 경계 겹친 부분 제거",
+    exact: true,
+  });
+  await expect(subtract).toBeEnabled();
+  await expect(
+    editor.getByRole("button", { name: "저장하고 편집 완료" }),
+  ).toBeEnabled();
+  const checks = await readGeometryOverlapChecks(editor);
+  expect(checks).toBeGreaterThan(0);
+  const before = await readEditorEdits(editor);
+  await dragAnnotation(
+    editor,
+    marker.getByText("테스트 경계", { exact: true }),
+    marker,
+  );
+  for (const title of ["지도 확대", "지도 축소", "지도 확대", "지도 축소"]) {
+    await editor.getByTitle(title, { exact: true }).click();
+    await editor.waitForTimeout(600);
+    await expect(subtract).toBeEnabled();
+  }
+  expect(await readGeometryOverlapChecks(editor)).toBe(checks);
+  expect(await readEditorEdits(editor)).toEqual(before);
+
+  await editor.evaluate(async () => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    const state = useEditorStore.getState();
+    state.updateFeatureGeometry(state.selectedFeatureIds[0], {
+      type: "Polygon",
+      coordinates: [
+        [
+          [126.97, 37.55],
+          [127.03, 37.55],
+          [127.03, 37.59],
+          [126.97, 37.59],
+          [126.97, 37.55],
+        ],
+      ],
+    });
+  });
+  await expect.poll(() => readGeometryOverlapChecks(editor)).toBeGreaterThan(checks);
+  await expect(subtract).toBeEnabled();
+  const afterEdit = await readGeometryOverlapChecks(editor);
+  const modifier = await editor.evaluate(() =>
+    /Mac/.test(navigator.platform) ? "Meta" : "Control",
+  );
+  await editor.keyboard.press(`${modifier}+z`);
+  await expect
+    .poll(async () => (await readEditorEdits(editor)).layers)
+    .toEqual(before.layers);
+  await expect(subtract).toBeEnabled();
+  expect(await readGeometryOverlapChecks(editor)).toBe(afterEdit);
+});
 
 test("카탈로그 조회 실패 때 사이드메뉴가 기본 경계 종류를 제공한다", async ({
   context,
@@ -242,6 +363,7 @@ test("퇴화 ring을 만드는 경계 병합도 저장·부모 갱신·다시 �
     page.waitForEvent("popup"),
     page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
   ]);
+  await expect(page.getByText("연결됨 · scene 전달 완료")).toBeVisible();
   await expect(
     reopened.getByRole("button", { name: "권역 C 선택", exact: true }),
   ).toBeVisible();

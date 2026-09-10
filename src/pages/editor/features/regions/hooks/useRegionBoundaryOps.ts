@@ -7,10 +7,8 @@ import {
   type RegionBoundaryLayer,
 } from "@/pages/editor/adapters/openlayers";
 import {
-  deriveGeometryOpTargets,
-  bboxesOverlap,
-  geometryBbox,
-  hasAreaOverlap,
+  createGeometryOverlapCache,
+  findGeometryOpTarget,
   normalizePolygonalGeometry,
   subtractGeometry,
   unionGeometries,
@@ -103,7 +101,7 @@ async function fullResBoundaryGeom(
 // 현재 선택이 "정확히 1개의 편집 가능 폴리곤"이면 그 id를, 아니면 null을 돌려줍니다.
 function currentTargetId(): string | null {
   const { scene, selectedFeatureIds } = useEditorStore.getState();
-  return deriveGeometryOpTargets(scene, new Set(selectedFeatureIds)).targetId;
+  return findGeometryOpTarget(scene, new Set(selectedFeatureIds))?.id ?? null;
 }
 
 function captureOperationContext(): RegionOperationContext | null {
@@ -115,7 +113,7 @@ function captureOperationContext(): RegionOperationContext | null {
     sessionId,
     scene,
     selectedFeatureIds,
-    targetId: deriveGeometryOpTargets(scene, new Set(selectedFeatureIds)).targetId,
+    targetId: findGeometryOpTarget(scene, new Set(selectedFeatureIds))?.id ?? null,
   };
 }
 
@@ -151,34 +149,31 @@ export function useRegionBoundaryOps({
   const boundaryByFeatureIdRef = useRef(new Map<string, BoundaryMetadata>());
   const busyRef = useRef(false);
   const operationGenerationRef = useRef(0);
+  const [overlapCache] = useState(createGeometryOverlapCache);
+  const target = useMemo(
+    () => findGeometryOpTarget(scene, new Set(selectedFeatureIds)),
+    [scene, selectedFeatureIds],
+  );
 
-  // 현재 화면에 배치된 후보만 연산 가능 여부를 계산합니다(전국 전체 도형을 비교하지 않음).
+  // 버튼 위치/줌/정렬은 표시만 갱신합니다. 새 도형 쌍만 최초 검사하고,
+  // 이미 본 쌍은 선택 해제·복귀나 타일 재생성 이후에도 좌표가 같으면 판정을 재사용합니다.
   const chips = useMemo<RegionOpHandle[]>(() => {
     if (!allowed || !enabled) {
       return [];
     }
-    const targetId = deriveGeometryOpTargets(
-      scene,
-      new Set(selectedFeatureIds),
-    ).targetId;
-    const targetGeom = targetId ? polygonGeomFromScene(scene, targetId) : null;
-    const targetBounds = targetGeom ? geometryBbox(targetGeom) : null;
     return visibleBoundaries.map((boundary) => ({
       featureId: boundary.featureId,
       element: boundary.element,
       name: boundary.name,
       canSubtract: Boolean(
-        targetGeom &&
-        targetBounds &&
-        bboxesOverlap(targetBounds, geometryBbox(boundary.displayGeometry)) &&
-        hasAreaOverlap(targetGeom, boundary.displayGeometry),
+        target && overlapCache.hasOverlap(target.geometry, boundary.displayGeometry),
       ),
-      primaryAction: targetId ? "merge" : "create",
+      primaryAction: target ? "merge" : "create",
       showSubtract: true,
       disabled: busy,
       zoom: boundary.zoom,
     }));
-  }, [allowed, enabled, visibleBoundaries, scene, selectedFeatureIds, busy]);
+  }, [allowed, enabled, visibleBoundaries, target, overlapCache, busy]);
 
   useEffect(() => {
     operationGenerationRef.current += 1;

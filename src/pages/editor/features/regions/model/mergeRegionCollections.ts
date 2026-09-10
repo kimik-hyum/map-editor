@@ -11,7 +11,9 @@ export function mergeRegionCollections(
     if (
       collection.country !== first.country ||
       collection.kind !== first.kind ||
-      collection.level !== first.level
+      collection.level !== first.level ||
+      collection.cache?.version !== first.cache?.version ||
+      collection.cache?.profile !== first.cache?.profile
     ) {
       throw new Error("경계 응답 종류가 일치하지 않습니다. 다시 조회해주세요.");
     }

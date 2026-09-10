@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs && npm run test:build",
-    "test:build": "node scripts/verify-static-build.mjs",
+    "build:production": "node scripts/verify-production-config.mjs && npm run build && node scripts/verify-production-config.mjs --built",
+    "deploy:production": "npm run build:production && wrangler pages deploy dist --project-name maps-editor --branch main --commit-dirty=true",
+    "test:production-auth": "node scripts/smoke-production-auth.mjs",
+    "test:build": "node --test scripts/production-config.test.mjs && node scripts/verify-static-build.mjs",
     "typecheck": "tsc -b",
     "lint": "biome lint .",
     "lint:fix": "biome lint . --write",
