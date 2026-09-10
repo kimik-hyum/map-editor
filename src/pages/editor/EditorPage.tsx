@@ -1,9 +1,11 @@
 import "ol/ol.css";
+import { useBoundaryAccess } from "@/features/auth";
 import { MapCursorTooltip } from "@/shared/ui/MapCursorTooltip";
 import { useConfirmationDialogOpen } from "@/shared/ui/confirmation-dialog";
 import { useEditorClipboard } from "./features/clipboard";
 import { DrawFinishButton, DrawPolygonCloseButton, useDrawTool } from "./features/draw";
 import { GeometryOpMarkers } from "./features/geometry-ops";
+import { HoleFillPopup, useHoleFillTool } from "./features/hole-fill";
 import { LayerPanel } from "./features/layers";
 import { useOpenLayersEditorMap } from "./features/map";
 import { EditorModePanel, getToolActivation } from "./features/modes";
@@ -33,18 +35,20 @@ export function EditorPage() {
   const renameInProgress = useEditorStore((state) => state.renamingFeatureId !== null);
   const confirmationOpen = useConfirmationDialogOpen();
   const activation = getToolActivation(activeMode);
+  const { allowed: boundaryAllowed } = useBoundaryAccess();
   const cursorHint = confirmationOpen
     ? null
     : (drawTool.hint ?? (editAffordance ? EDIT_HINTS[editAffordance] : null));
 
   // 좌측 rail의 경계 도구가 활성일 때만, 거기서 고른 종류(행정동/법정동/우편번호)의
   // 경계를 현재 줌·화면으로 받아 그린다. 다른 모드로 바꾸면 비운다.
-  const boundaryKind = activation.boundary ? activeBoundaryKind : null;
+  const boundaryKind =
+    activation.boundary && boundaryAllowed ? activeBoundaryKind : null;
   const { layer: regionLayer, status: regionStatus } = useRegionBoundaries(
     map,
     boundaryKind,
   );
-  // 경계 구역마다 +(추가/병합)·−(겹친 부분 빼기) 칩. 호버한 경계에만 노출.
+  // 현재 화면의 경계에 이름·추가/합치기·빼기 카드를 상시 표시합니다.
   const regionOps = useRegionBoundaryOps({
     map,
     layer: regionLayer,
@@ -53,8 +57,19 @@ export function EditorPage() {
   });
 
   const messaging = useEditorMessaging();
+  const holeFillTool = useHoleFillTool(
+    map,
+    renameInProgress
+      ? "이름 편집을 먼저 완료하거나 취소하세요"
+      : regionOps.busy
+        ? "경계 데이터 연산이 완료된 뒤 사용하세요"
+        : confirmationOpen
+          ? "확인 창을 먼저 닫으세요"
+          : null,
+  );
   // 그리기 중에는 정점 로컬 history를, sketch가 없으면 전역 scene history를 사용합니다.
   useEditorHistoryShortcuts({
+    isDisabled: holeFillTool.isInProgress,
     isInProgress: drawTool.isDrawingInProgress,
     onUndoInProgress: drawTool.undoVertex,
     onRedoInProgress: drawTool.redoVertex,
@@ -62,7 +77,7 @@ export function EditorPage() {
   });
   // Cmd/Ctrl+C 복사 · Cmd/Ctrl+V 붙여넣기. 진행 중 sketch에서는 clipboard를 모두 차단한다.
   useEditorClipboard({
-    isDisabled: drawTool.isDrawingInProgress,
+    isDisabled: () => drawTool.isDrawingInProgress() || holeFillTool.isInProgress(),
     onBeforePaste: drawTool.discardRedo,
   });
 
@@ -145,7 +160,7 @@ export function EditorPage() {
           onSubtract={regionOps.onSubtract}
         />
         {isSceneReady ? (
-          <LayerPanel />
+          <LayerPanel holeFillTool={holeFillTool} />
         ) : (
           <div
             className="pointer-events-none absolute inset-0 flex items-center justify-center"
@@ -157,8 +172,10 @@ export function EditorPage() {
           </div>
         )}
       </main>
+      <HoleFillPopup tool={holeFillTool} />
       <EditorSessionActions
         hasPendingToolAction={
+          holeFillTool.isOpen ||
           drawTool.isDrawing ||
           radiusTool.popupOpen ||
           regionOps.busy ||

@@ -1,13 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
+import { useBoundaryAccess } from "@/features/auth";
 import type OpenLayersMap from "ol/Map";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   attachRegionBoundaryLayer,
+  splitRegionView,
   type RegionBoundaryLayer,
   type SnappedRegionView,
 } from "@/pages/editor/adapters/openlayers";
-import { fetchRegionsByView } from "../api/regionsApi";
-import { REGION_BOUNDARY_CACHE_MS } from "../model/regionQueryPolicy";
+import type { RegionFeatureCollection } from "../api/regionsApi";
+import { REGION_SPLIT_MAX_ZOOM } from "../model/regionQueryPolicy";
+import { useRegionViewQueries } from "./useRegionViewQueries";
+import { useRegionTileManifest } from "./useRegionTileManifest";
+import { selectFixedRegionTiles, usesRegionTileCache } from "../model/fixedRegionTiles";
 
 // 경계 레이어의 현재 상태(사이드메뉴 경계 도구 표시용).
 export type RegionBoundaryStatus = {
@@ -17,6 +21,10 @@ export type RegionBoundaryStatus = {
   count: number;
   truncated: boolean;
   error: string | null;
+  completedRequests: number;
+  totalRequests: number;
+  failedRequests: number;
+  retryFailed: () => void;
 };
 
 // 경계는 월 1회 갱신되는 정적 데이터라 세션 내 재방문(같은 화면·같은 종류 복귀)은
@@ -37,11 +45,17 @@ export function useRegionBoundaries(
   map: OpenLayersMap | null,
   activeKind: string | null,
 ) {
+  const { allowed, subject } = useBoundaryAccess();
+  const visibleKind = allowed ? activeKind : null;
   const attachmentRef = useRef<ReturnType<typeof attachRegionBoundaryLayer> | null>(
     null,
   );
   const [layer, setLayer] = useState<RegionBoundaryLayer | null>(null);
   const [view, setView] = useState<SnappedRegionView | null>(null);
+  const [moving, setMoving] = useState(false);
+  const previousRef = useRef<{ scope: string; data: RegionFeatureCollection } | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!map) {
@@ -49,8 +63,12 @@ export function useRegionBoundaries(
     }
 
     const attachment = attachRegionBoundaryLayer(map, {
+      onMoveStart: () => setMoving(true),
       onViewChange: (next) => {
-        setView((previous) => (previous && sameView(previous, next) ? previous : next));
+        setView((previous) =>
+          previous && next && sameView(previous, next) ? previous : next,
+        );
+        setMoving(false);
       },
     });
     attachmentRef.current = attachment;
@@ -61,49 +79,85 @@ export function useRegionBoundaries(
       attachmentRef.current = null;
       setLayer(null);
       setView(null);
+      previousRef.current = null;
     };
   }, [map]);
 
-  const query = useQuery({
-    queryKey: ["region-boundaries", "KR", activeKind, view],
-    queryFn: ({ signal }) => {
-      if (!view || !activeKind) {
-        throw new Error("region query preconditions not met");
-      }
-      return fetchRegionsByView(
-        {
-          minLng: view.minLng,
-          minLat: view.minLat,
-          maxLng: view.maxLng,
-          maxLat: view.maxLat,
-          zoom: view.zoom,
-          kind: activeKind,
-        },
-        signal,
-      );
-    },
-    enabled: map !== null && activeKind !== null && view !== null,
-    staleTime: REGION_BOUNDARY_CACHE_MS,
-    gcTime: REGION_BOUNDARY_CACHE_MS,
-    // kind 변경 때는 stale 경계를 비우고, 같은 kind의 pan/zoom 중에만 깜빡임을 줄입니다.
-    placeholderData: (previousData, previousQuery) =>
-      previousQuery?.queryKey[2] === activeKind ? previousData : undefined,
-  });
+  const lowZoom = !!view && usesRegionTileCache(view.zoom);
+  const manifest = useRegionTileManifest(!!visibleKind && !!map && lowZoom, subject);
+  const tilePlan = useMemo(() => {
+    if (!view || !map || moving || !visibleKind || !lowZoom || !manifest.data)
+      return null;
+    return {
+      manifest: manifest.data,
+      tiles: selectFixedRegionTiles(view, manifest.data),
+      zoom: view.zoom,
+    };
+  }, [view, map, moving, visibleKind, lowZoom, manifest.data]);
+  const legacy = !lowZoom || (manifest.isSuccess && manifest.data === null);
+  const views = useMemo(() => {
+    if (!view || !map || moving || !visibleKind || !legacy) return [];
+    const split = view.zoom <= REGION_SPLIT_MAX_ZOOM;
+    return splitRegionView(view, split ? 2 : 1, split ? 4 : 1);
+  }, [view, map, moving, visibleKind, legacy]);
+  // 이동 시작·종류 변경·인증 해제로 구독을 해제하면 대기/실행 중인 요청도 취소됩니다.
+  const query = useRegionViewQueries(views, visibleKind, subject, tilePlan);
+  const conflictVersionRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      query.versionConflict &&
+      manifest.data &&
+      conflictVersionRef.current !== manifest.data.version
+    ) {
+      conflictVersionRef.current = manifest.data.version;
+      void manifest.refetch();
+    }
+  }, [query.versionConflict, manifest.data, manifest.refetch]);
+  const scope =
+    visibleKind && map && view
+      ? JSON.stringify([
+          visibleKind,
+          subject,
+          view.zoom,
+          lowZoom ? manifest.data?.version : null,
+        ])
+      : null;
+  const data =
+    query.data ??
+    (!query.error && previousRef.current?.scope === scope
+      ? previousRef.current.data
+      : null);
 
   useEffect(() => {
-    attachmentRef.current?.sync(activeKind && query.data ? query.data : null);
-  }, [activeKind, query.data]);
+    if (!layer) return;
+    attachmentRef.current?.sync(scope ? data : null);
+    if (!scope) previousRef.current = null;
+    else if (query.data) previousRef.current = { scope, data: query.data };
+  }, [layer, scope, data, query.data]);
 
   const status: RegionBoundaryStatus = {
-    loading: query.isFetching,
-    kind: activeKind && query.data ? query.data.kind : null,
-    count: activeKind && query.data ? query.data.features.length : 0,
-    truncated: activeKind && query.data ? query.data.truncated : false,
-    error: query.isError
-      ? query.error instanceof Error
-        ? query.error.message
-        : "경계 로드 실패"
-      : null,
+    loading:
+      Boolean(visibleKind) &&
+      (moving || query.loading || (lowZoom && manifest.isPending)),
+    kind: scope && data ? data.kind : null,
+    count: scope && data ? data.features.length : 0,
+    truncated: scope && data ? data.truncated : false,
+    error: (lowZoom ? manifest.error?.message : null) ?? query.error,
+    completedRequests: query.completedRequests,
+    totalRequests:
+      lowZoom && manifest.isError
+        ? Math.max(1, query.totalRequests)
+        : query.totalRequests,
+    failedRequests:
+      lowZoom && manifest.isError
+        ? Math.max(1, query.failedRequests)
+        : query.failedRequests,
+    retryFailed:
+      lowZoom && (manifest.isError || query.versionConflict)
+        ? () => {
+            void manifest.refetch();
+          }
+        : query.retryFailed,
   };
 
   return { layer, status };

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { seedGoogleSession } from "./fixtures/auth";
 
 type EditorSnapshot = {
   layerCount: number;
@@ -493,7 +494,9 @@ test("진행 중 sketch를 두고 도형이나 모드를 바꾸면 취소 확인
 
 test("새 INIT은 이전 session의 draw 확인과 지연된 모드·도형 전환을 취소한다", async ({
   page,
+  context,
 }) => {
+  await seedGoogleSession(context);
   const editorPage = await openEditorViaDemo(page);
   await activateDrawShape(editorPage, "패스");
   await clickMapPoint(editorPage, 0.5, 0.25);

@@ -62,6 +62,7 @@ async function dragFromMapCenter(
   try {
     await page.mouse.down();
     await page.mouse.move(startX + 80, startY + 40, { steps: 8 });
+    await expect(page.locator(".editor-map-viewport")).toHaveCSS("cursor", "grabbing");
     if (options.modifier && options.releaseModifierBeforePointerUp) {
       await page.keyboard.up(options.modifier);
       modifierReleased = true;
@@ -80,12 +81,24 @@ async function platformModifier(page: Page): Promise<"Meta" | "Control"> {
   );
 }
 
-test("선택 도형의 일반 드래그는 geometry를 변경하지 않는다", async ({ page }) => {
+test("패널에 포커스가 있어도 폴리곤 내부 첫 드래그는 지도만 이동한다", async ({
+  page,
+}) => {
   const editorPage = await openEditorViaDemo(page);
   await selectAndCenterFeature(editorPage, "권역 C");
   const before = await readFeatureSnapshot(editorPage, "권역 C");
+  const anchor = editorPage.locator("[data-map-annotation]").first();
+  const position = await anchor.boundingBox();
+  if (!position) throw new Error("지도 이동을 관찰할 라벨이 없습니다.");
+  await editorPage.getByRole("button", { name: "권역 C 선택", exact: true }).focus();
 
   await dragFromMapCenter(editorPage);
+  await expect
+    .poll(async () => {
+      const next = await anchor.boundingBox();
+      return next ? Math.hypot(next.x - position.x, next.y - position.y) : 0;
+    })
+    .toBeGreaterThan(20);
 
   const after = await readFeatureSnapshot(editorPage, "권역 C");
   expect(after.geometry).toEqual(before.geometry);
@@ -124,4 +137,36 @@ test("이동 중 Cmd/Ctrl을 먼저 놓으면 원래 geometry로 취소한다", 
   const after = await readFeatureSnapshot(editorPage, "권역 C");
   expect(after.geometry).toEqual(before.geometry);
   expect(after.pastCount).toBe(before.pastCount);
+});
+
+test("큰 작업 카드가 이동 보조키를 가로채지 않고 키 해제·창 복귀 뒤 다시 조작된다", async ({
+  page,
+}) => {
+  const editorPage = await openEditorViaDemo(page);
+  await selectAndCenterFeature(editorPage, "권역 C");
+  const card = editorPage.locator("[data-map-annotation]").first();
+  const modifier = await platformModifier(editorPage);
+  const hitState = () =>
+    card.evaluate((element) => {
+      const overlay = element.closest(".ol-overlay-container");
+      if (!overlay) throw new Error("작업 카드의 지도 오버레이가 없습니다.");
+      return {
+        inert: element.closest("[inert]") !== null,
+        pointerEvents: getComputedStyle(overlay).pointerEvents,
+      };
+    });
+
+  await expect(card).toBeVisible();
+  await editorPage.keyboard.down(modifier);
+  await expect(card).toBeVisible();
+  await expect.poll(hitState).toEqual({ inert: true, pointerEvents: "none" });
+  await editorPage.keyboard.up(modifier);
+  await expect.poll(hitState).toEqual({ inert: false, pointerEvents: "auto" });
+
+  await editorPage.keyboard.down(modifier);
+  await editorPage.evaluate(() => window.dispatchEvent(new Event("blur")));
+  await expect.poll(hitState).toEqual({ inert: false, pointerEvents: "auto" });
+  await editorPage.keyboard.up(modifier);
+  await card.getByRole("button").first().focus();
+  await expect(card.getByRole("button").first()).toBeFocused();
 });

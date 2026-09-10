@@ -3,6 +3,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Check, GripVertical, Lock, LockOpen, Pencil, Trash2, X } from "lucide-react";
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { isToggleSelectionModifier } from "@/pages/editor/features/selection";
+import { HoleFillButton, type HoleFillTool } from "@/pages/editor/features/hole-fill";
 import {
   getFeatureNameValidationError,
   MAX_FEATURE_NAME_LENGTH,
@@ -23,6 +24,7 @@ type FeatureStackRowProps = {
   onCancelRename: () => void;
   isRenaming: boolean;
   renameBlocked: boolean;
+  holeFillTool: HoleFillTool;
 };
 
 // 평탄 스택(1레이어 = 1도형)의 행 하나. 선택 하이라이트·스크롤 추적·표시/잠금 토글·순서 이동을 담당합니다.
@@ -39,6 +41,7 @@ export function FeatureStackRow({
   onCancelRename,
   isRenaming,
   renameBlocked,
+  holeFillTool,
 }: FeatureStackRowProps) {
   const [renameDraft, setRenameDraft] = useState<string | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -232,6 +235,7 @@ export function FeatureStackRow({
               <Pencil aria-hidden className="h-3.5 w-3.5" />
             </button>
           ) : null}
+          <HoleFillButton featureId={row.id} name={row.name} tool={holeFillTool} />
           {row.canDelete ? (
             <button
               aria-label={`${row.name} 삭제`}

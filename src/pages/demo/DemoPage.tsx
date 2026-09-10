@@ -1,5 +1,18 @@
-import { Link } from "react-router";
+import { lazy, Suspense, useEffect } from "react";
+import {
+  Callout,
+  DocsArticle,
+  DocsButton,
+  DocsCodeBlock,
+  DocsHero,
+  DocsSection,
+} from "@/pages/docs/components";
 import { useEditorHost, type EditorHostStatus } from "./host/useEditorHost";
+
+// 문서 페이지를 읽을 때는 부모 지도용 OpenLayers 코드까지 불러오지 않습니다.
+const DemoSceneMap = lazy(() =>
+  import("./DemoSceneMap").then((module) => ({ default: module.DemoSceneMap })),
+);
 
 const statusLabels: Record<EditorHostStatus, string> = {
   idle: "대기 중",
@@ -7,67 +20,82 @@ const statusLabels: Record<EditorHostStatus, string> = {
   connected: "연결됨 · scene 전달 완료",
   submitted: "완료됨 · 편집 결과 수신",
   cancelled: "취소됨 · 반환 데이터 없음",
-  closed: "에디터 창이 닫힘",
+  closed: "에디터 창이 닫힘 · 부모 데이터 유지",
   error: "오류",
 };
 
 export function DemoPage() {
-  const { status, errorMessage, submittedScene, openEditor } = useEditorHost();
+  const { scene, status, errorMessage, submittedScene, openEditor } = useEditorHost();
+  useEffect(() => {
+    document.title = "부모 지도 데모 | Maps Editor";
+  }, []);
 
   return (
-    <main className="m-0 min-h-[calc(100vh-65px)] max-w-none px-12 py-14">
-      <p className="mb-2.5 mt-0 text-[13px] font-extrabold uppercase text-brand">
-        Host Demo
-      </p>
-      <h1 className="m-0 text-[clamp(40px,7vw,72px)] leading-[1.1] text-ink">
-        postMessage 예시 페이지
-      </h1>
-      <p className="mt-[18px] max-w-[640px] text-lg leading-[1.7] text-ink-soft">
-        이 페이지는 부모 서비스 역할을 합니다. 새 창으로 편집기를 열면 편집기가{" "}
-        <code className="font-bold">MAP_EDITOR_READY</code>를 보내고, 이 페이지가{" "}
-        <code className="font-bold">MAP_EDITOR_INIT</code>으로 샘플 scene을 전달합니다.{" "}
-        편집기에서 저장하고 완료하면 공개 v2 scene을 다시 받아 아래에 표시합니다.
-      </p>
+    <DocsArticle>
+      <DocsHero
+        eyebrow="Host Demo"
+        id="host-overview"
+        title="부모 지도에서 편집하기"
+        description="현재 지도 데이터를 새 창에서 편집해 보세요. 저장하면 편집 창이 닫히고 이 지도에 반영됩니다. 다시 열면 방금 저장한 내용으로 이어서 편집합니다."
+      />
 
-      <div className="mt-7 flex items-center gap-4">
-        <button
-          className="rounded-lg bg-brand px-5 py-2.5 font-extrabold text-white transition-colors hover:bg-teal-800"
-          onClick={openEditor}
-          type="button"
+      <DocsSection id="launch-editor">
+        <div className="mb-4 flex flex-wrap items-center gap-4">
+          <DocsButton onClick={openEditor}>편집기 새 창으로 열기</DocsButton>
+          <span aria-live="polite" className="text-sm font-bold text-ink-soft">
+            상태: {statusLabels[status]}
+          </span>
+        </div>
+        {errorMessage ? (
+          <Callout className="mb-4" tone="error">
+            {errorMessage}
+          </Callout>
+        ) : null}
+        <Suspense
+          fallback={
+            <div className="flex h-[420px] items-center justify-center rounded-xl border border-line text-sm text-ink-soft max-[560px]:h-[320px]">
+              부모 지도를 불러오는 중…
+            </div>
+          }
         >
-          편집기 새 창으로 열기
-        </button>
-        <span className="text-sm font-bold text-ink-soft" aria-live="polite">
-          상태: {statusLabels[status]}
-        </span>
-      </div>
-
-      {errorMessage ? (
-        <p className="mt-3 max-w-[640px] rounded-md bg-rose-50 px-3 py-2 text-sm font-bold text-rose-700">
-          {errorMessage}
+          <DemoSceneMap scene={scene} />
+        </Suspense>
+        <p className="mb-0 mt-3 text-sm leading-6 text-ink-soft">
+          지도에서 이동·확대할 수 있습니다. 도형 수정은 편집기에서 진행하며, 취소하거나
+          창만 닫으면 부모 데이터는 유지됩니다.
         </p>
-      ) : null}
+      </DocsSection>
 
-      {submittedScene ? (
-        <section className="mt-7 max-w-4xl" aria-label="편집 결과">
-          <h2 className="m-0 text-lg font-black text-ink">부모 창이 받은 편집 결과</h2>
-          <p className="mb-3 mt-1 text-sm font-semibold text-ink-soft">
-            내부 레이어 상태를 제외한{" "}
-            <code className="font-bold">EditorSceneInput v2</code>
-            형식입니다.
-          </p>
-          <pre
-            className="max-h-[460px] overflow-auto rounded-xl bg-slate-950 p-4 text-xs leading-5 text-slate-100"
-            data-testid="submitted-scene"
-          >
-            {JSON.stringify(submittedScene, null, 2)}
-          </pre>
-        </section>
-      ) : null}
-
-      <Link className="mt-7 inline-flex font-extrabold text-brand" to="/">
-        Docs로 돌아가기
-      </Link>
-    </main>
+      <DocsSection id="current-data" title="현재 부모 데이터">
+        <p className="mb-4 mt-0 text-sm leading-6 text-ink-soft">
+          아래 데이터가 지도와 다음 편집의 기준입니다. 이 데모는 서버에 저장하지 않으며,
+          페이지를 새로고침하면 최초 샘플로 돌아갑니다.
+        </p>
+        <details className="min-w-0 rounded-lg border border-line bg-white p-4">
+          <summary className="cursor-pointer text-sm font-bold text-ink">
+            현재 scene JSON 보기
+          </summary>
+          <DocsCodeBlock
+            className="mt-4"
+            code={JSON.stringify(scene, null, 2)}
+            language="json"
+            title="current-scene.json"
+          />
+        </details>
+        <span data-testid="parent-scene" hidden>
+          {JSON.stringify(scene)}
+        </span>
+        {submittedScene ? (
+          <span data-testid="submitted-scene" hidden>
+            {JSON.stringify(submittedScene)}
+          </span>
+        ) : null}
+        <div className="mt-6">
+          <DocsButton to="/integration" variant="secondary">
+            부모 창 연동 문서
+          </DocsButton>
+        </div>
+      </DocsSection>
+    </DocsArticle>
   );
 }

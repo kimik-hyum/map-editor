@@ -21,7 +21,8 @@ const VALID_FEATURE = {
 
 async function loadApi(baseUrl = "https://regions.test") {
   vi.stubEnv("VITE_SUPABASE_URL", baseUrl);
-  vi.stubEnv("VITE_SUPABASE_ANON_KEY", "test-publishable-key");
+  vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", "test-publishable-key");
+  vi.stubEnv("VITE_E2E_AUTH_BYPASS", "true");
   return import("./regionsApi");
 }
 
@@ -65,29 +66,29 @@ describe("regionsApi", () => {
       { kind: "adminDong", selectable: true },
     ]);
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.not.stringContaining("selectable=is.true"),
-      expect.objectContaining({ signal: undefined }),
+      "https://regions.test/functions/v1/regions",
+      expect.objectContaining({
+        method: "POST",
+        signal: undefined,
+        body: JSON.stringify({ operation: "kinds", country: "KR" }),
+      }),
     );
-    const requestUrl = new URL(String(fetchMock.mock.calls[0]?.[0]));
-    expect(requestUrl.searchParams.get("country")).toBe("eq.KR");
-    expect(requestUrl.searchParams.get("select")).toBe(
-      "kind,label,level,min_zoom,sort_order,selectable",
-    );
-    expect(requestUrl.searchParams.get("order")).toBe("sort_order");
   });
 
-  it("국가값을 다른 query parameter와 섞이지 않게 인코딩한다", async () => {
+  it("국가값을 Edge Function 요청 본문에 분리해 전달한다", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([])));
     vi.stubGlobal("fetch", fetchMock);
     const { fetchRegionKinds } = await loadApi("https://regions.test/region-api/");
 
     await fetchRegionKinds("K&R");
 
-    const requestUrl = String(fetchMock.mock.calls[0]?.[0]);
-    expect(requestUrl).toContain("country=eq.K%26R");
-    const parsedUrl = new URL(requestUrl);
-    expect(parsedUrl.pathname).toBe("/region-api/rest/v1/region_kind");
-    expect(parsedUrl.searchParams.get("country")).toBe("eq.K&R");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://regions.test/region-api/functions/v1/regions",
+    );
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      operation: "kinds",
+      country: "K&R",
+    });
   });
 
   it("regions_by_view의 polygonal GeoJSON 응답만 통과시킨다", async () => {
@@ -117,8 +118,20 @@ describe("regionsApi", () => {
 
     expect(result.features[0]?.geometry.type).toBe("MultiPolygon");
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://regions.test/rest/v1/rpc/regions_by_view",
-      expect.objectContaining({ method: "POST" }),
+      "https://regions.test/functions/v1/regions",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          operation: "byView",
+          minLng: 126.9,
+          minLat: 37.5,
+          maxLng: 127,
+          maxLat: 37.6,
+          zoom: 12,
+          country: "KR",
+          kind: "adminDong",
+        }),
+      }),
     );
   });
 

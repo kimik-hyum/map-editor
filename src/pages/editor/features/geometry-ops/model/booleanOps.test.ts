@@ -45,6 +45,13 @@ describe("unionGeometries", () => {
 });
 
 describe("subtractGeometry", () => {
+  it("출력 정규화 실패도 빈 결과로 취급해 도형을 삭제하지 않는다", () => {
+    const outOfRange = square(190, 0, 192, 2);
+    expect(subtractGeometry(outOfRange, DISJOINT)).toBeUndefined();
+    expect(intersectGeometries(outOfRange, outOfRange)).toBeUndefined();
+    expect(unionGeometries(outOfRange, DISJOINT)).toBeNull();
+  });
+
   it("겹친 부분을 빼면 남은 면이 Polygon으로 반환된다", () => {
     const result = subtractGeometry(A, OVERLAP);
     expect(result?.type).toBe("Polygon");

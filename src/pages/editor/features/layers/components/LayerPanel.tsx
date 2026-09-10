@@ -14,13 +14,14 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { FloatingPanel } from "@/pages/editor/components/FloatingPanel";
+import type { HoleFillTool } from "@/pages/editor/features/hole-fill";
 import { useLayerPanelActions } from "../hooks/useLayerPanelActions";
 import { useLayerPanelViewModel } from "../hooks/useLayerPanelViewModel";
 import { FeatureStackRow } from "./FeatureStackRow";
 
 // 1레이어 = 1도형 평탄 스택을 위(맨 앞)부터 나열합니다.
 // 행 클릭 = 선택, 눈/자물쇠 = 토글, 순서 이동 = 끌기 핸들(⠿) 드래그(키보드는 핸들 포커스 후 스페이스+방향키).
-export function LayerPanel() {
+export function LayerPanel({ holeFillTool }: { holeFillTool: HoleFillTool }) {
   const viewModel = useLayerPanelViewModel();
   const {
     toggleRowVisibility,
@@ -90,6 +91,7 @@ export function LayerPanel() {
                 {viewModel.rows.map((row) => (
                   <FeatureStackRow
                     key={row.id}
+                    holeFillTool={holeFillTool}
                     isRenaming={viewModel.renamingFeatureId === row.id}
                     renameBlocked={
                       viewModel.renamingFeatureId !== null &&

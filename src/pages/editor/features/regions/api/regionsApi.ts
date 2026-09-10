@@ -1,24 +1,5 @@
 import { z } from "zod";
-
-// Supabase 지역경계 API 호출부입니다. 브라우저에 노출되는 publishable 키도 환경별 설정으로
-// 분리하고, 누락을 숨긴 채 다른 프로젝트로 요청하지 않도록 호출 시점에 명시적으로 검증합니다.
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-
-function getSupabaseConfig() {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error("지역 경계 설정(VITE_SUPABASE_URL/ANON_KEY)이 없습니다.");
-  }
-
-  return {
-    url: SUPABASE_URL,
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      "Content-Type": "application/json",
-    },
-  };
-}
+import { getAuthenticatedFunctionRequest } from "@/features/auth/api/supabaseClient";
 
 const coordinateSchema = z.tuple([z.number(), z.number()]);
 const polygonalGeometrySchema = z.discriminatedUnion("type", [
@@ -48,6 +29,32 @@ const regionFeatureSchema = z.object({
   properties: z.record(z.string(), z.unknown()).default({}),
 });
 
+const tileCoordinateSchema = z
+  .object({
+    z: z.number().int().min(6).max(9),
+    x: z.number().int().nonnegative().max(511),
+    y: z.number().int().nonnegative().max(511),
+  })
+  .refine((tile) => tile.x < 2 ** tile.z && tile.y < 2 ** tile.z);
+const tileVersionSchema = z.string().regex(/^[a-f0-9-]{36}\.[a-f0-9]{32}$/);
+const tileCacheSchema = z.object({
+  version: tileVersionSchema,
+  profile: z.literal("sigungu-4x-full-v1"),
+  z: z.number().int().min(6).max(9),
+  x: z.number().int(),
+  y: z.number().int(),
+  status: z.enum(["HIT", "MISS"]),
+});
+const regionTileManifestSchema = z.object({
+  country: z.literal("KR"),
+  version: tileVersionSchema,
+  profile: z.literal("sigungu-4x-full-v1"),
+  kind: z.literal("sigungu"),
+  maxDisplayZoom: z.literal(10),
+  minTileZoom: z.literal(6),
+  maxTileZoom: z.literal(9),
+  tiles: z.array(tileCoordinateSchema).max(4096),
+});
 const regionFeatureCollectionSchema = z.object({
   type: z.literal("FeatureCollection"),
   country: z.string().length(2),
@@ -55,7 +62,18 @@ const regionFeatureCollectionSchema = z.object({
   level: z.number().int().nullable(),
   truncated: z.boolean(),
   features: z.array(regionFeatureSchema),
+  cache: tileCacheSchema.optional(),
 });
+
+export class RegionApiError extends Error {
+  constructor(
+    label: string,
+    public readonly status: number,
+  ) {
+    super(`${label} 호출 실패: ${status}`);
+    this.name = "RegionApiError";
+  }
+}
 
 async function parseResponse<T>(
   response: Response,
@@ -70,11 +88,80 @@ async function parseResponse<T>(
   return result.data;
 }
 
+async function callRegionFunction<T>(
+  operation: string,
+  payload: Record<string, unknown>,
+  schema: z.ZodType<T>,
+  label: string,
+  signal?: AbortSignal,
+): Promise<T> {
+  const { headers, url } = await getAuthenticatedFunctionRequest();
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    signal,
+    body: JSON.stringify({ operation, ...payload }),
+  });
+  if (!response.ok) {
+    throw new RegionApiError(label, response.status);
+  }
+  return parseResponse(response, schema, label);
+}
+
 // region_kind 카탈로그의 한 행(메뉴 종류와 줌 전용 상위 종류를 모두 포함).
 export type RegionKind = z.infer<typeof regionKindSchema>;
 
 // regions_by_view RPC 응답. features는 OL GeoJSON 포맷이 그대로 읽습니다.
 export type RegionFeatureCollection = z.infer<typeof regionFeatureCollectionSchema>;
+export type RegionTileManifest = z.infer<typeof regionTileManifestSchema>;
+export type RegionTile = z.infer<typeof tileCoordinateSchema>;
+
+export async function fetchRegionTileManifest(
+  signal?: AbortSignal,
+): Promise<RegionTileManifest | null> {
+  try {
+    return await callRegionFunction(
+      "tileManifest",
+      { country: "KR" },
+      regionTileManifestSchema,
+      "region_tile_manifest",
+      signal,
+    );
+  } catch (error) {
+    // Rolling deployment: only an explicitly unsupported endpoint falls back to the old API.
+    // Authentication, server errors, and malformed successful responses must not be hidden.
+    if (error instanceof RegionApiError && [400, 404].includes(error.status))
+      return null;
+    throw error;
+  }
+}
+
+export async function fetchRegionsByTile(
+  tile: RegionTile,
+  manifest: RegionTileManifest,
+  zoom: number,
+  kind: string,
+  signal?: AbortSignal,
+): Promise<RegionFeatureCollection> {
+  const data = await callRegionFunction(
+    "byTile",
+    { ...tile, country: "KR", version: manifest.version, zoom, kind },
+    regionFeatureCollectionSchema.extend({ cache: tileCacheSchema }),
+    "regions_by_tile",
+    signal,
+  );
+  if (
+    data.cache.version !== manifest.version ||
+    data.cache.profile !== manifest.profile ||
+    data.cache.z !== tile.z ||
+    data.cache.x !== tile.x ||
+    data.cache.y !== tile.y ||
+    data.kind !== manifest.kind ||
+    data.truncated
+  )
+    throw new Error("경계 타일 버전 또는 응답 범위가 일치하지 않습니다.");
+  return data;
+}
 
 export type RegionViewQuery = {
   minLng: number;
@@ -91,19 +178,13 @@ export async function fetchRegionKinds(
   country = "KR",
   signal?: AbortSignal,
 ): Promise<RegionKind[]> {
-  const { url: baseUrl, headers } = getSupabaseConfig();
-  const requestUrl = new URL(`${baseUrl.replace(/\/$/, "")}/rest/v1/region_kind`);
-  requestUrl.searchParams.set("country", `eq.${country}`);
-  requestUrl.searchParams.set(
-    "select",
-    "kind,label,level,min_zoom,sort_order,selectable",
+  return callRegionFunction(
+    "kinds",
+    { country },
+    z.array(regionKindSchema),
+    "region_kind",
+    signal,
   );
-  requestUrl.searchParams.set("order", "sort_order");
-  const res = await fetch(requestUrl.toString(), { headers, signal });
-  if (!res.ok) {
-    throw new Error(`region_kind 조회 실패: ${res.status}`);
-  }
-  return parseResponse(res, z.array(regionKindSchema), "region_kind");
 }
 
 // 원본 해상도 GeoJSON Feature(없으면 null).
@@ -115,17 +196,13 @@ export async function fetchRegionById(
   boundaryId: number | string,
   signal?: AbortSignal,
 ): Promise<RegionFeature> {
-  const { url, headers } = getSupabaseConfig();
-  const res = await fetch(`${url}/rest/v1/rpc/region_by_id`, {
-    method: "POST",
-    headers,
+  return callRegionFunction(
+    "byId",
+    { boundaryId },
+    regionFeatureSchema.nullable(),
+    "region_by_id",
     signal,
-    body: JSON.stringify({ boundary_id: boundaryId }),
-  });
-  if (!res.ok) {
-    throw new Error(`region_by_id 호출 실패: ${res.status}`);
-  }
-  return parseResponse(res, regionFeatureSchema.nullable(), "region_by_id");
+  );
 }
 
 // code 기반 원본 조회. 외부/편의 조회용으로 유지한다.
@@ -136,42 +213,34 @@ export async function fetchRegionByCode(
   country = "KR",
   signal?: AbortSignal,
 ): Promise<RegionFeature> {
-  const { url, headers } = getSupabaseConfig();
-  const res = await fetch(`${url}/rest/v1/rpc/region_by_code`, {
-    method: "POST",
-    headers,
+  return callRegionFunction(
+    "byCode",
+    { code, country, kind },
+    regionFeatureSchema.nullable(),
+    "region_by_code",
     signal,
-    body: JSON.stringify({ country, kind, code }),
-  });
-  if (!res.ok) {
-    throw new Error(`region_by_code 호출 실패: ${res.status}`);
-  }
-  return parseResponse(res, regionFeatureSchema.nullable(), "region_by_code");
+  );
 }
 
 // 현재 화면 bbox + 줌 + 선택 kind로 경계를 받습니다(서버가 줌 tier를 결정).
-// 좌표는 서버가 줌 티어별 허용오차로 단순화해 내려줍니다(표시용, 시각 손실 없음).
+// 좌표는 서버가 줌 티어별로 단순화해 내려줍니다(표시용; 편집 채택 시 원본 재조회).
 export async function fetchRegionsByView(
   q: RegionViewQuery,
   signal?: AbortSignal,
 ): Promise<RegionFeatureCollection> {
-  const { url, headers } = getSupabaseConfig();
-  const res = await fetch(`${url}/rest/v1/rpc/regions_by_view`, {
-    method: "POST",
-    headers,
-    signal,
-    body: JSON.stringify({
-      min_lng: q.minLng,
-      min_lat: q.minLat,
-      max_lng: q.maxLng,
-      max_lat: q.maxLat,
+  return callRegionFunction(
+    "byView",
+    {
+      minLng: q.minLng,
+      minLat: q.minLat,
+      maxLng: q.maxLng,
+      maxLat: q.maxLat,
       zoom: q.zoom,
       country: q.country ?? "KR",
       kind: q.kind,
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`regions_by_view 호출 실패: ${res.status}`);
-  }
-  return parseResponse(res, regionFeatureCollectionSchema, "regions_by_view");
+    },
+    regionFeatureCollectionSchema,
+    "regions_by_view",
+    signal,
+  );
 }
