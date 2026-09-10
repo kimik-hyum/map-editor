@@ -61,4 +61,10 @@ npm run preview
 
 `dist/`를 HTTP 정적 호스팅에 배포합니다. 문서 4개 경로는 사전 렌더링하고, `demo`·`editor`·`screen`·`auth/callback`은 SPA shell로 생성합니다. `auth/callback/index.html`을 누락하면 로그인 복귀가 실패합니다. `file://`로 실행하지 마세요.
 
+### 상용 Cloudflare Pages 배포
+
+`.env.production.local`(Git 제외)에 실제 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_PUBLISHABLE_KEY`를 설정하고 `npm run deploy:production`을 실행합니다. Cloudflare에 로그인된 Wrangler가 필요합니다. 이 명령은 환경 변수 검사 → 빌드 → 산출물의 실제 공개 설정 검사 → 기존 `maps-editor` 상용 배포 순서로 실행합니다. 공개 키 대신 서버/개발 키를 넣거나 설정 없이 빌드한 산출물을 사용하면 중단합니다.
+
+`npm run build`는 설정 없이도 문서/일반 편집을 검증하는 CI용 빌드를 허용합니다. **상용에는 `build:production`/`deploy:production`을 사용하세요.** 로컬에서 빌드한 `dist`를 업로드할 때 Cloudflare 대시보드 환경 변수는 이미 생성된 JS에 주입되지 않습니다. 반드시 로컬 빌드 시 설정해야 합니다. 배포 후 `npm run test:production-auth`로 로그인 안내창뿐 아니라 **Google로 로그인 버튼을 눌러 실제 Google 화면까지 이동하는지** 확인합니다(Playwright Chromium 필요, 계정 로그인은 수행하지 않음).
+
 부모 origin 제한, Google/Supabase callback, 함수 origin 허용 목록은 [배포 설정](docs/supabase-region-api.md#배포-설정)에서 구분해 확인합니다. 이 저장소에는 Supabase 서버 함수·마이그레이션의 배포 코드가 포함되어 있지 않습니다.

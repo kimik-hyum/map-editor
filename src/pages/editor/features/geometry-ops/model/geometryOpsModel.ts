@@ -36,21 +36,7 @@ const EMPTY: GeometryOpTargets = {
 
 type PolygonEntry = { id: string; geometry: PolygonalGeometry };
 
-export function deriveGeometryOpTargets(
-  scene: DeepReadonly<EditorScene> | null,
-  selectedIds: ReadonlySet<string>,
-  visibleFeatureIds?: ReadonlySet<string> | null,
-): GeometryOpTargets {
-  if (!scene || selectedIds.size !== 1) {
-    return EMPTY;
-  }
-  const [targetId] = selectedIds;
-
-  // 편집 가능(보임+편집가능+잠금해제)하고 폴리곤인 도형만 모읍니다(target 포함).
-  // 레이어 가시성 외에 "도형별 숨김"도 제외합니다 — 렌더러/정점 오버레이와 같은 기준이라,
-  // 안 보이는 도형 위에 마커가 뜨거나 연산 대상이 되지 않게 합니다.
-  const polygons: PolygonEntry[] = [];
-  let target: PolygonEntry | null = null;
+function* editablePolygons(scene: DeepReadonly<EditorScene>): Generator<PolygonEntry> {
   for (const layer of scene.layers) {
     if (!canEditLayerVertices(scene as EditorScene, layer.id)) {
       continue;
@@ -63,33 +49,46 @@ export function deriveGeometryOpTargets(
       if (!isPolygonalGeometry(geometry)) {
         continue;
       }
-      const entry: PolygonEntry = { id: feature.id, geometry };
-      polygons.push(entry);
-      if (feature.id === targetId) {
-        target = entry;
-      }
+      yield { id: feature.id, geometry };
     }
   }
+}
 
-  if (!target) {
-    return EMPTY;
+// ID/geometry 조회는 후보 교집합 계산과 분리합니다. 경계 채택·비동기 작업 검증에서도
+// 이 함수만 호출해야 다른 편집 도형 전체와 정밀 교차 연산을 수행하지 않습니다.
+export function findGeometryOpTarget(
+  scene: DeepReadonly<EditorScene> | null,
+  selectedIds: ReadonlySet<string>,
+  visibleFeatureIds?: ReadonlySet<string> | null,
+): PolygonEntry | null {
+  if (!scene || selectedIds.size !== 1) return null;
+  const [targetId] = selectedIds;
+  if (visibleFeatureIds && !visibleFeatureIds.has(targetId)) return null;
+  for (const entry of editablePolygons(scene)) {
+    if (entry.id === targetId) return entry;
   }
+  return null;
+}
 
-  // viewport 제한(target): 선택 도형 자체가 화면 밖이면 칩을 전혀 띄우지 않는다.
-  // 후보만 거르면 target이 화면 밖인데 다른 폴리곤 위에 칩이 떠 "눈앞 도형 기준"으로
-  // 오해하게 된다 — 후보와 같은 집합 기준으로 target도 막아 화면 맥락을 일치시킨다.
-  if (visibleFeatureIds && !visibleFeatureIds.has(target.id)) {
-    return EMPTY;
-  }
+function checkAreaOverlap(a: PolygonalGeometry, b: PolygonalGeometry): boolean {
+  return bboxesOverlap(geometryBbox(a), geometryBbox(b)) && hasAreaOverlap(a, b);
+}
 
-  // broad-phase: target의 bbox를 한 번 구해두고, 후보 bbox와 박스부터 비교한다.
-  // 박스가 안 겹치는 후보는 무거운 면적 교차(hasAreaOverlap = Turf intersect+area)를 건너뛴다.
-  // → 경계처럼 폴리곤이 많아도 실제로 가까운 소수에만 정밀 검사가 돈다(narrow-phase).
-  const targetBbox = geometryBbox(target.geometry);
+export function deriveGeometryOpTargets(
+  scene: DeepReadonly<EditorScene> | null,
+  selectedIds: ReadonlySet<string>,
+  visibleFeatureIds?: ReadonlySet<string> | null,
+  checkOverlap = checkAreaOverlap,
+): GeometryOpTargets {
+  const target = findGeometryOpTarget(scene, selectedIds, visibleFeatureIds);
+  if (!scene || !target) return EMPTY;
+
+  // viewport는 후보의 표시 여부만 결정합니다. 호출자는 geometry 쌍별 판정 캐시를
+  // 주입하여 팬/줌 때 이미 검사한 후보의 bbox·정밀 교집합을 다시 계산하지 않습니다.
   const mergeCandidateIds: string[] = [];
   const subtractCandidateIds: string[] = [];
   const intersectCandidateIds: string[] = [];
-  for (const candidate of polygons) {
+  for (const candidate of editablePolygons(scene)) {
     if (candidate.id === target.id) {
       continue;
     }
@@ -98,10 +97,7 @@ export function deriveGeometryOpTargets(
       continue;
     }
     mergeCandidateIds.push(candidate.id);
-    if (
-      bboxesOverlap(targetBbox, geometryBbox(candidate.geometry)) &&
-      hasAreaOverlap(target.geometry, candidate.geometry)
-    ) {
+    if (checkOverlap(target.geometry, candidate.geometry)) {
       subtractCandidateIds.push(candidate.id);
       intersectCandidateIds.push(candidate.id);
     }

@@ -2,6 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 import { fromLonLat } from "ol/proj.js";
 import { sampleSceneInput } from "../src/pages/demo/fixtures/sampleEditorScene";
 import { dragAnnotation, readEditorEdits } from "./fixtures/mapNavigation";
+import {
+  installGeometryOverlapProbe,
+  readGeometryOverlapChecks,
+} from "./fixtures/geometryOverlapProbe";
 
 type PolygonGeometry = {
   type: "Polygon";
@@ -123,6 +127,65 @@ async function platformModifier(page: Page): Promise<"Meta" | "Control"> {
     /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control",
   );
 }
+
+test("도형 연산 버튼은 팬/줌에서 판정을 재사용하고 편집/undo/redo에 따라 갱신한다", async ({
+  context,
+  page,
+}) => {
+  await installGeometryOverlapProbe(context);
+  const editor = await openEditorWithOverlappingPolygons(page);
+  await editor.getByRole("button", { name: "교집합 대상 선택" }).click();
+  const marker = editor.getByRole("group", {
+    name: "겹치는 도형 경계 작업",
+    exact: true,
+  });
+  await expect(
+    marker.getByRole("button", { name: "겹치는 도형 교집합" }),
+  ).toBeVisible();
+  await editor.waitForTimeout(700);
+  const checks = await readGeometryOverlapChecks(editor);
+  expect(checks).toBeGreaterThan(0);
+  const before = await readEditorEdits(editor);
+  await dragAnnotation(
+    editor,
+    marker.getByText("겹치는 도형", { exact: true }),
+    marker,
+  );
+  for (const title of ["지도 확대", "지도 축소", "지도 확대", "지도 축소"]) {
+    await editor.getByTitle(title, { exact: true }).click();
+    await editor.waitForTimeout(600);
+  }
+  expect(await readGeometryOverlapChecks(editor)).toBe(checks);
+  expect(await readEditorEdits(editor)).toEqual(before);
+
+  // bbox는 겹치지만 실제 면적은 없는 인접 도형으로 편집해 stale true도 방지합니다.
+  await editor.evaluate(async () => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    useEditorStore.getState().updateFeatureGeometry("intersection-target", {
+      type: "Polygon",
+      coordinates: [
+        [
+          [126.96, 37.55],
+          [126.98, 37.55],
+          [126.98, 37.6],
+          [126.96, 37.6],
+          [126.96, 37.55],
+        ],
+      ],
+    });
+  });
+  await expect.poll(() => readGeometryOverlapChecks(editor)).toBeGreaterThan(checks);
+  const intersection = marker.getByRole("button", { name: "겹치는 도형 교집합" });
+  await expect(intersection).toHaveCount(0);
+  const afterEdit = await readGeometryOverlapChecks(editor);
+  const modifier = await platformModifier(editor);
+  await editor.keyboard.press(`${modifier}+z`);
+  await expect(intersection).toBeVisible();
+  expect(await readGeometryOverlapChecks(editor)).toBe(afterEdit);
+  await editor.keyboard.press(`${modifier}+Shift+z`);
+  await expect(intersection).toHaveCount(0);
+  expect(await readGeometryOverlapChecks(editor)).toBe(afterEdit);
+});
 
 test("지도·도형·정점·선 커서를 구분하고 창 포커스를 잃으면 쥔 손을 해제한다", async ({
   page,

@@ -7,3 +7,7 @@ export const REGION_BOUNDARY_CACHE_MS = 30 * 60_000;
 // 전국 화면(z7) 실측에서 검증한 범위만 분할합니다. 확대 화면은 단일 조회 유지.
 export const REGION_SPLIT_MAX_ZOOM = 7;
 export const REGION_VIEW_CONCURRENCY = 2;
+
+// 영속 캐시는 z0..10만. z11+는 기존 bbox 조회/30분 메모리 캐시를 유지한다.
+export const REGION_TILE_CACHE_MAX_ZOOM = 10;
+export const REGION_TILE_MANIFEST_REFRESH_MS = 60_000;

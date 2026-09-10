@@ -27,6 +27,7 @@ import {
 } from "@/pages/editor/adapters/openlayers";
 import {
   buildGeometryOpMarkerInputs,
+  createGeometryOverlapCache,
   deriveGeometryOpTargets,
   type GeometryOpTargets,
   intersectGeometries,
@@ -162,6 +163,7 @@ export function useOpenLayersEditorMap() {
   const suppressSelectUntilRef = useRef(0);
   // 불리언 연산 후보(병합/제거/교집합 대상). 마커 클릭 시점에 최신 target을 읽도록 ref로도 둔다.
   const geometryOpTargetsRef = useRef<GeometryOpTargets>(EMPTY_GEOMETRY_OP_TARGETS);
+  const [geometryOverlapCache] = useState(createGeometryOverlapCache);
   // 후보 도형 위 ol/Overlay 마커 핸들. OL이 팬/줌 위치 추적을 맡는다.
   const geometryOpOverlaysRef = useRef<ReturnType<
     typeof attachGeometryOpOverlays
@@ -346,7 +348,7 @@ export function useOpenLayersEditorMap() {
       );
     });
 
-    // 팬/줌이 끝나면 화면 범위가 바뀌므로 병합/제거 후보 effect를 다시 돌린다(화면 안 한정 갱신).
+    // 팬/줌 후 후보의 표시 범위만 갱신합니다. 변하지 않은 도형 쌍의 판정은 재사용합니다.
     const viewportMoveEndKey = map.on("moveend", () => {
       setViewportTick((tick) => tick + 1);
     });
@@ -610,11 +612,12 @@ export function useOpenLayersEditorMap() {
       scene,
       new Set(selectedFeatureIds),
       getViewportFeatureIds(map),
+      geometryOverlapCache.hasOverlap,
     );
     geometryOpTargetsRef.current = targets;
     applyChips(overlays.sync(buildGeometryOpMarkerInputs(scene, targets)));
     // viewportTick: 팬/줌으로 화면이 바뀌면 후보를 다시 도출한다.
-  }, [scene, selectedFeatureIds, activeMode, viewportTick]);
+  }, [scene, selectedFeatureIds, activeMode, viewportTick, geometryOverlapCache]);
 
   return {
     mapElementRef,
