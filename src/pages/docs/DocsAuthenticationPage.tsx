@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import {
   Callout,
   DocsArticle,
@@ -12,21 +13,26 @@ import {
 import { DocsTable } from "./components/DocsTable";
 
 const configuration =
-  "VITE_SUPABASE_URL=https://<project-ref>.supabase.co\nVITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...\n# 선택: 정확한 부모 origin을 쉼표로 구분\nVITE_EDITOR_PARENT_ORIGINS=https://service.example.com";
+  "VITE_SUPABASE_URL=https://<project-ref>.supabase.co\nVITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...\n# 선택: 정확한 서비스 페이지 origin을 쉼표로 구분\nVITE_EDITOR_PARENT_ORIGINS=https://service.example.com";
 
 export function DocsAuthenticationPage() {
   return (
     <DocsArticle>
       <DocsHero
-        title="경계 데이터·인증"
-        eyebrow="에디터 운영 설정"
-        description="부모 서비스 로그인과 경계 API 인증은 별개입니다. 아래 설정은 에디터를 직접 개발·배포할 때 필요합니다."
+        title="Google·Supabase 구성 (선택)"
+        eyebrow="내재화 안내 · 기본 공급자"
+        description="현재 공개 서비스와 같은 Google 로그인·Supabase 경계 서버 구성을 유지할 때 사용하는 운영 안내입니다. Termia를 연동하는 일반 사용자나 다른 데이터 공급자를 선택한 운영자에게는 필요하지 않습니다."
       />
+      <Callout tone="note" title="모든 배포의 필수 설정이 아닙니다">
+        자체 JSON이나 별도 서버를 사용하고 로그인 정책을 직접 정하려면{" "}
+        <Link to="/self-hosting/boundaries">경계 데이터 어댑터</Link>를 따르세요. 아래
+        Google 사용자·JWT·callback 정책은 기본 Supabase 공급자에만 해당합니다.
+      </Callout>
       <DocsSection id="flow" title="경계를 선택할 때만 로그인">
         <DocsList>
           <DocsListItem>
-            비로그인: 일반 편집·부모 데이터 수신·결과 반환을 허용하고, 경계 카탈로그와
-            도형 API는 요청하지 않습니다.
+            비로그인: 일반 편집·서비스 페이지 데이터 수신·결과 반환을 허용하고, 경계
+            카탈로그와 도형 API는 요청하지 않습니다.
           </DocsListItem>
           <DocsListItem>
             경계 선택: 로그인 안내를 표시합니다. 취소하면 이전 도구와 진행 중 편집을
@@ -34,7 +40,7 @@ export function DocsAuthenticationPage() {
           </DocsListItem>
           <DocsListItem>
             확인: 별도 Google 팝업에서 PKCE 인증을 진행합니다. 에디터 창은 이동하지 않아
-            부모 연결·scene·편집 이력이 유지됩니다.
+            서비스 페이지 연결·scene·편집 이력이 유지됩니다.
           </DocsListItem>
           <DocsListItem>
             로그아웃: 참고 경계를 숨기고 경계 조회를 중단합니다. 이미 scene에 채택한
@@ -89,33 +95,34 @@ export function DocsAuthenticationPage() {
               key: "parent",
               cells: [
                 <DocsCode key="parent-setting">VITE_EDITOR_PARENT_ORIGINS</DocsCode>,
-                <DocsCode key="parent-origin">https://&lt;parent-domain&gt;</DocsCode>,
-                "INIT을 보낼 부모 서비스 허용",
+                <DocsCode key="parent-origin">https://&lt;service-domain&gt;</DocsCode>,
+                "INIT을 보낼 서비스 허용",
               ],
             },
           ]}
         />
         <Callout
           className="mt-4"
-          title="로컬·프리뷰 주소도 각각 등록합니다"
+          title="에디터의 로컬·프리뷰 주소도 각각 등록합니다"
           tone="note"
         >
           <DocsCode>http://localhost:4174</DocsCode>와{" "}
-          <DocsCode>http://127.0.0.1:4174</DocsCode>는 다른 origin입니다. 사용할
-          origin은 함수 허용 목록에, 그 origin의 <DocsCode>/auth/callback</DocsCode>은
-          Supabase 복귀 목록에 등록해야 합니다.
+          <DocsCode>http://127.0.0.1:4174</DocsCode>는 다른 origin입니다. 사용할 에디터
+          origin은 함수 허용 목록에, 그 에디터의 <DocsCode>/auth/callback</DocsCode>은
+          Supabase 복귀 목록에 등록해야 합니다. 에디터를 여는 서비스 주소를 이 두 목록에
+          등록하는 것이 아닙니다.
         </Callout>
       </DocsSection>
       <DocsSection id="security" title="서로 다른 두 접근 경계">
         <DocsTable
-          label="부모 연결과 경계 API의 보안 경계"
+          label="서비스 페이지 연결과 경계 API의 보안 경계"
           headers={["대상", "검사·소유권"]}
           rows={[
             {
               key: "host",
               cells: [
-                "부모 ↔ 에디터",
-                "opener·정확한 origin·메시지 구조를 검사합니다. SUBMIT/CANCEL은 sessionId를 확인합니다. 부모는 결과 저장 권한을 따로 검증합니다.",
+                "서비스 페이지 ↔ 에디터",
+                "opener·정확한 origin·메시지 구조를 검사합니다. SUBMIT/CANCEL은 sessionId를 확인합니다. 서비스 페이지는 결과 저장 권한을 따로 검증합니다.",
               ],
             },
             {
@@ -136,8 +143,10 @@ export function DocsAuthenticationPage() {
         />
         <DocsList className="mt-4">
           <DocsListItem>
-            부모 origin을 미설정하면 기본적으로 모든 HTTPS 부모와 로컬 동일 origin을
-            허용합니다. 특정 서비스용 배포는 정확한 목록을 설정하세요.
+            허용 목록을 설정하지 않으면 HTTPS 사이트는 도메인 등록 없이 연동할 수
+            있습니다. HTTP 사이트는 에디터와 프로토콜·호스트·포트가 같을 때 기본
+            허용됩니다. 다른 HTTP 주소도 허용하거나 특정 사이트로 제한하려면 정확한
+            origin 목록을 설정하세요.
           </DocsListItem>
           <DocsListItem>
             Origin/CORS는 사용자 인증을 대신하지 않습니다. 로그인 사용자가 자기 토큰을
@@ -150,7 +159,7 @@ export function DocsAuthenticationPage() {
             미설정이면 유효한 Google 사용자를 허용합니다.
           </DocsListItem>
           <DocsListItem>
-            부모 호스트에는 로그인 토큰을 보내지 않습니다. 브라우저에 공개되는
+            서비스 페이지에는 로그인 토큰을 보내지 않습니다. 브라우저에 공개되는
             publishable key만으로 경계 데이터를 읽을 수 없습니다.
           </DocsListItem>
         </DocsList>
