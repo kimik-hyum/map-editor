@@ -1,92 +1,43 @@
-# Maps Editor
+# Termia · Maps Editor
 
-부모 서비스가 보낸 도형을 편집하고 결과를 돌려주는 클라이언트 전용 지도 편집기입니다. Vite·React·TypeScript·OpenLayers로 구성합니다.
+**내 지도의 폴리곤을 새 창에서 편집하고 결과를 돌려받는 공간 편집 도구입니다.** 직접 그리기와 행정동·법정동 등의 경계 선택을 지원합니다. 기존 지도 구현은 유지하며 데이터 전달과 결과 수신을 연결합니다.
 
-- **일반 편집:** 로그인 없이 사용
-- **외부 경계 조회:** 경계 선택 시 Google 로그인, Supabase Edge Function 경유
-- **데이터 저장:** 에디터가 아니라 부모 서비스의 책임
+## 목적에 맞는 문서
 
-## 빠른 실행
+| 대상                               | 필요한 안내                                           | 시작 문서                                | 웹 경로                          |
+| ---------------------------------- | ----------------------------------------------------- | ---------------------------------------- | -------------------------------- |
+| 내 지도에 편집기를 연결하는 사용자 | 무엇을 보내면 어떻게 표시되고, 저장하면 무엇을 받는지 | [사용·연동 안내](docs/integration.md)    | `/` → `/integration`, `/editing` |
+| 저장소를 가져와 직접 운영하는 사람 | 공통 연동 계약 + 소스 수정·경계 공급자·접근 정책·배포 | [직접 운영·커스텀](docs/self-hosting.md) | `/self-hosting`                  |
 
-Node.js **22 이상**과 npm을 사용합니다.
+일반 연동에는 이 저장소를 복제하거나 Termia 내부 코드를 수정할 필요가 없습니다. 경계 데이터 서버·인증 설정은 에디터 운영자가 담당합니다. 직접 운영하는 경우에는 자신의 JSON이나 별도 API를 [경계 데이터 어댑터](docs/boundary-adapter.md)로 연결합니다. [Google·Supabase](docs/supabase-region-api.md)는 선택 가능한 기본 구성입니다.
 
-```bash
-npm ci
-npm run dev -- --port 4174
-```
+## 경복궁 예제로 먼저 실행하기
 
-[로컬 데모](http://localhost:4174/demo/)에서 **편집기 새 창으로 열기**를 누르세요. 편집기 URL만 직접 열면 부모 데이터를 기다립니다. 문서·일반 편집은 환경 변수 없이도 실행할 수 있습니다.
+사이트의 `/integration#quickstart`에서 **경복궁 예제 새 창으로 편집**을 누르세요. 경복궁을 감싸는 사각형을 새 창에 보내고, 정점을 옮겨 저장하면 문서의 지도·JSON이 갱신됩니다. `/editing#screen`에서는 실제 화면 위에서 도구 위치를 확인할 수 있습니다.
 
-Demo의 부모 지도는 현재 scene을 표시합니다. 새 창에서 저장하면 지도와 데이터가 갱신되고 다음 편집도 수정본에서 시작합니다. 취소·창 닫기는 부모 데이터를 바꾸지 않습니다. 서버 저장은 없으며 부모 페이지를 새로고침하면 최초 샘플로 돌아갑니다.
+[경복궁 입력](src/pages/docs/content/examples/input-scene.example.ts) · [연결 코드](src/pages/docs/content/examples/gyeongbokgung.example.ts)
 
-경계 API를 사용할 때만 `.env.example`을 참고해 로컬 `.env`에 공개 Supabase URL·publishable key를 설정합니다. 환경 변수를 바꾸면 개발 서버를 재시작합니다. **secret/service-role key와 Google Client Secret을 VITE 변수나 소스에 넣지 마세요.**
+## 내 지도에 연결하기
 
-## 어디부터 읽을까요?
+1. 서비스 페이지에서 메시지 수신기를 등록한 후, 사용자 클릭으로 `https://maps-editor.pages.dev/editor/`를 새 창으로 엽니다.
+2. 내가 연 창의 `MAP_EDITOR_READY`를 받으면 `MAP_EDITOR_INIT`에 고유한 `sessionId`와 `{ version: 2, features: [...] }`를 보냅니다. 전달한 도형이 새 창의 지도와 목록에 표시됩니다. 빈 목록으로 시작해 새 권역을 그릴 수도 있습니다.
+3. 사용자가 저장하면 `MAP_EDITOR_SUBMIT`으로 편집 결과 **전체 scene**을 받습니다. 창·origin·sessionId·데이터를 검증하고 자신의 지도와 상태를 갱신합니다. 취소는 `MAP_EDITOR_CANCEL`이며 기존 데이터를 유지합니다. 서비스 페이지가 편집 창을 닫습니다.
 
-| 목적                      | 문서                                                                                        | 웹 페이지         |
-| ------------------------- | ------------------------------------------------------------------------------------------- | ----------------- |
-| 부모 서비스에 연결        | [연동 계약과 예제](docs/integration.md)                                                     | `/integration`    |
-| 경계 API·인증·배포 설정   | [경계 데이터 API](docs/supabase-region-api.md)                                              | `/authentication` |
-| 도구 동작을 수정하거나 QA | [도구·상태 모델](docs/editor-tool-model.md)                                                 | `/editing`        |
-| 앱 내부 기능 개발         | [에디터 아키텍처](src/pages/editor/ARCHITECTURE.md)                                         | —                 |
-| 현재 범위·후속 작업       | [지원 범위](docs/editor-mvp-roadmap.md) · [운영 점검](docs/editor-open-questions-review.md) | —                 |
+반환 데이터에는 좌표·ID·이름·속성·잠금·표시 상태가 포함됩니다. 삭제한 도형은 빠지고 숨긴 도형은 남습니다. 참고로 표시한 행정경계는 자동으로 저장되지 않으며 사용자가 추가·합치기·빼기로 반영한 결과만 포함됩니다. 영구 저장은 결과를 받은 서비스에서 처리합니다.
 
-문서 웹은 `/`에서 시작합니다. 이전 `/screen` 주소는 `/editing#screen`으로 연결합니다.
+HTTPS 사이트는 에디터와 도메인이 달라도 연동할 수 있으며, 기본 설정에서는 별도 도메인 등록이 필요하지 않습니다. HTTP·로컬 개발 주소는 에디터와 프로토콜·호스트·포트가 같거나 운영자가 별도로 허용해야 합니다. 운영자가 연결 사이트를 제한한 배포는 해당 허용 목록을 따릅니다. `window.opener`를 유지하는 새 창과 `postMessage` 통신을 사용하며 URL만 열면 데이터가 자동 전달되지는 않습니다. iframe·`noopener`·`file://`는 지원하지 않습니다.
 
-## 부모 연동의 최소 계약
+[연동 인터페이스와 복사 가능한 예제](docs/integration.md) · [편집 도구 안내](https://maps-editor.pages.dev/editing/) · [연동 Demo](https://maps-editor.pages.dev/demo/)
 
-`READY → INIT(sessionId, scene) → SUBMIT(sessionId, scene) 또는 CANCEL(sessionId)`
+Demo는 입력 전송 → 새 창 편집 → 결과 수신·지도 갱신을 보여줍니다. 서버 저장은 하지 않으며 새로고침하면 최초 샘플로 돌아갑니다. 문서의 연동 예제 코드은 서비스 쪽에 연결할 코드이며 타입 검사·테스트 대상입니다.
 
-- scene은 `{ version: 2, features: [...] }` 형식입니다. 각 도형의 필수 필드는 `geometry`입니다.
-- 부모는 자신이 연 팝업의 `source`, 미리 정한 에디터 `origin`, 완료 메시지의 `sessionId`를 검증합니다.
-- 결과는 공개 v2 scene 전체입니다. 내부 레이어·히스토리·인증 토큰을 반환하지 않으며, 중간 CHANGE 메시지도 보내지 않습니다.
-- 부모가 결과를 자신의 상태에 반영하고 필요한 저장 API를 호출합니다. 예제는 서버 저장을 하지 않습니다.
-- iframe·`noopener` 연동이 아니라 `window.opener`가 유지되는 새 창 방식입니다.
+## 직접 운영하는 분을 위한 문서
 
-실행 가능한 네 파일은 [연동 예제 폴더](src/pages/docs/content/examples)에 있습니다. 웹 문서는 이 파일을 직접 불러오므로 복사용 코드와 테스트 대상이 같습니다.
+- [실행·커스텀 위치·검증·배포](docs/self-hosting.md)
+- [JSON·자체 API를 연결하는 경계 데이터 어댑터](docs/boundary-adapter.md) — `/self-hosting/boundaries`
+- [Google·Supabase 구성 (선택)](docs/supabase-region-api.md) — `/authentication`
+- [새 창 연동과 단독 실행 검토 — 미구현 제안](docs/editor-entry-modes.md)
+- [아키텍처](src/pages/editor/ARCHITECTURE.md) · [도구·상태 모델](docs/editor-tool-model.md)
+- [지원 범위](docs/editor-mvp-roadmap.md) · [운영 점검](docs/editor-open-questions-review.md)
 
-## 검증과 빌드
-
-```bash
-npm run verify
-npm run test:e2e
-npm run build
-npm run test:build
-npm run preview
-```
-
-- `verify`: 타입·린트·포맷·단위 테스트
-- `test:e2e`: 로컬 모의 API로 문서·부모 연동·Google 팝업 인증·편집 회귀 검사
-- `test:build`: 빌드한 문서 경로와 callback의 HTML·JS·CSS 참조 검사
-
-`dist/`를 HTTP 정적 호스팅에 배포합니다. 문서 4개 경로는 사전 렌더링하고, `demo`·`editor`·`screen`·`auth/callback`은 SPA shell로 생성합니다. `auth/callback/index.html`을 누락하면 로그인 복귀가 실패합니다. `file://`로 실행하지 마세요.
-
-### 상용 Cloudflare Pages 배포
-
-`.env.production.local`(Git 제외)에 실제 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_PUBLISHABLE_KEY`를 설정하고 `npm run deploy:production`을 실행합니다. Cloudflare에 로그인된 Wrangler가 필요합니다. 이 명령은 환경 변수 검사 → 빌드 → 산출물의 실제 공개 설정 검사 → 기존 `maps-editor` 상용 배포 순서로 실행합니다. 공개 키 대신 서버/개발 키를 넣거나 설정 없이 빌드한 산출물을 사용하면 중단합니다.
-
-`npm run build`는 설정 없이도 문서/일반 편집을 검증하는 CI용 빌드를 허용합니다. **상용에는 `build:production`/`deploy:production`을 사용하세요.** 로컬에서 빌드한 `dist`를 업로드할 때 Cloudflare 대시보드 환경 변수는 이미 생성된 JS에 주입되지 않습니다. 반드시 로컬 빌드 시 설정해야 합니다. 배포 후 `npm run test:production-auth`로 로그인 안내창뿐 아니라 **Google로 로그인 버튼을 눌러 실제 Google 화면까지 이동하는지** 확인합니다(Playwright Chromium 필요, 계정 로그인은 수행하지 않음).
-
-부모 origin 제한, Google/Supabase callback, 함수 origin 허용 목록은 [배포 설정](docs/supabase-region-api.md#배포-설정)에서 구분해 확인합니다. 이 저장소에는 Supabase 서버 함수·마이그레이션의 배포 코드가 포함되어 있지 않습니다.
-
-### 공개 배포의 부모 연동 확인
-
-`E2E_BASE_URL=https://maps-editor.pages.dev npm run test:e2e -- e2e/editor-postmessage.spec.ts`는 로컬 서버 없이 공개 배포를 검사합니다. 이 모드는 localhost origin 이동 검사만 제외하며, 로컬 전체 테스트에서는 해당 보안 검사를 계속 수행합니다.
-
-`deploy:cloudflare`는 상용 설정 검증을 포함한 `deploy:production`의 호환 명령입니다. `public/_headers`는 iframe 차단 등 보안 헤더와 해시 자산의 장기 캐시를 적용합니다. 부모 연동은 새 창 방식으로 유지합니다.
-
-### GitHub Actions 자동 배포
-
-저장소 Actions 설정에 다음 값을 등록합니다. 공개 Supabase 키는 브라우저용이며 서버 키를 등록하면 안 됩니다.
-
-| 구분     | 이름                            | 용도                                        |
-| -------- | ------------------------------- | ------------------------------------------- |
-| Secret   | `CLOUDFLARE_API_TOKEN`          | 대상 계정의 Cloudflare Pages Edit 권한 토큰 |
-| Variable | `CLOUDFLARE_ACCOUNT_ID`         | 기존 `maps-editor` 프로젝트의 계정          |
-| Variable | `VITE_SUPABASE_URL`             | 한국 상용 Supabase URL                      |
-| Variable | `VITE_SUPABASE_PUBLISHABLE_KEY` | 해당 프로젝트의 공개 키                     |
-| Variable | `CLOUDFLARE_DEPLOY_ENABLED`     | 토큰과 위 설정을 준비한 뒤 `true`로 활성화  |
-
-활성화 전에는 자동 배포 작업을 건너뜁니다. 로컬 Wrangler의 임시 OAuth/refresh token을 GitHub Secret으로 복사하지 마세요. 활성화 후 `main` push 또는 `main`의 수동 실행에서만 타입·린트·포맷·단위·전체 E2E·상용 빌드 검사를 통과한 동일 커밋을 배포합니다. 업로드 직전 최신 `main`인지 다시 확인하고 배포를 직렬화하므로, 오래된 실행의 재시도로 운영을 되돌리지 않습니다.
-
-배포 후 익명 편집·Google 로그인 진입·취소·부모 저장을 검사합니다. 이 검사는 실제 계정 로그인 완료나 데이터 조회를 대신하지 않고, 실패해도 자동 롤백하지 않습니다. 토큰을 아직 등록하지 않았다면 `npm run deploy:production`으로 수동 배포할 수 있습니다.
+브랜드 소개는 사이트 하단 푸터의 `/about`에서 확인할 수 있습니다.

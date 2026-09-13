@@ -9,6 +9,8 @@ import { DocsIntegrationPage } from "./pages/docs/DocsIntegrationPage";
 import { DocsLayout } from "./pages/docs/DocsLayout";
 import { DocsAuthenticationPage } from "./pages/docs/DocsAuthenticationPage";
 import { DocsStartPage } from "./pages/docs/DocsStartPage";
+import { DocsSelfHostingPage } from "./pages/docs/DocsSelfHostingPage";
+import { DocsBoundaryAdapterPage } from "./pages/docs/DocsBoundaryAdapterPage";
 import { ScrollToTop } from "./shared/navigation/ScrollToTop";
 import "./App.css";
 
@@ -50,6 +52,8 @@ export function App() {
           <Route path="editing" element={<DocsEditingPage />} />
           <Route path="integration" element={<DocsIntegrationPage />} />
           <Route path="authentication" element={<DocsAuthenticationPage />} />
+          <Route path="self-hosting" element={<DocsSelfHostingPage />} />
+          <Route path="self-hosting/boundaries" element={<DocsBoundaryAdapterPage />} />
           <Route path="screen" element={<Navigate to="/editing#screen" replace />} />
         </Route>
 

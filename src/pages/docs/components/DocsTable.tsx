@@ -1,15 +1,17 @@
 import type { ReactNode } from "react";
+import { cn } from "@/shared/utils/cn";
 
 type DocsTableProps = {
+  className?: string;
   label: string;
   headers: string[];
   rows: Array<{ key: string; cells: ReactNode[] }>;
 };
 
-export function DocsTable({ label, headers, rows }: DocsTableProps) {
+export function DocsTable({ className, label, headers, rows }: DocsTableProps) {
   return (
     <section
-      className="overflow-x-auto rounded-lg border border-line"
+      className={cn("overflow-x-auto rounded-lg border border-line", className)}
       aria-label={label}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: 좁은 화면에서 키보드로 표를 가로 스크롤해야 한다.
       tabIndex={0}
