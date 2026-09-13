@@ -1,4 +1,5 @@
-import { NavLink, useLocation } from "react-router";
+import { Link, NavLink, useLocation } from "react-router";
+import { TermiaLogo } from "@/shared/branding/TermiaLogo";
 import { cn } from "../utils/cn";
 
 const links = [
@@ -25,9 +26,13 @@ const navLinkActiveClassName = "bg-brand-soft text-brand";
 
 export function AppNavigation({ className }: AppNavigationProps) {
   const { pathname } = useLocation();
-  // Docs는 /, /screen 등 여러 라우트의 묶음이라 exact 매치 대신
-  // "Demo·Editor가 아닌 경로"로 활성 여부를 판정합니다.
-  const isDocsPath = !pathname.startsWith("/demo") && !pathname.startsWith("/editor");
+  const normalizedPath = pathname.replace(/\/$/, "") || "/";
+  const isDocsPath =
+    ["/", "/screen", "/editing", "/integration", "/authentication"].includes(
+      normalizedPath,
+    ) ||
+    normalizedPath === "/self-hosting" ||
+    normalizedPath.startsWith("/self-hosting/");
 
   return (
     <nav
@@ -35,7 +40,13 @@ export function AppNavigation({ className }: AppNavigationProps) {
       aria-label="Primary navigation"
     >
       <div className={navigationInnerClassName}>
-        <span className="font-black text-ink">Maps Editor</span>
+        <Link
+          aria-label="Termia 홈"
+          className="rounded-md no-underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
+          to="/"
+        >
+          <TermiaLogo />
+        </Link>
         <div className="flex gap-2">
           {links.map((link) => (
             <NavLink

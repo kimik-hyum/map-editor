@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router";
 import { AuthCallbackPage } from "@/features/auth";
+import { AboutPage } from "./pages/about/AboutPage";
 import { DemoLayout } from "./pages/demo/DemoLayout";
 import { DemoPage } from "./pages/demo/DemoPage";
 import { DocsEditingPage } from "./pages/docs/DocsEditingPage";
@@ -43,6 +44,7 @@ export function App() {
       <ScrollToTop />
       <Routes>
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/" element={<DocsLayout />}>
           <Route index element={<DocsStartPage />} />
           <Route path="editing" element={<DocsEditingPage />} />

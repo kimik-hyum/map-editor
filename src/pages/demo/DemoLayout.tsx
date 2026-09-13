@@ -1,16 +1,17 @@
 import { MonitorUp } from "lucide-react";
 import { Outlet } from "react-router";
 import { AppPageContent } from "@/shared/layout/AppPageContent";
+import { AppFooter } from "@/shared/layout/AppFooter";
 import { AppNavigation } from "@/shared/navigation/AppNavigation";
 import { AppSideMenu, type AppSideMenuGroup } from "@/shared/navigation/AppSideMenu";
 
 const demoMenuGroups: AppSideMenuGroup[] = [
   {
     icon: MonitorUp,
-    label: "호스트 데모",
+    label: "새 창 연동 데모",
     sections: [
       { href: "#host-overview", label: "편집 흐름" },
-      { href: "#launch-editor", label: "부모 지도·편집" },
+      { href: "#launch-editor", label: "데이터 전달·편집" },
       { href: "#current-data", label: "현재 데이터" },
     ],
     to: "/demo",
@@ -27,6 +28,7 @@ export function DemoLayout() {
           <Outlet />
         </AppPageContent>
       </div>
+      <AppFooter />
     </div>
   );
 }

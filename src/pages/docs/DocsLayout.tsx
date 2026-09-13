@@ -2,6 +2,7 @@ import { Cable, KeyRound, PencilRuler, Rocket } from "lucide-react";
 import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router";
 import { AppPageContent } from "@/shared/layout/AppPageContent";
+import { AppFooter } from "@/shared/layout/AppFooter";
 import { AppNavigation } from "@/shared/navigation/AppNavigation";
 import { AppSideMenu, type AppSideMenuGroup } from "@/shared/navigation/AppSideMenu";
 
@@ -57,7 +58,7 @@ export function DocsLayout() {
     docsMenuGroups.find((group) => group.to === (pathname.replace(/\/$/, "") || "/"))
       ?.label ?? "개발자 문서";
   useEffect(() => {
-    document.title = `${title} | Maps Editor`;
+    document.title = `${title} | Termia`;
   }, [title]);
   return (
     <div className="min-h-screen bg-surface">
@@ -80,6 +81,7 @@ export function DocsLayout() {
           </div>
         </AppPageContent>
       </div>
+      <AppFooter />
     </div>
   );
 }
