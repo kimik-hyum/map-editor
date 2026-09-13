@@ -63,7 +63,7 @@ export function DocsEditingPage() {
               key: "radius",
               cells: [
                 "반경",
-                "마커 한 개를 선택하고 반경을 입력합니다.",
+                "지도나 레이어 목록에서 마커 한 개를 선택하면 활성화됩니다. 반경 버튼을 누르고 거리를 입력합니다.",
                 "0.01–1,000km의 새 원형 폴리곤을 생성합니다. 날짜변경선·극점을 넘는 결과는 거부합니다.",
               ],
             },
@@ -94,10 +94,9 @@ export function DocsEditingPage() {
           ]}
         />
         <Callout className="mt-4" title="잠금과 원본 보호" tone="note">
-          잠금은 편집 UI에서 해제할 수 있는 상태이며 서버 권한이 아닙니다.
-          서비스 페이지가 전달한 원본에는 삭제 버튼이 없습니다. 다만 병합·차집합
-          같은 연산으로 결과가 달라질 수 있으므로 서비스 페이지도 저장 전
-          검증해야 합니다.
+          잠금은 편집 UI에서 해제할 수 있는 상태이며 서버 권한이 아닙니다. 서비스
+          페이지가 전달한 원본에는 삭제 버튼이 없습니다. 다만 병합·차집합 같은 연산으로
+          결과가 달라질 수 있으므로 서비스 페이지도 저장 전 검증해야 합니다.
         </Callout>
       </DocsSection>
       <DocsSection id="operations" title="합치기·빼기·교집합 아이콘">
@@ -132,29 +131,29 @@ export function DocsEditingPage() {
           ]}
         />
         <Callout className="mt-4" title="버튼이 비활성 상태라면" tone="note">
-          선택한 도형이 편집 가능한 폴리곤인지 확인하세요. 빼기·교집합은 실제
-          겹친 면적이 있을 때만 활성화됩니다. 버튼의 마우스 오버 설명에서 대상과
-          동작을 확인할 수 있고, 적용한 연산은 되돌리기로 복원할 수 있습니다.
+          선택한 도형이 편집 가능한 폴리곤인지 확인하세요. 빼기·교집합은 실제 겹친
+          면적이 있을 때만 활성화됩니다. 버튼의 마우스 오버 설명에서 대상과 동작을
+          확인할 수 있고, 적용한 연산은 되돌리기로 복원할 수 있습니다.
         </Callout>
       </DocsSection>
       <DocsSection id="finish" title="저장·취소 조건">
         <DocsList>
           <DocsListItem>
-            저장 시 <DocsCode>MAP_EDITOR_SUBMIT</DocsCode>으로 전체 scene을
-            반환합니다. Point나 Path만 있어도 저장할 수 있습니다. ‘반환할
-            폴리곤이 없습니다’는 안내이며 저장을 차단하지 않습니다.
+            저장 시 <DocsCode>MAP_EDITOR_SUBMIT</DocsCode>으로 전체 scene을 반환합니다.
+            Point나 Path만 있어도 저장할 수 있습니다. ‘반환할 폴리곤이 없습니다’는
+            안내이며 저장을 차단하지 않습니다.
           </DocsListItem>
           <DocsListItem>
-            오류가 있는 도형, 진행 중 그리기·반경 입력·경계 연산·이름 변경·빈
-            공간 채우기는 먼저 완료하거나 취소해야 합니다.
+            오류가 있는 도형, 진행 중 그리기·반경 입력·경계 연산·이름 변경·빈 공간
+            채우기는 먼저 완료하거나 취소해야 합니다.
           </DocsListItem>
           <DocsListItem>
-            취소 시 <DocsCode>MAP_EDITOR_CANCEL</DocsCode>만 반환합니다. 미저장
-            변경이 있으면 확인하며, 서비스 페이지는 기존 데이터를 유지합니다.
+            취소 시 <DocsCode>MAP_EDITOR_CANCEL</DocsCode>만 반환합니다. 미저장 변경이
+            있으면 확인하며, 서비스 페이지는 기존 데이터를 유지합니다.
           </DocsListItem>
           <DocsListItem>
-            숨긴 도형도 반환 데이터에 포함됩니다. 서버 저장이나 중간 변경 자동
-            전송은 하지 않습니다.
+            숨긴 도형도 반환 데이터에 포함됩니다. 서버 저장이나 중간 변경 자동 전송은
+            하지 않습니다.
           </DocsListItem>
         </DocsList>
       </DocsSection>

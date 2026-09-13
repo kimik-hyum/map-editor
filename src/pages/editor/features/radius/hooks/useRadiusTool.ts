@@ -60,8 +60,8 @@ export function useRadiusTool(map: OpenLayersMap | null) {
     previewRef.current?.sync(previewGeometry);
   }, [previewGeometry]);
 
-  // 반경 도구 진입 시 이미 마커가 선택돼 있으면 즉시 입력을 열고, 선택되지 않았다면
-  // 지도/레이어 선택을 기다립니다. 새 마커가 확정될 때마다 기본값으로 새 작업을 시작합니다.
+  // 선택한 마커를 기준으로 즉시 입력을 엽니다. 기준 마커의 선택이 풀리면
+  // 입력·미리보기를 닫고 선택 도구로 돌아갑니다.
   useEffect(() => {
     if (!radiusActive) {
       setPopupOpen(false);
@@ -69,6 +69,7 @@ export function useRadiusTool(map: OpenLayersMap | null) {
     }
     if (!targetFeatureId) {
       setPopupOpen(false);
+      useEditorStore.getState().setActiveMode(EditorMode.Select);
       return;
     }
     setDraft(DEFAULT_RADIUS_KM);
