@@ -6,6 +6,8 @@ import { cn } from "@/shared/utils/cn";
 type DocsCodeBlockProps = {
   className?: string;
   code: string;
+  copyText?: string;
+  copyLabel?: string;
   language: Language;
   showLineNumbers?: boolean;
   title?: string;
@@ -32,6 +34,8 @@ function withStableContentKeys<T>(
 export function DocsCodeBlock({
   className,
   code,
+  copyText,
+  copyLabel,
   language,
   showLineNumbers = true,
   title,
@@ -51,7 +55,7 @@ export function DocsCodeBlock({
 
   const copyCode = async () => {
     try {
-      await navigator.clipboard.writeText(normalizedCode);
+      await navigator.clipboard.writeText(copyText?.trim() ?? normalizedCode);
       setCopied(true);
       if (copyResetTimerRef.current !== null) {
         window.clearTimeout(copyResetTimerRef.current);
@@ -75,7 +79,9 @@ export function DocsCodeBlock({
       <figcaption className="flex min-h-11 items-center justify-between gap-4 border-b border-slate-800 px-4 py-2 text-xs font-extrabold text-slate-300">
         <span>{title ?? language.toUpperCase()}</span>
         <button
-          aria-label={copied ? "코드 복사 완료" : "코드 복사"}
+          aria-label={
+            copied ? `${copyLabel ?? "코드 복사"} 완료` : (copyLabel ?? "코드 복사")
+          }
           className="inline-flex min-h-7 items-center gap-1.5 rounded-md border border-slate-700 bg-slate-900 px-2.5 text-xs font-bold text-slate-300 transition-colors hover:border-slate-500 hover:text-white"
           onClick={() => void copyCode()}
           type="button"
@@ -85,7 +91,7 @@ export function DocsCodeBlock({
           ) : (
             <Copy aria-hidden="true" size={14} strokeWidth={2.4} />
           )}
-          {copied ? "복사됨" : "복사"}
+          {copied ? "복사됨" : (copyLabel ?? "복사")}
         </button>
       </figcaption>
 

@@ -118,6 +118,7 @@ type MovingHighlightItemProps = {
   // 인디케이터가 이 값과 MovingHighlight의 activeValue가 일치할 때 이 항목으로 이동합니다.
   value: string;
   className?: string;
+  title?: string;
   children: ReactNode;
 };
 
@@ -125,6 +126,7 @@ type MovingHighlightItemProps = {
 export function MovingHighlightItem({
   value,
   className,
+  title,
   children,
 }: MovingHighlightItemProps) {
   const context = useContext(MovingHighlightContext);
@@ -137,7 +139,7 @@ export function MovingHighlightItem({
   }, [context, value]);
 
   return (
-    <div className={cn("relative z-10", className)} ref={elementRef}>
+    <div className={cn("relative z-10", className)} ref={elementRef} title={title}>
       {children}
     </div>
   );

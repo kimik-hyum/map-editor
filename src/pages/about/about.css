@@ -1,0 +1,452 @@
+.termia-about {
+  --termia-ink: #111b29;
+  --termia-muted: #536478;
+  --termia-line: #dce5ee;
+  background: #fff;
+  color: var(--termia-ink);
+}
+
+.termia-about main:focus {
+  outline: none;
+}
+.termia-container {
+  width: min(1180px, calc(100% - 96px));
+  margin-inline: auto;
+}
+.termia-about h1,
+.termia-about h2,
+.termia-about p {
+  margin: 0;
+}
+.termia-about h2 {
+  font-size: clamp(1.65rem, 3vw, 2.25rem);
+  font-weight: 750;
+  line-height: 1.4;
+  letter-spacing: -0.055em;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.termia-about p {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.termia-about .termia-eyebrow {
+  margin-bottom: 22px;
+  color: #436173;
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.15em;
+}
+.termia-skip-link {
+  position: fixed;
+  top: -100px;
+  left: 16px;
+  z-index: 50;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: white;
+  color: var(--termia-ink);
+}
+.termia-skip-link:focus {
+  top: 16px;
+}
+.termia-hero {
+  padding: 100px 0 86px;
+  border-bottom: 1px solid var(--termia-line);
+  background:
+    radial-gradient(ellipse at 91% 26%, #dcf7f0 0, transparent 48%),
+    linear-gradient(140deg, #fff 38%, #eef4ff);
+}
+.termia-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 36px;
+}
+.termia-about h1 {
+  font-size: clamp(2.4rem, 4.1vw, 3.7rem);
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -0.065em;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.termia-hero-accent {
+  color: #226b98;
+}
+.termia-about .termia-hero-description {
+  max-width: 520px;
+  margin-top: 28px;
+  color: var(--termia-muted);
+  font-size: 1.125rem;
+  line-height: 1.9;
+}
+.termia-about .termia-tagline {
+  margin-top: 40px;
+  color: #516579;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.24em;
+}
+.termia-hero-mark {
+  display: grid;
+  justify-items: center;
+  gap: 24px;
+  margin: 0;
+}
+.termia-hero-mark img {
+  display: block;
+  width: min(100%, 340px);
+  height: auto;
+}
+.termia-hero-mark figcaption {
+  color: var(--termia-muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+.termia-story {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: 80px;
+  padding-block: 88px 64px;
+}
+.termia-story-copy p {
+  color: var(--termia-muted);
+  font-size: 1rem;
+  line-height: 1.95;
+}
+.termia-story-copy p + p {
+  margin-top: 16px;
+}
+.termia-story-copy strong {
+  color: var(--termia-ink);
+  font-weight: 650;
+}
+.termia-story-copy a {
+  display: inline-block;
+  margin-top: 22px;
+  color: #436173;
+  font-size: 0.875rem;
+  text-decoration-color: #c3d1dd;
+  text-underline-offset: 4px;
+}
+.termia-capabilities {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding-bottom: 88px;
+}
+.termia-capability {
+  padding: 32px 32px 0;
+  border-top: 1px solid var(--termia-line);
+}
+.termia-capability:first-child {
+  padding-left: 0;
+}
+.termia-capability:last-child {
+  padding-right: 0;
+}
+.termia-capability + .termia-capability {
+  border-left: 1px solid var(--termia-line);
+}
+.termia-capability > svg {
+  color: #3b7694;
+}
+.termia-capability .termia-eyebrow {
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+.termia-capability h2 {
+  font-size: 1.25rem;
+  letter-spacing: -0.04em;
+}
+.termia-capability > p:last-child {
+  margin-top: 14px;
+  color: var(--termia-muted);
+  font-size: 1rem;
+  line-height: 1.8;
+}
+.termia-identity {
+  padding-block: 80px;
+  background: #f5f8fb;
+  border-block: 1px solid var(--termia-line);
+}
+.termia-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: end;
+  gap: 24px;
+  margin-bottom: 36px;
+}
+.termia-section-heading > p {
+  max-width: 290px;
+  color: var(--termia-muted);
+  font-size: 1rem;
+  line-height: 1.8;
+}
+.termia-logo-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 16px;
+}
+.termia-logo-grid figure {
+  display: flex;
+  min-width: 0;
+  min-height: 290px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 26px;
+  border-radius: 16px;
+}
+.termia-logo-primary {
+  border: 1px solid var(--termia-line);
+  background: white;
+}
+.termia-logo-primary img {
+  display: block;
+  width: 100%;
+  max-width: 430px;
+  height: auto;
+  margin-block: 24px;
+}
+.termia-spec-label {
+  align-self: start;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+}
+.termia-logo-primary .termia-spec-label {
+  color: var(--termia-muted);
+}
+.termia-logo-grid figcaption {
+  color: var(--termia-muted);
+  font-size: 0.875rem;
+}
+.termia-logo-dark {
+  background: var(--termia-ink);
+}
+.termia-logo-dark .termia-spec-label,
+.termia-logo-dark figcaption {
+  color: #a9bed3;
+}
+.termia-display-logo {
+  gap: 15px;
+  margin-block: 32px;
+}
+.termia-display-logo .termia-symbol {
+  width: 74px;
+  height: 74px;
+}
+.termia-display-logo .termia-wordmark {
+  width: auto;
+  height: clamp(2rem, 3vw, 2.65rem);
+}
+.termia-symbol-story {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 30px;
+  padding-block: 40px;
+}
+.termia-symbol-story > div {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  color: #5b7287;
+}
+.termia-symbol-story svg {
+  flex-shrink: 0;
+}
+.termia-letter-icon {
+  display: inline-block;
+  width: 28px;
+  flex-shrink: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1;
+}
+.termia-symbol-story p {
+  font-size: 0.875rem;
+  line-height: 1.8;
+}
+.termia-symbol-story strong {
+  display: block;
+  color: var(--termia-ink);
+  font-size: 1rem;
+  font-weight: 650;
+}
+.termia-palette {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.termia-color-swatch {
+  height: 76px;
+  border-radius: 8px;
+}
+.termia-color-label {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 10px;
+  margin-top: 14px;
+  font-size: 0.875rem;
+}
+.termia-color-label span {
+  color: var(--termia-muted);
+  font-variant-numeric: tabular-nums;
+}
+.termia-color > p {
+  margin-top: 6px;
+  color: var(--termia-muted);
+  font-size: 0.875rem;
+}
+.termia-downloads {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  padding-block: 72px;
+}
+.termia-downloads > div:first-child {
+  max-width: 590px;
+}
+.termia-downloads p:last-child {
+  margin-top: 18px;
+  color: var(--termia-muted);
+  font-size: 1rem;
+  line-height: 1.8;
+}
+.termia-download-actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.termia-download-link {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border: 1px solid #becddb;
+  border-radius: 8px;
+  color: var(--termia-ink);
+  font-size: 0.875rem;
+  font-weight: 650;
+  text-decoration: none;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+.termia-download-link:hover {
+  background: #ecf5fa;
+  border-color: #719bae;
+}
+.termia-about a:focus-visible {
+  outline: 2px solid #226b98;
+  outline-offset: 5px;
+}
+@media (max-width: 1000px) {
+  .termia-container {
+    width: calc(100% - 64px);
+  }
+  .termia-hero {
+    padding-block: 72px;
+  }
+  .termia-hero-grid {
+    gap: 20px;
+  }
+  .termia-story {
+    gap: 40px;
+  }
+  .termia-symbol-story {
+    gap: 20px;
+  }
+  .termia-downloads {
+    align-items: start;
+    flex-direction: column;
+    gap: 28px;
+  }
+}
+@media (max-width: 700px) {
+  .termia-container {
+    width: calc(100% - 40px);
+  }
+  .termia-hero {
+    padding-block: 48px;
+  }
+  .termia-hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 36px;
+  }
+  .termia-about h1 {
+    font-size: clamp(2rem, 6.7vw, 2.8rem);
+  }
+  .termia-about .termia-hero-description {
+    font-size: 1rem;
+  }
+  .termia-about .termia-tagline {
+    margin-top: 28px;
+    letter-spacing: 0.16em;
+  }
+  .termia-hero-mark img {
+    width: 220px;
+  }
+  .termia-hero-mark {
+    gap: 16px;
+  }
+  .termia-story {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding-block: 48px;
+  }
+  .termia-capabilities {
+    grid-template-columns: minmax(0, 1fr);
+    padding-bottom: 48px;
+  }
+  .termia-capability,
+  .termia-capability:first-child,
+  .termia-capability:last-child {
+    padding: 28px 0;
+  }
+  .termia-capability + .termia-capability {
+    border-left: 0;
+  }
+  .termia-capability:last-child {
+    padding-bottom: 0;
+  }
+  .termia-capability .termia-eyebrow {
+    margin-top: 18px;
+  }
+  .termia-identity {
+    padding-block: 48px;
+  }
+  .termia-logo-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .termia-logo-grid figure {
+    min-height: 250px;
+    padding: 22px;
+  }
+  .termia-symbol-story {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding-block: 32px;
+  }
+  .termia-palette {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 16px;
+  }
+  .termia-downloads {
+    padding-block: 48px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .termia-download-link {
+    transition: none;
+  }
+}

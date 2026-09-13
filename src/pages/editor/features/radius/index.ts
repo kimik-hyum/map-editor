@@ -1,2 +1,2 @@
 export { useRadiusTool, type RadiusToolController } from "./hooks/useRadiusTool";
-export { canUseAsRadiusTarget } from "./model/radiusToolModel";
+export { canUseAsRadiusTarget, resolveRadiusTarget } from "./model/radiusToolModel";

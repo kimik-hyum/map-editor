@@ -1,5 +1,7 @@
 # Editor Architecture Guide
 
+이 문서는 저장소를 직접 운영·커스텀하는 개발자를 위한 안내입니다. [일반 서비스 연동](../../../docs/integration.md)과 [경계 공급자 교체](../../../docs/boundary-adapter.md)는 별도 문서로 제공합니다.
+
 이 문서는 에디터 도메인에서 새 기능을 추가할 때 파일 위치와 책임을 흔들리지 않게 정하기 위한 구조 가이드입니다.
 Codex와 Claude는 이 문서를 기준으로 `EditorPage` 비대화, OpenLayers 의존 누수, store 오염을 피합니다.
 
@@ -48,7 +50,9 @@ flowchart TB
   Activation["순수 tool activation 정책<br/>select / draw / boundary / radius"]
 
   subgraph RemoteState["원격 상태"]
-    Supabase["인증된 regions Edge Function"] --> ApiBoundary["API contract<br/>fetch + Zod"]
+    Sources["JSON / 자체 API / Supabase"] --> DataAdapter["경계 데이터 어댑터<br/>전송 + 응답 검증·변환"]
+    Access["공개 접근 / 자체 인증 / Google"] --> DataAdapter
+    DataAdapter --> ApiBoundary["공통 경계 조회 계약"]
     ApiBoundary --> QueryDefs["query keys + options"]
     QueryDefs --> QueryCache["TanStack Query cache"]
     QueryCache --> RegionVM["region catalog/view model"]
@@ -151,6 +155,17 @@ flowchart TB
 - 다른 상태에서 파생되는 값(예: 모드별 interaction 활성 플래그)은 store에 저장하지 않고 순수 함수로 계산한다(파생 상태 중복 금지).
 - 어댑터는 OpenLayers Interaction 클래스를 외부로 직접 노출하지 않고 기능별 핸들로 감싼다. 모든 attach 핸들은 `detach`를 제공하고, 동적 활성화나 재바인딩이 필요할 때만 `setActive` 또는 `sync`를 추가한다.
 
+## Boundary Data Adapter
+
+경계 공급자와 인증은 에디터의 필수 기술 스택이 아니다. 현재 기본 구현은 `features/regions/api/regionsApi.ts`에서 Google 세션으로 Supabase를 호출하지만, 내재화한 배포에서는 JSON·자체 서버와 공개 접근·사내 인증을 선택할 수 있다.
+
+- **데이터 어댑터**: 종류·bbox 표시·원본 ID/코드 조회의 공통 계약을 유지하면서 전송과 응답 검증·변환을 교체한다. 타일을 지원하지 않으면 manifest는 null로 반환해 byView 경로를 사용한다.
+- **접근 정책**: `useBoundaryAccess`의 allowed·subject와 `useBoundaryLogin`의 접근 요청을 교체한다. subject는 비어 있지 않은 캐시 범위이며, 공급자·데이터 버전·사용자/테넌트가 달라지면 캐시도 구분한다.
+- **렌더링 어댑터**: `adapters/openlayers`는 서버나 인증을 모르고 공통 데이터를 지도에 표시한다. Query 참고 데이터와 Zustand 편집 scene의 소유권은 유지한다.
+- **원본 불변식**: 지도에 표시한 ID와 채택한 원본이 일치해야 한다. 단순화·bbox 절단 geometry를 원본 대신 저장하지 않는다.
+
+현재 공급자를 런타임에 등록하는 API는 없다. [소스 교체 예제](../../../docs/boundary-adapter.md)는 위 경계를 이용한 적용 방법이며 자동 활성화되는 기능은 아니다. 기본 구현과 공급자 독립적인 목표 구조를 구분해서 유지한다.
+
 ## Adapter Conventions
 
 `adapters/openlayers`의 이벤트/인터랙션 어댑터는 다음 규약을 따른다.
@@ -162,6 +177,10 @@ flowchart TB
 - **pull/push 경계**: 값은 게터로 "이벤트 시점에 당겨" 읽고, 비활성 전환 같은 부수효과(오버레이 clear·힌트 내림)는 `setActive`/이펙트로 "그 순간 밀어서" 처리한다.
 - **모드별 활성화**: "어느 모드에서 무엇을 켜는가"는 순수 모델(`mode -> 활성 플래그`)로 한곳에서 정하고, hook의 `[activeMode]` 이펙트가 그 결과를 어댑터 `setActive`로 적용한다. 어댑터의 `active` 비트는 그 결정을 수행하는 로컬 스위치일 뿐, 정책의 출처가 아니다.
 
+## 실행 모드 검토
+
+현재 세션 시작·완료는 새 창의 INIT/SUBMIT/CANCEL에 연결되어 있다. 단독 실행은 빈 scene 또는 JSON으로 시작하고 파일 내보내기 등의 결과 처리로 연결하는 별도 세션 어댑터로 분리할 수 있다. 경계 데이터 조회 어댑터와 다른 책임이며 아직 구현하지 않았다. [현재 결합 지점과 제안](../../../docs/editor-entry-modes.md)을 참고한다. 이번 문서 작업은 대기 조건·에디터 UI·저장 경로를 변경하지 않는다.
+
 ## Current Editor Flow
 
 1. `EditorPage.tsx`가 지도, Draw, Radius, Region, Messaging, History, Clipboard controller를 조립하고 하단 session action을 배치한다.
@@ -169,7 +188,7 @@ flowchart TB
 3. `features/map/hooks/useOpenLayersEditorMap.ts`가 store 상태를 구독하고 OpenLayers adapter를 호출한다.
 4. `adapters/openlayers`가 scene을 OpenLayers layer/feature/interaction으로 변환하거나 동기화한다.
 5. `features/layers` 같은 UI 기능은 store action을 호출하고, map hook이 변경된 상태를 지도에 반영한다.
-6. `features/regions`는 Google 세션으로 Edge Function을 호출하고 응답을 Zod로 검증한 뒤, `adapters/openlayers`의 별도 참고 레이어에만 표시한다. 사용자가 채택한 원본 geometry만 store action으로 scene에 복사한다.
+6. 기본 배포의 `features/regions`는 Google 세션으로 Edge Function을 호출하고 응답을 Zod로 검증한 뒤, `adapters/openlayers`의 별도 참고 레이어에만 표시한다. 사용자가 채택한 원본 geometry만 store action으로 scene에 복사한다.
 7. `features/draw`는 OpenLayers sketch를 adapter 안에 유지하고, 완성된 geometry만 `addFeatures`로 scene에 커밋한다.
 8. `features/radius`는 입력 중 원을 전용 preview layer에만 표시하고, 적용 시 완성 Polygon만 `addFeatures`로 커밋한다.
 9. `features/session`은 진행 중 도구와 invalid 도형을 확인한 뒤 공개 v2 scene을 SUBMIT하거나 scene 없이 CANCEL한다.

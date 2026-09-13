@@ -12,7 +12,10 @@ import {
   BoundaryLoginStatus,
 } from "@/pages/editor/features/regions";
 import { RadiusInputPopup } from "@/pages/editor/features/radius/components/RadiusInputPopup";
-import type { RadiusToolController } from "@/pages/editor/features/radius";
+import {
+  resolveRadiusTarget,
+  type RadiusToolController,
+} from "@/pages/editor/features/radius";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import { EditorMode } from "@/pages/editor/types/editorTypes";
 import {
@@ -119,6 +122,16 @@ export function EditorModePanel({
                 ) {
                   return;
                 }
+                // 도구 전환 확인을 기다리는 동안 기준 마커의 선택이 바뀔 수 있습니다.
+                if (
+                  next === EditorMode.Radius &&
+                  resolveRadiusTarget(
+                    currentContext.scene,
+                    currentContext.selectedFeatureIds,
+                  ).target === null
+                ) {
+                  return;
+                }
 
                 setActiveMode(next);
                 setBoundaryPopupOpen(next === EditorMode.Boundary);
@@ -156,18 +169,32 @@ export function EditorModePanel({
             // 하위 옵션이 있으면 "폴리곤 + 그리기" / "행정동 + 경계"처럼 도구 의미를 함께 보여줍니다.
             const primaryLabel = subOption?.label ?? tool.label;
             const toolWord = subOption ? tool.label : null;
+            const disabled =
+              tool.id === EditorMode.Radius && radiusTool.target === null;
+            const disabledTitle = disabled ? "마커를 선택해야합니다" : undefined;
 
             return (
-              <MovingHighlightItem key={tool.id} value={tool.id}>
+              <MovingHighlightItem
+                className={disabled ? "cursor-not-allowed" : undefined}
+                key={tool.id}
+                title={disabledTitle}
+                value={tool.id}
+              >
                 <Toggle
                   aria-label={toolWord ? `${primaryLabel} ${toolWord}` : primaryLabel}
                   className={cn(
                     "group flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 text-[11px] font-black transition-colors",
                     "text-slate-500 hover:bg-slate-50/80 data-[pressed]:text-teal-700",
+                    "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
                   )}
+                  disabled={disabled}
                   ref={anchorRef}
                   title={
-                    subOption ? `${tool.label} · ${tool.description}` : tool.description
+                    disabled
+                      ? disabledTitle
+                      : subOption
+                        ? `${tool.label} · ${tool.description}`
+                        : tool.description
                   }
                   value={tool.id}
                 >

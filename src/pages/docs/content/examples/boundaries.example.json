@@ -1,0 +1,36 @@
+{
+  "country": "KR",
+  "kinds": [
+    {
+      "kind": "adminDong",
+      "label": "행정동",
+      "level": 2,
+      "min_zoom": 12,
+      "sort_order": 0,
+      "selectable": true
+    }
+  ],
+  "features": [
+    {
+      "type": "Feature",
+      "id": "demo-2026-09:adminDong:001",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [127.01, 37.48],
+            [127.05, 37.48],
+            [127.05, 37.51],
+            [127.01, 37.51],
+            [127.01, 37.48]
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "adminDong",
+        "code": "demo-001",
+        "name": "예시 행정동 (실제 경계 아님)"
+      }
+    }
+  ]
+}

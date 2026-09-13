@@ -11,11 +11,11 @@ export function DemoSceneMap({ scene }: DemoSceneMapProps) {
   ).length;
   return (
     <section
-      aria-label="부모 지도 미리보기"
+      aria-label="서비스 데이터 미리보기"
       className="overflow-hidden rounded-xl border border-line bg-white"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3 text-sm">
-        <h2 className="m-0 font-bold text-ink">부모 지도</h2>
+        <h2 className="m-0 font-bold text-ink">샘플 데이터 미리보기</h2>
         <span aria-live="polite" className="text-ink-soft">
           전체 {scene.features.length}개 · 표시 {visibleCount}개 · 숨김{" "}
           {scene.features.length - visibleCount}개
@@ -23,7 +23,7 @@ export function DemoSceneMap({ scene }: DemoSceneMapProps) {
       </div>
       <div className="relative">
         <div
-          aria-label="부모 지도"
+          aria-label="샘플 지도"
           role="application"
           // biome-ignore lint/a11y/noNoninteractiveTabindex: OpenLayers의 키보드 이동·확대 입력을 받는 지도입니다.
           tabIndex={0}

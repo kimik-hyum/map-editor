@@ -1,0 +1,33 @@
+{
+  "generator": "Built-in image_gen",
+  "reference": "User-supplied Termia brand board (codex-clipboard-0ff28bea-909b-48e3-b582-bbfcab01d5d6.png)",
+  "assets": [
+    {
+      "file": "public/brand/termia-logo.png",
+      "dimensions": [2172, 724],
+      "format": "RGBA PNG",
+      "prompt": "Use case: background-extraction\nAsset type: production website primary horizontal logo lockup, transparent PNG.\nInput image 1 is the edit target and definitive identity reference: use the large top-left symbol plus main Termia wordmark in the supplied brand board.\nPrimary request: faithfully isolate and cleanly redraw the main horizontal logo as a crisp professional flat website graphic. Keep the original folded geometric T / map icon on the left, preserving its silhouette and proportions, rounded contours, mint/turquoise upper plane, cyan lower-left folded stem, royal-blue lower-right plane, diagonal and vertical transparent negative-space boundary, and one circular editing node on the diagonal. Negative spaces and circular node are genuinely transparent cutouts. Retain smooth clean mint/turquoise/cyan/royal-blue gradients.\nText (verbatim): \"Termia\" — T e r m i a — to the right of the icon in bold, rounded/geometric dark navy type matching the large source wordmark. Use a regular dark navy circular dot on the lowercase i; replace the source's tiny decorative icon above the i.\nComposition: wide horizontal logo canvas, approximately 3:1 aspect ratio, icon left, wordmark right, vertically balanced like the main brand-board lockup. Close framing with generous consistent transparent padding, preserve legibility for a website header. The icon is visibly taller than the letters, matching the source proportions.\nBackground: actual fully transparent alpha PNG, not a white background or simulated checkerboard. Every area outside the logo is transparent.\nConstraints: exact word \"Termia\" only. Remove tagline, map backdrop, Korean copy, all extra labels, all cards, surrounding layouts, shadows, texture, and watermarks. No social preview or mockup."
+    },
+    {
+      "file": "public/brand/termia-symbol.png",
+      "dimensions": [1254, 1254],
+      "format": "RGBA PNG",
+      "prompt": "Use case: background-extraction.\nAsset type: required production website icon / transparent PNG.\nInput image is the successful Termia horizontal logo lockup, an edit target.\nPrimary request: isolate ONLY the colorful geometric T symbol on the left. Remove the entire Termia wordmark and all surrounding margin. Preserve exact existing symbol silhouette, color gradients, diagonal boundary and circular transparent editing-node cutout. Square canvas 1024 x 1024; symbol centered occupying 85% of width/height with even margin.\nOutput MUST have actual RGBA alpha transparency in the background AND in all negative-space gaps. No rendered checkerboard, no gray squares, no backdrop, no white rectangle. Do not illustrate transparency. Do not include any text. Clean crisp antialiased silhouette free from fringe speckles. This is a clean asset extraction of an existing logo, not a new logo design."
+    },
+    {
+      "file": "public/brand/termia-wordmark.svg",
+      "dimensions": [1267, 318],
+      "format": "SVG paths only",
+      "source": "public/brand/termia-logo.png",
+      "method": "Trace the existing dark wordmark contours; no font or embedded raster image.",
+      "sourceBounds": [749, 213, 2009, 524],
+      "trace": {
+        "threshold": 128,
+        "alphaMax": 1,
+        "optTolerance": 0.4
+      },
+      "fill": "#111b29"
+    }
+  ],
+  "note": "Raster assets for web use. Preserve aspect ratio. Original board is not shipped. The first symbol output had no alpha and was discarded; the selected symbol was extracted from the transparent lockup."
+}

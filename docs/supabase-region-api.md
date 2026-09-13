@@ -1,10 +1,12 @@
-# 경계 데이터 API·인증
+# Google·Supabase 구성 (선택)
 
-부모 서비스는 이 API를 직접 호출할 필요가 없습니다. 에디터가 Google 세션으로 경계를 조회하고, 사용자가 채택한 도형만 최종 scene으로 반환합니다. 서버 함수·마이그레이션은 별도 Supabase 프로젝트에서 관리합니다.
+**직접 운영 문서의 선택 구성입니다.** 현재 공개 서비스의 Google·Supabase 구현을 유지할 때만 적용합니다. 자체 JSON·별도 서버·사내 인증은 [경계 데이터 어댑터](boundary-adapter.md)를 사용하세요. 일반 사용자의 서비스 연동에는 이 설정이 필요하지 않습니다.
+
+서비스는 이 API를 직접 호출할 필요가 없습니다. 에디터가 Google 세션으로 경계를 조회하고, 사용자가 채택한 도형만 최종 scene으로 반환합니다. 서버 함수·마이그레이션은 별도 Supabase 프로젝트에서 관리합니다.
 
 ## 접근 흐름
 
-1. 비로그인으로 일반 편집과 부모 메시지 왕복을 허용합니다.
+1. 비로그인으로 일반 편집과 서비스 페이지 메시지 왕복을 허용합니다.
 2. 경계 선택 시 로그인 안내 → 별도 Google PKCE 팝업 → `/auth/callback` 복귀를 처리합니다.
 3. 에디터가 세션 access token으로 `POST /functions/v1/regions`를 호출합니다.
 4. 서버가 JWT·Google identity·에디터 origin·선택적 계정 허용 목록·호출량을 검사합니다.
@@ -68,20 +70,20 @@ HTTP 상태: **401** 세션 누락·무효, **403** origin·계정 정책 거부
 
 ## 배포 설정
 
-| 위치          | 설정                                                               | 목적                                |
-| ------------- | ------------------------------------------------------------------ | ----------------------------------- |
-| 에디터 빌드   | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`               | 접속할 프로젝트와 공개 키           |
-| 에디터 빌드   | `VITE_EDITOR_PARENT_ORIGINS`                                       | INIT을 보낼 부모 서비스 origin 목록 |
-| Google OAuth  | `https://<project-ref>.supabase.co/auth/v1/callback`               | Google → Supabase 복귀              |
-| Supabase Auth | `https://<editor-domain>/auth/callback`                            | Supabase → 에디터 인증 팝업 복귀    |
-| regions 함수  | 정확한 에디터 origin 목록                                          | 함수 호출자 origin 검사             |
-| regions 함수  | `MAPS_EDITOR_ALLOWED_EMAILS` / `MAPS_EDITOR_ALLOWED_EMAIL_DOMAINS` | 필요할 때 Google 사용자 범위 제한   |
+| 위치          | 설정                                                               | 목적                              |
+| ------------- | ------------------------------------------------------------------ | --------------------------------- |
+| 에디터 빌드   | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`               | 접속할 프로젝트와 공개 키         |
+| 에디터 빌드   | `VITE_EDITOR_PARENT_ORIGINS`                                       | INIT을 보낼 서비스 origin 목록    |
+| Google OAuth  | `https://<project-ref>.supabase.co/auth/v1/callback`               | Google → Supabase 복귀            |
+| Supabase Auth | `https://<editor-domain>/auth/callback`                            | Supabase → 에디터 인증 팝업 복귀  |
+| regions 함수  | 정확한 에디터 origin 목록                                          | 함수 호출자 origin 검사           |
+| regions 함수  | `MAPS_EDITOR_ALLOWED_EMAILS` / `MAPS_EDITOR_ALLOWED_EMAIL_DOMAINS` | 필요할 때 Google 사용자 범위 제한 |
 
 환경 변수는 빌드 시 적용됩니다. 로컬 `localhost:4174`와 `127.0.0.1:4174`는 다른 origin이므로 사용하는 주소를 각각 등록합니다. 프리뷰 도메인도 별도 설정 대상입니다.
 
 **서버 비밀값을 프런트엔드에 넣지 않습니다.** Google Client Secret은 Supabase Provider 설정, 서버용 key는 함수 안에서만 사용합니다.
 
-부모 origin 기본값은 모든 HTTPS 부모와 동일 origin의 로컬 개발을 허용합니다. 특정 서비스용 배포는 정확한 허용 목록을 설정합니다. 이 목록은 함수 origin 검사나 계정 제한을 대신하지 않습니다.
+허용 목록을 설정하지 않으면 HTTPS 사이트는 도메인 등록 없이 연동할 수 있습니다. HTTP 사이트는 에디터와 프로토콜·호스트·포트가 같을 때 기본 허용됩니다. 다른 HTTP 주소도 허용하거나 특정 사이트로 제한하려면 정확한 origin 목록을 설정합니다. 이 목록은 함수 origin 검사나 계정 제한을 대신하지 않습니다.
 
 Origin/CORS는 curl 위조를 막는 자격 증명이 아닙니다. 유효한 Google 사용자는 자기 토큰으로 직접 호출할 수 있습니다. 계정 허용 목록이 없으면 모든 유효한 Google 사용자를 허용합니다.
 
@@ -95,6 +97,6 @@ DB는 `base_date`, `is_current`, `created_at`으로 버전을 구분합니다. �
 
 - 비로그인 경계 요청이 401로 거부되는지
 - 실제 Google 팝업 로그인 후 경계가 표시되는지
-- 로그인 전 편집과 부모 반환 연결이 유지되는지
+- 로그인 전 편집과 서비스 페이지 반환 연결이 유지되는지
 - 로그아웃 후 경계는 해제되고 채택한 도형은 유지되는지
 - 신규 데이터의 원천 기준일·건수·geometry 유효성과 버전 스왑 기록이 남는지

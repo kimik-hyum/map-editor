@@ -1,13 +1,18 @@
 import { expect, test } from "@playwright/test";
 
-const documents = [
-  ["/", "빠른 시작"],
-  ["/integration", "부모 창 연동"],
-  ["/authentication", "경계 데이터·인증"],
-  ["/editing", "편집 동작"],
+const integrationDocuments = [
+  ["/", "내 지도에 연결하는 폴리곤 편집기"],
+  ["/integration", "연동 인터페이스"],
+  ["/editing", "편집 도구 안내"],
 ];
+const selfHostingDocuments = [
+  ["/self-hosting", "직접 운영·커스텀"],
+  ["/self-hosting/boundaries", "경계 데이터 어댑터"],
+  ["/authentication", "Google·Supabase 구성 (선택)"],
+];
+const documents = [...integrationDocuments, ...selfHostingDocuments];
 
-test("개발자 목차의 모든 경로·앵커가 유효하며 비로그인 경계 API를 호출하지 않는다", async ({
+test("대상별 문서 목차의 모든 경로·앵커가 유효하며 비로그인 경계 API를 호출하지 않는다", async ({
   page,
 }) => {
   const regionCalls: string[] = [];
@@ -18,8 +23,17 @@ test("개발자 목차의 모든 경로·앵커가 유효하며 비로그인 경
   for (const [path, title] of documents) {
     await page.goto(path);
     await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
-    await expect(page).toHaveTitle(`${title} | Maps Editor`);
-    const nav = page.getByRole("navigation", { name: "개발자 문서" });
+    await expect(page).toHaveTitle(`${title} | Termia`);
+    const selfHosted = selfHostingDocuments.some(([route]) => route === path);
+    const expectedDocuments = selfHosted ? selfHostingDocuments : integrationDocuments;
+    const nav = page.getByRole("navigation", {
+      name: selfHosted ? "내재화 안내" : "사용·연동 안내",
+    });
+    const audiences = page.getByRole("navigation", { name: "문서 대상 선택" });
+    await expect(audiences.locator('a[aria-current="true"]')).toHaveAttribute(
+      "href",
+      selfHosted ? "/self-hosting" : "/",
+    );
     const anchors = await nav
       .locator('a[href^="#"]')
       .evaluateAll((links) => links.map((link) => link.getAttribute("href")));
@@ -28,9 +42,33 @@ test("개발자 목차의 모든 경로·앵커가 유효하며 비로그인 경
     const routes = await nav
       .locator('a[href^="/"]')
       .evaluateAll((links) => links.map((link) => link.getAttribute("href")));
-    expect(routes).toEqual(documents.map(([route]) => route));
+    expect(routes).toEqual(expectedDocuments.map(([route]) => route));
   }
   expect(regionCalls).toEqual([]);
+});
+
+test("사용자는 연동과 결과를 읽고 운영자는 별도 목차로 전환한다", async ({ page }) => {
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "사용·연동 안내" });
+  await expect(nav.getByRole("link", { name: /인증|Supabase|어댑터/ })).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "저장하면 무엇을 받나요?" }),
+  ).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "문서 대상 선택" })
+    .getByRole("link", { name: /직접 운영·커스텀/ })
+    .click();
+  await expect(page).toHaveURL(/\/self-hosting$/);
+  await page
+    .getByRole("navigation", { name: "내재화 안내" })
+    .getByRole("link", { name: "경계 데이터 어댑터", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "로그인 없이 사용하거나 자체 인증 연결하기" }),
+  ).toBeVisible();
+  await expect(page.getByRole("main")).toContainText(
+    "자동 등록되거나 환경 변수만으로 활성화되지 않습니다",
+  );
 });
 
 test("인증 문서는 공개 설정·callback·실제 권한 경계를 구분한다", async ({ page }) => {
@@ -51,8 +89,11 @@ test("인증 문서는 공개 설정·callback·실제 권한 경계를 구분�
 test("예제 코드를 복사할 수 있다", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/integration");
+  await page
+    .getByText("이미 쓰는 지도와 연결하기 · bindMapEditor", { exact: true })
+    .click();
   const figure = page.locator("figure").filter({
-    has: page.locator("figcaption").filter({ hasText: "parent-page.example.ts" }),
+    has: page.locator("figcaption").filter({ hasText: "service-page.example.ts" }),
   });
   await figure.getByRole("button", { name: "코드 복사", exact: true }).click();
   await expect(figure.getByRole("button", { name: "코드 복사 완료" })).toBeVisible();
