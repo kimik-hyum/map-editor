@@ -32,15 +32,15 @@ async function rename(editor: Page, before: string, after: string) {
   await input.press("Enter");
 }
 
-test("부모 지도에서 시작해 이름·표시를 저장하고 수정본으로 다시 편집한다", async ({
+test("샘플 지도에서 시작해 이름·표시를 저장하고 수정본으로 다시 편집한다", async ({
   page,
 }) => {
   await page.goto("/demo");
   await expect(
-    page.getByRole("application", { name: "부모 지도", exact: true }),
+    page.getByRole("application", { name: "샘플 지도", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("전체 8개 · 표시 8개 · 숨김 0개")).toBeVisible();
-  const viewport = page.locator('[aria-label="부모 지도"] .ol-viewport');
+  const viewport = page.locator('[aria-label="샘플 지도"] .ol-viewport');
   await expect(viewport).toBeVisible();
   await viewport.evaluate((element) =>
     element.setAttribute("data-stability", "retained"),
@@ -125,7 +125,7 @@ test("중복 열기와 팝업 수동 종료로 부모 데이터가 초기화되�
     editor.getByRole("button", { name: "진행 중 이름 선택", exact: true }),
   ).toBeVisible();
   await editor.close();
-  await expect(page.getByText("에디터 창이 닫힘 · 부모 데이터 유지")).toBeVisible();
+  await expect(page.getByText("에디터 창이 닫힘 · 서비스 데이터 유지")).toBeVisible();
   expect(await readParentScene(page)).toEqual(before);
 });
 
@@ -138,7 +138,7 @@ test("모바일에서도 지도·현재 데이터와 편집 버튼이 화면 폭
     page.getByRole("button", { name: "편집기 새 창으로 열기" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("application", { name: "부모 지도", exact: true }),
+    page.getByRole("application", { name: "샘플 지도", exact: true }),
   ).toBeVisible();
   await page.getByText("현재 scene JSON 보기", { exact: true }).click();
   expect(
@@ -148,7 +148,7 @@ test("모바일에서도 지도·현재 데이터와 편집 버튼이 화면 폭
   ).toBe(true);
 });
 
-test("기존 폴리곤 좌표 수정이 부모 지도 데이터와 다음 편집에도 유지된다", async ({
+test("기존 폴리곤 좌표 수정이 샘플 지도 데이터와 다음 편집에도 유지된다", async ({
   page,
 }) => {
   await page.goto("/demo");

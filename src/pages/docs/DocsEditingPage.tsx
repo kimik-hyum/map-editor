@@ -1,4 +1,3 @@
-import { Link } from "react-router";
 import {
   Callout,
   DocsArticle,
@@ -9,37 +8,33 @@ import {
   DocsSection,
 } from "./components";
 import { DocsTable } from "./components/DocsTable";
+import { DocsEditorTour } from "./components/DocsEditorTour";
 
 export function DocsEditingPage() {
   return (
     <DocsArticle>
       <DocsHero
-        title="편집 동작"
-        eyebrow="기능·QA 참고"
-        description="부모 서비스가 기대할 수 있는 편집 범위와 결과 반환 조건입니다. 연결 방식은 부모 창 연동 문서를 참고하세요."
+        title="편집 도구 안내"
+        eyebrow="도구 사용법"
+        description="경복궁 사각형을 연 실제 편집 화면입니다. 아래 도구 이름을 눌러 위치와 사용법을 확인하고, 새 창 실습에서 같은 동작을 따라 해보세요."
       />
       <DocsSection id="screen" title="화면 구성">
-        <DocsList>
-          <DocsListItem>
-            지도: 부모가 보낸 도형과 현재 화면의 참고 경계를 표시합니다.
-          </DocsListItem>
-          <DocsListItem>
-            왼쪽 도구: 선택·그리기·경계·반경 중 하나를 활성화합니다.
-          </DocsListItem>
-          <DocsListItem>
-            레이어 패널: 도형 하나가 행 하나입니다. 맨 위 행이 지도에서도 위에
-            그려집니다. 표시·잠금·이름·순서를 바꿀 수 있습니다.
-          </DocsListItem>
-          <DocsListItem>
-            완료 바: 편집 결과를 부모에 반환하거나 결과 없이 취소합니다.
-          </DocsListItem>
-        </DocsList>
+        <DocsEditorTour />
       </DocsSection>
       <DocsSection id="tools" title="도구별 동작">
         <DocsTable
+          className="[&_table]:min-w-[760px] [&_th:first-child]:w-40 [&_td:first-child]:min-w-40 [&_td:first-child]:whitespace-nowrap"
           label="도구별 동작과 제약"
           headers={["도구", "사용 방법", "결과·제약"]}
           rows={[
+            {
+              key: "navigate",
+              cells: [
+                "지도 이동·확대",
+                "지도를 드래그해 이동하고 휠이나 확대·축소 버튼으로 배율을 바꿉니다. 경계 이름·버튼 위에서도 드래그할 수 있습니다.",
+                "지도 이동과 줌은 도형 좌표를 바꾸지 않습니다. 도형 이동은 선택 도구에서 Cmd/Ctrl+드래그를 사용합니다.",
+              ],
+            },
             {
               key: "select",
               cells: [
@@ -75,11 +70,9 @@ export function DocsEditingPage() {
             {
               key: "boundary",
               cells: [
-                <Link key="authentication" to="/authentication">
-                  경계 데이터
-                </Link>,
-                "Google 로그인 후 행정동·법정동·우편번호를 조회합니다. 경계 이름 아래의 작은 아이콘으로 추가·합치기·빼기를 실행합니다. 호버 없이 표시되며 버튼에 마우스를 올리면 동작을 설명합니다.",
-                "이름은 한 줄(13–14px), 아이콘 버튼은 줌에 따라 24–28px로 표시하며 큰 배경 카드는 사용하지 않습니다. 밀집 구간은 겹침을 줄이며 생략된 경계는 포인터·클릭 또는 확대 후 접근할 수 있습니다. 편집 연산은 원본을 사용하며 서버 경계는 변경하지 않습니다.",
+                "경계 데이터",
+                "공개 에디터의 로그인 안내를 따른 뒤 행정동·법정동·우편번호를 조회합니다. 경계 이름 옆의 작은 아이콘으로 추가·합치기·빼기를 실행합니다. 호버 없이 표시되며 버튼에 마우스를 올리면 동작을 설명합니다.",
+                "축소하면 시군구 경계를 대신 표시할 수 있습니다. 원하는 경계가 보이지 않으면 확대하세요. 표시용 경계는 경량화되지만 추가·연산은 원본을 사용하며 서버의 경계 데이터는 변경하지 않습니다.",
               ],
             },
             {
@@ -101,29 +94,67 @@ export function DocsEditingPage() {
           ]}
         />
         <Callout className="mt-4" title="잠금과 원본 보호" tone="note">
-          잠금은 편집 UI에서 해제할 수 있는 상태이며 서버 권한이 아닙니다. 부모창이
-          전달한 원본에는 삭제 버튼이 없습니다. 다만 병합·차집합 같은 연산으로 결과가
-          달라질 수 있으므로 부모도 저장 전 검증해야 합니다.
+          잠금은 편집 UI에서 해제할 수 있는 상태이며 서버 권한이 아닙니다.
+          서비스 페이지가 전달한 원본에는 삭제 버튼이 없습니다. 다만 병합·차집합
+          같은 연산으로 결과가 달라질 수 있으므로 서비스 페이지도 저장 전
+          검증해야 합니다.
+        </Callout>
+      </DocsSection>
+      <DocsSection id="operations" title="합치기·빼기·교집합 아이콘">
+        <DocsTable
+          label="도형 연산 아이콘"
+          headers={["버튼", "참고 경계에서", "편집 도형끼리"]}
+          rows={[
+            {
+              key: "union",
+              cells: [
+                "+ · 검정",
+                "대상 도형이 없으면 경계를 새 도형으로 추가합니다. 대상이 있으면 선택 도형에 경계를 합칩니다.",
+                "선택 도형과 상대 도형을 합치고 상대 도형을 제거합니다.",
+              ],
+            },
+            {
+              key: "difference",
+              cells: [
+                "− · 빨강",
+                "선택 도형에서 경계와 겹친 면적을 뺍니다.",
+                "선택 도형에서 상대 도형과 겹친 면적을 뺍니다. 상대 도형은 남깁니다.",
+              ],
+            },
+            {
+              key: "intersection",
+              cells: [
+                "교집합 · 보라",
+                "참고 경계에는 교집합 버튼이 없습니다. 선택을 해제하고 +로 경계를 새 도형으로 추가한 뒤, 선택 도구에서 편집 도형끼리 연산합니다.",
+                "선택 도형과 상대 도형이 겹친 면적만 남깁니다. 상대 도형은 남깁니다.",
+              ],
+            },
+          ]}
+        />
+        <Callout className="mt-4" title="버튼이 비활성 상태라면" tone="note">
+          선택한 도형이 편집 가능한 폴리곤인지 확인하세요. 빼기·교집합은 실제
+          겹친 면적이 있을 때만 활성화됩니다. 버튼의 마우스 오버 설명에서 대상과
+          동작을 확인할 수 있고, 적용한 연산은 되돌리기로 복원할 수 있습니다.
         </Callout>
       </DocsSection>
       <DocsSection id="finish" title="저장·취소 조건">
         <DocsList>
           <DocsListItem>
-            저장 시 <DocsCode>MAP_EDITOR_SUBMIT</DocsCode>으로 전체 scene을 반환합니다.
-            Point나 Path만 있어도 저장할 수 있습니다. ‘반환할 폴리곤이 없습니다’는
-            안내이며 저장을 차단하지 않습니다.
+            저장 시 <DocsCode>MAP_EDITOR_SUBMIT</DocsCode>으로 전체 scene을
+            반환합니다. Point나 Path만 있어도 저장할 수 있습니다. ‘반환할
+            폴리곤이 없습니다’는 안내이며 저장을 차단하지 않습니다.
           </DocsListItem>
           <DocsListItem>
-            오류가 있는 도형, 진행 중 그리기·반경 입력·경계 연산·이름 변경·빈 공간
-            채우기는 먼저 완료하거나 취소해야 합니다.
+            오류가 있는 도형, 진행 중 그리기·반경 입력·경계 연산·이름 변경·빈
+            공간 채우기는 먼저 완료하거나 취소해야 합니다.
           </DocsListItem>
           <DocsListItem>
-            취소 시 <DocsCode>MAP_EDITOR_CANCEL</DocsCode>만 반환합니다. 미저장 변경이
-            있으면 확인하며, 부모는 기존 데이터를 유지합니다.
+            취소 시 <DocsCode>MAP_EDITOR_CANCEL</DocsCode>만 반환합니다. 미저장
+            변경이 있으면 확인하며, 서비스 페이지는 기존 데이터를 유지합니다.
           </DocsListItem>
           <DocsListItem>
-            숨긴 도형도 반환 데이터에 포함됩니다. 서버 저장이나 중간 변경 자동 전송은
-            하지 않습니다.
+            숨긴 도형도 반환 데이터에 포함됩니다. 서버 저장이나 중간 변경 자동
+            전송은 하지 않습니다.
           </DocsListItem>
         </DocsList>
       </DocsSection>

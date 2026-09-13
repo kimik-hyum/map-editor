@@ -37,7 +37,7 @@
 - 새로운 INIT은 기존 scene·이력·확인 상태를 초기화합니다. 원본 조회 중 세션·인증·scene·선택 맥락이 달라지면 결과를 버립니다.
 - 경계의 표시용 단순화 geometry로 편집 연산을 하지 않습니다. 표시된 row ID의 원본을 다시 조회합니다.
 - 일반 폴리곤 병합은 상대 도형을 소비하지만, 외부 경계 원본은 소비하거나 서버에서 수정하지 않습니다.
-- locked는 UI 잠금이며 사용자 해제가 가능합니다. 부모 원본의 삭제 버튼 보호와 서버 저장 권한은 서로 다른 정책입니다.
+- locked는 UI 잠금이며 사용자 해제가 가능합니다. 서비스 페이지 원본의 삭제 버튼 보호와 서버 저장 권한은 서로 다른 정책입니다.
 - SUBMIT은 공개 v2 scene 전체, CANCEL은 sessionId만 반환합니다. 중간 CHANGE 메시지를 보내지 않습니다.
 
 ## 경계 이름과 작업 카드
@@ -66,6 +66,6 @@
 
 ## 완료를 막는 상태
 
-진행 중 그리기·반경 입력·경계 연산·이름 변경·빈 공간 채우기와 invalid 도형은 완료를 막습니다. 부모 데이터와 연결이 준비되지 않아도 완료할 수 없습니다. 반환할 Polygon/MultiPolygon이 없는 상태는 안내만 표시하며 저장은 가능합니다. 서버 영구 저장은 이 흐름에 포함되지 않습니다.
+진행 중 그리기·반경 입력·경계 연산·이름 변경·빈 공간 채우기와 invalid 도형은 완료를 막습니다. 서비스 페이지 데이터와 연결이 준비되지 않아도 완료할 수 없습니다. 반환할 Polygon/MultiPolygon이 없는 상태는 안내만 표시하며 저장은 가능합니다. 서버 영구 저장은 이 흐름에 포함되지 않습니다.
 
 기준 코드: [도구 활성화](../src/pages/editor/features/modes/model/toolActivationModel.ts), [세션 액션](../src/pages/editor/features/session/hooks/useEditorSessionActions.ts), [경계 로그인](../src/pages/editor/features/regions/hooks/useBoundaryLogin.ts).
