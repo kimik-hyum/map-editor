@@ -1,6 +1,9 @@
+import { editorDefaultTheme } from "@/pages/editor/theme/editorTheme";
 import { resolvePolygonStyle } from "@/pages/editor/theme/editorStyleResolver";
 import {
   canDeleteCreatedFeature,
+  canEditEmptyLayer,
+  canDrawInEmptyLayer,
   canRenameFeature,
   LockState,
   VisibilityState,
@@ -13,10 +16,12 @@ import {
 
 // 1레이어 = 1도형 구조의 평탄 스택 행입니다. 패널은 이 행 목록을 위(맨 앞)부터 그립니다.
 export type FeatureStackRowViewModel = {
-  // 도형 id(선택·포커스의 키).
+  // 도형 id(선택·포커스의 키). 빈 행에서는 레이어 id를 사용합니다.
   id: string;
   // 도형을 담은 내부 레이어 id(표시 토글의 키).
   layerId: string;
+  isEmpty: boolean;
+  canDraw: boolean;
   name: string;
   geometryKindLabel: string;
   // 표시 토글 다음 상태 계산에 쓰는 현재 표시 상태.
@@ -38,6 +43,7 @@ export type LayerPanelViewModel = {
   isReady: boolean;
   isEmpty: boolean;
   featureCount: number;
+  emptyLayerCount: number;
   rows: FeatureStackRowViewModel[];
 };
 
@@ -70,6 +76,8 @@ function createFeatureStackRowViewModel(
   return {
     id: feature.id,
     layerId: layer.id,
+    isEmpty: false,
+    canDraw: false,
     name: getFeatureName(feature),
     geometryKindLabel: geometryKindLabels[feature.geometryKind],
     visibility: layer.view.visibility,
@@ -99,27 +107,50 @@ function getLayersByVisualStack(scene: DeepReadonly<EditorScene>) {
 export function createLayerPanelViewModel(
   scene: DeepReadonly<EditorScene> | null,
   selectedFeatureIds: readonly string[] = [],
+  activeLayerId: string | null = null,
 ): LayerPanelViewModel {
   if (!scene) {
     return {
       isReady: false,
       isEmpty: true,
       featureCount: 0,
+      emptyLayerCount: 0,
       rows: [],
     };
   }
 
   const selectedIds = new Set(selectedFeatureIds);
-  const rows = getLayersByVisualStack(scene).flatMap(({ layer }) =>
-    layer.features.map((feature) =>
-      createFeatureStackRowViewModel(layer, feature, selectedIds),
-    ),
-  );
+  const rows = getLayersByVisualStack(scene).flatMap(({ layer }) => {
+    if (layer.features.length > 0) {
+      return layer.features.map((feature) =>
+        createFeatureStackRowViewModel(layer, feature, selectedIds),
+      );
+    }
+    return [
+      {
+        id: layer.id,
+        layerId: layer.id,
+        isEmpty: true,
+        canDraw: canDrawInEmptyLayer(layer),
+        name: layer.name,
+        geometryKindLabel: "빈 레이어",
+        visibility: layer.view.visibility,
+        isVisible: layer.view.visibility !== VisibilityState.Hidden,
+        isDimmed: layer.view.visibility === VisibilityState.Dimmed,
+        isLocked: layer.behavior.lock === LockState.Locked,
+        canDelete: canEditEmptyLayer(layer) && layer.behavior.deletable,
+        canRename: canEditEmptyLayer(layer),
+        isSelected: activeLayerId === layer.id && selectedFeatureIds.length === 0,
+        accentColor: editorDefaultTheme.polygon.editable.strokeColor,
+      },
+    ];
+  });
 
   return {
     isReady: true,
     isEmpty: rows.length === 0,
-    featureCount: rows.length,
+    featureCount: rows.filter((row) => !row.isEmpty).length,
+    emptyLayerCount: rows.filter((row) => row.isEmpty).length,
     rows,
   };
 }

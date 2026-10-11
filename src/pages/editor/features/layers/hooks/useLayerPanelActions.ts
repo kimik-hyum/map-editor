@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { EditorMode, canDrawInEmptyLayer } from "@/pages/editor/types/editorTypes";
 import { toggleFeatureSelection } from "@/pages/editor/features/selection";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import { confirmDialog } from "@/shared/ui/confirmation-dialog";
@@ -9,6 +10,11 @@ import {
 import { reorderLayerInStack } from "../model/layerReorderModel";
 
 export function useLayerPanelActions() {
+  const addEmptyLayer = useEditorStore((state) => state.addEmptyLayer);
+  const setActiveLayerId = useEditorStore((state) => state.setActiveLayerId);
+  const deleteEmptyLayer = useEditorStore((state) => state.deleteEmptyLayer);
+  const renameEmptyLayer = useEditorStore((state) => state.renameEmptyLayer);
+  const beginEmptyLayerRename = useEditorStore((state) => state.beginEmptyLayerRename);
   const updateLayerView = useEditorStore((state) => state.updateLayerView);
   const updateLayerZIndexes = useEditorStore((state) => state.updateLayerZIndexes);
   const setLayerLocked = useEditorStore((state) => state.setLayerLocked);
@@ -42,6 +48,10 @@ export function useLayerPanelActions() {
   // - 일반: 그 도형으로 교체(이미 단독 선택이면 해제). 새로 선택되면 지도 포커스를 옮긴다.
   const selectFeature = useCallback(
     (row: FeatureStackRowViewModel, additive: boolean) => {
+      if (row.isEmpty) {
+        setActiveLayerId(row.isSelected ? null : row.layerId);
+        return;
+      }
       const current = useEditorStore.getState().selectedFeatureIds;
       if (additive) {
         setSelectedFeatureIds(toggleFeatureSelection(current, row.id));
@@ -57,7 +67,7 @@ export function useLayerPanelActions() {
         requestFeatureFocus(row.id);
       }
     },
-    [requestFeatureFocus, setSelectedFeatureIds],
+    [requestFeatureFocus, setSelectedFeatureIds, setActiveLayerId],
   );
 
   // 드래그 드롭 결과 반영(끌던 행을 대상 행 위치로). 버튼 이동과 같은 재정규화 계산을 쓴다.
@@ -85,7 +95,9 @@ export function useLayerPanelActions() {
       const contextAtRequest = useEditorStore.getState();
       const confirmed = await confirmDialog({
         title: `“${row.name}” 레이어를 삭제할까요?`,
-        description: "생성한 도형이 함께 삭제됩니다. 실행 취소로 복원할 수 있습니다.",
+        description: row.isEmpty
+          ? "빈 레이어를 삭제합니다. 실행 취소로 복원할 수 있습니다."
+          : "생성한 도형이 함께 삭제됩니다. 실행 취소로 복원할 수 있습니다.",
         confirmLabel: "삭제",
         cancelLabel: "취소",
         tone: "danger",
@@ -99,30 +111,43 @@ export function useLayerPanelActions() {
       ) {
         return;
       }
-      deleteCreatedFeature(row.id);
+      if (row.isEmpty) deleteEmptyLayer(row.layerId);
+      else deleteCreatedFeature(row.id);
     },
-    [deleteCreatedFeature],
+    [deleteCreatedFeature, deleteEmptyLayer],
   );
 
   const renameRow = useCallback(
     (row: FeatureStackRowViewModel, name: string) => {
       if (row.canRename) {
-        renameFeature(row.id, name);
+        if (row.isEmpty) renameEmptyLayer(row.layerId, name);
+        else renameFeature(row.id, name);
       }
     },
-    [renameFeature],
+    [renameFeature, renameEmptyLayer],
   );
 
   const beginRenameRow = useCallback(
     (row: FeatureStackRowViewModel) => {
       if (row.canRename) {
-        beginFeatureRename(row.id);
+        if (row.isEmpty) beginEmptyLayerRename(row.layerId);
+        else beginFeatureRename(row.id);
       }
     },
-    [beginFeatureRename],
+    [beginFeatureRename, beginEmptyLayerRename],
   );
 
+  const drawInRow = useCallback((row: FeatureStackRowViewModel) => {
+    const state = useEditorStore.getState();
+    const layer = state.scene?.layers.find((item) => item.id === row.layerId);
+    if (!layer || !canDrawInEmptyLayer(layer)) return;
+    state.setActiveLayerId(layer.id);
+    state.setActiveMode(EditorMode.Draw);
+  }, []);
+
   return {
+    addEmptyLayer,
+    drawInRow,
     toggleRowVisibility,
     toggleRowLock,
     selectFeature,

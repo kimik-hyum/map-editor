@@ -23,6 +23,7 @@ export * from "./createOpenStreetMapLayer";
 export * from "./editorContentLayers";
 export * from "./getViewportFeatureIds";
 export * from "./centerViewOnFeature";
+export * from "./focusRegionOnMap";
 export * from "./geometryDistance";
 export * from "./invalidateFeatureStyles";
 export * from "./olGeometryToEditorGeometry";

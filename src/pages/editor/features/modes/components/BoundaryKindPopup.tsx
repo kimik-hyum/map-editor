@@ -16,6 +16,7 @@ type BoundaryKindPopupProps = {
   anchor: RefObject<HTMLButtonElement | null>;
   boundaryStatus: RegionBoundaryStatus;
   operationError: string | null;
+  onSearchOpen: () => void;
 };
 
 // 경계 종류 선택과 현재 화면의 조회·연산 상태를 사이드메뉴 한곳에서 보여줍니다.
@@ -26,6 +27,7 @@ export function BoundaryKindPopup({
   anchor,
   boundaryStatus,
   operationError,
+  onSearchOpen,
 }: BoundaryKindPopupProps) {
   const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
   const setActiveBoundaryKind = useEditorStore((state) => state.setActiveBoundaryKind);
@@ -49,12 +51,27 @@ export function BoundaryKindPopup({
       activeId={activeBoundaryKind ?? ""}
       anchor={anchor}
       onOpenChange={onOpenChange}
-      onSelect={setActiveBoundaryKind}
+      onSelect={(kind) => {
+        setActiveBoundaryKind(kind);
+        onSearchOpen();
+      }}
       open={open}
       options={options}
       title="경계 종류"
       footer={
         <div className="grid gap-2">
+          {activeBoundaryKind ? (
+            <button
+              type="button"
+              className="justify-self-start rounded-md px-2 py-1 text-[11px] font-bold text-teal-700 hover:bg-teal-50"
+              onClick={() => {
+                onSearchOpen();
+                onOpenChange(false);
+              }}
+            >
+              경계 검색 열기
+            </button>
+          ) : null}
           <div aria-live="polite" className="text-[11px] font-semibold text-slate-500">
             {activeBoundaryKind === null ? (
               <span>경계 종류를 선택하면 화면에 표시됩니다.</span>

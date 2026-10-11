@@ -8,13 +8,20 @@ import {
 import { getToolActivation } from "@/pages/editor/features/modes";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import { isTextEntryTarget } from "@/pages/editor/state/isTextEntryTarget";
-import { GeometryKind } from "@/pages/editor/types/editorTypes";
+import { canDrawInEmptyLayer, GeometryKind } from "@/pages/editor/types/editorTypes";
 import {
   confirmDialog,
   isConfirmationDialogOpen,
 } from "@/shared/ui/confirmation-dialog";
 import { resolveDrawCursor } from "../model/drawCursorModel";
 import { resolveDrawHint, resolveDrawKeyboardIntent } from "../model/drawToolModel";
+
+function canUseDrawTarget(state: ReturnType<typeof useEditorStore.getState>) {
+  if (state.renamingFeatureId !== null || state.renamingEmptyLayerId !== null)
+    return false;
+  const layer = state.scene?.layers.find((item) => item.id === state.activeLayerId);
+  return !layer || layer.features.length > 0 || canDrawInEmptyLayer(layer);
+}
 
 function isInteractiveControlTarget(target: EventTarget | null): boolean {
   return (
@@ -29,6 +36,7 @@ export function useDrawTool(map: OpenLayersMap | null) {
   const focusRestoreFrameRef = useRef<number | null>(null);
   const activeMode = useEditorStore((state) => state.activeMode);
   const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
+  const drawTargetAvailable = useEditorStore(canUseDrawTarget);
   const sceneReady = useEditorStore((state) => state.scene !== null);
   const [sketch, setSketch] = useState<DrawSketchState>(EMPTY_DRAW_SKETCH_STATE);
   const keyboardTargetingRef = useRef(false);
@@ -57,7 +65,11 @@ export function useDrawTool(map: OpenLayersMap | null) {
       shape: useEditorStore.getState().activeDrawShape,
       onCommit: (geometry) => {
         setKeyboardTargetingMode(false);
-        useEditorStore.getState().addFeatures([{ geometry }]);
+        const state = useEditorStore.getState();
+        const target = state.scene?.layers.find(
+          (layer) => layer.id === state.activeLayerId && layer.features.length === 0,
+        );
+        state.addFeatures([{ geometry }], target?.id);
       },
       onStateChange: (nextSketch) => {
         sketchRef.current = nextSketch;
@@ -67,7 +79,11 @@ export function useDrawTool(map: OpenLayersMap | null) {
     handleRef.current = handle;
 
     const state = useEditorStore.getState();
-    handle.setActive(getToolActivation(state.activeMode).draw && state.scene !== null);
+    handle.setActive(
+      getToolActivation(state.activeMode).draw &&
+        state.scene !== null &&
+        canUseDrawTarget(state),
+    );
 
     return () => {
       cancelFocusRestore();
@@ -85,12 +101,19 @@ export function useDrawTool(map: OpenLayersMap | null) {
   }, [activeDrawShape, setKeyboardTargetingMode]);
 
   useEffect(() => {
-    handleRef.current?.setActive(getToolActivation(activeMode).draw && sceneReady);
+    handleRef.current?.setActive(
+      getToolActivation(activeMode).draw && sceneReady && drawTargetAvailable,
+    );
     setKeyboardTargetingMode(false);
-  }, [activeMode, sceneReady, setKeyboardTargetingMode]);
+  }, [activeMode, sceneReady, drawTargetAvailable, setKeyboardTargetingMode]);
 
   useEffect(() => {
-    if (!map || !getToolActivation(activeMode).draw || !sceneReady) {
+    if (
+      !map ||
+      !getToolActivation(activeMode).draw ||
+      !sceneReady ||
+      !drawTargetAvailable
+    ) {
       return;
     }
 
@@ -105,7 +128,7 @@ export function useDrawTool(map: OpenLayersMap | null) {
         viewport.style.cursor = previousCursor;
       }
     };
-  }, [activeDrawShape, activeMode, map, sceneReady]);
+  }, [activeDrawShape, activeMode, map, sceneReady, drawTargetAvailable]);
 
   const confirmDiscardSketch = useCallback(async () => {
     const currentSketch = sketchRef.current;
@@ -176,6 +199,7 @@ export function useDrawTool(map: OpenLayersMap | null) {
         event.target === map.getTargetElement() &&
         getToolActivation(editorState.activeMode).draw &&
         editorState.scene !== null &&
+        canUseDrawTarget(editorState) &&
         !isConfirmationDialogOpen();
 
       // 조준점은 지도 포커스만으로 나타나지 않습니다. K로 키보드 좌표 입력 모드를
@@ -259,7 +283,9 @@ export function useDrawTool(map: OpenLayersMap | null) {
     isDrawingInProgress,
     confirmDiscardSketch,
     hint: getToolActivation(activeMode).draw
-      ? resolveDrawHint(activeDrawShape, sketch.isDrawing)
+      ? drawTargetAvailable
+        ? resolveDrawHint(activeDrawShape, sketch.isDrawing)
+        : "이름 편집을 마치고, 선택한 빈 레이어를 표시·잠금 해제하세요"
       : null,
     showPathFinish:
       getToolActivation(activeMode).draw &&

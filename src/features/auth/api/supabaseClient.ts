@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { regionEndpoint } from "./regionEndpoint";
 
 type SupabaseBrowserConfig = {
   publishableKey: string;
@@ -64,7 +65,7 @@ export async function getAuthenticatedFunctionRequest(): Promise<{
   }
 
   return {
-    url: `${url}/functions/v1/regions`,
+    url: regionEndpoint(url),
     headers: {
       apikey: publishableKey,
       Authorization: `Bearer ${data.session.access_token}`,

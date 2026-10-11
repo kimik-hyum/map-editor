@@ -1,5 +1,13 @@
 import bbox from "@turf/bbox";
 import { z } from "zod";
+import {
+  normalizeRegionSearch,
+  REGION_SEARCH_MIN_LENGTH,
+  REGION_SEARCH_MAX_LENGTH,
+  REGION_SEARCH_LIMIT,
+  regionSearchResponseSchema,
+  type RegionSearchResponse,
+} from "@/pages/editor/features/regions/model/regionSearchModel";
 import type {
   RegionFeature,
   RegionFeatureCollection,
@@ -12,6 +20,12 @@ import type {
 // 문서용 구현 예제입니다. 기본 에디터에는 자동 등록되지 않습니다.
 // 내재화한 소스에서 기존 regionsApi.ts의 조회 함수를 이 구현에 위임하세요.
 export type BoundaryDataAdapter = {
+  searchRegions(
+    kind: string,
+    query: string,
+    signal?: AbortSignal,
+    country?: string,
+  ): Promise<RegionSearchResponse>;
   fetchRegionKinds(country?: string, signal?: AbortSignal): Promise<RegionKind[]>;
   fetchRegionsByView(
     query: RegionViewQuery,
@@ -112,6 +126,57 @@ export function createJsonBoundaryAdapter(url: string): BoundaryDataAdapter {
   }
 
   return {
+    async searchRegions(kind, query, signal, country = "KR") {
+      const normalized = normalizeRegionSearch(query).toLocaleLowerCase();
+      if (
+        normalized.length < REGION_SEARCH_MIN_LENGTH ||
+        normalized.length > REGION_SEARCH_MAX_LENGTH
+      ) {
+        throw new Error("검색어는 2~100자로 입력하세요.");
+      }
+      const bundle = await read(signal);
+      const catalog = bundle.kinds.find((item) => item.kind === kind);
+      const terms = normalized.split(" ");
+      const matches =
+        country === bundle.country
+          ? bundle.features.filter(
+              ({ properties }) =>
+                properties.kind === kind &&
+                terms.every((term) =>
+                  normalizeRegionSearch(
+                    `${properties.name} ${properties.code} ${typeof properties.context === "string" ? properties.context : ""}`,
+                  )
+                    .toLocaleLowerCase()
+                    .includes(term),
+                ),
+            )
+          : [];
+      return regionSearchResponseSchema.parse({
+        country,
+        kind,
+        hasMore: matches.length > REGION_SEARCH_LIMIT,
+        items: matches.slice(0, REGION_SEARCH_LIMIT).map((feature) => {
+          const [west, south, east, north] = bbox(feature);
+          return {
+            id: feature.id,
+            kind,
+            code: feature.properties.code,
+            name: feature.properties.name || feature.properties.code || feature.id,
+            context:
+              typeof feature.properties.context === "string"
+                ? feature.properties.context
+                : "",
+            // 사각형 예제는 bbox 중심을 사용합니다. 복잡한 경계는 내부 대표점을 center로 제공하세요.
+            center: feature.properties.center ?? [
+              (west + east) / 2,
+              (south + north) / 2,
+            ],
+            bbox: [west, south, east, north],
+            minZoom: catalog?.min_zoom ?? 12,
+          };
+        }),
+      });
+    },
     async fetchRegionKinds(country = "KR", signal) {
       const bundle = await read(signal);
       return country === bundle.country

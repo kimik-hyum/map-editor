@@ -8,15 +8,27 @@
 
 1. 비로그인으로 일반 편집과 서비스 페이지 메시지 왕복을 허용합니다.
 2. 경계 선택 시 로그인 안내 → 별도 Google PKCE 팝업 → `/auth/callback` 복귀를 처리합니다.
-3. 에디터가 세션 access token으로 `POST /functions/v1/regions`를 호출합니다.
-4. 서버가 JWT·Google identity·에디터 origin·선택적 계정 허용 목록·호출량을 검사합니다.
+3. 공개 에디터가 세션 access token으로 `POST https://maps-editor.pages.dev/api/regions`를 호출합니다. 이름·코드 검색은 같은 정책의 `/api/region-search`를 사용합니다.
+4. Cloudflare가 접속 IP의 국가를 확인하고 한국 요청만 Supabase로 전달합니다. Supabase는 게이트웨이 검증 후 JWT·Google identity·에디터 origin·선택적 계정 허용 목록·호출량을 검사합니다.
 5. 서버 내부 권한으로 카탈로그·지역 RPC를 읽습니다. 브라우저의 테이블 SELECT와 RPC 직접 호출은 금지합니다.
 
 로그인 취소·실패에도 기존 편집은 유지합니다. 새 INIT이나 편집·도구 변경 중에는 이전 로그인 후 도구 전환을 취소합니다. 로그아웃 시 참고 경계만 숨기고 이미 채택한 scene 도형은 보존합니다.
 
+### 공개 서비스의 한국 접속 제한
+
+행정동·법정동·우편번호의 목록, 검색, 원본 경계와 표시용 타일은 모두 Cloudflare Pages Function을 거칩니다. Cloudflare가 확인한 `request.cf.country`가 `KR`일 때만 전달하며, 해외 IP와 국가를 확인할 수 없는 요청은 **403 `REGION_COUNTRY_BLOCKED`**로 거부합니다. 브라우저가 보낸 국가 헤더는 신뢰하지 않습니다. 일반 편집과 소개·문서 페이지에는 이 제한을 적용하지 않습니다.
+
+Cloudflare와 Supabase에 같은 서버 비밀값 `REGION_GATEWAY_SECRET`을 설정합니다. Supabase의 `regions`와 `region-search`는 이 비밀값과 국내 접속 확인이 없는 직접 요청을 **403 `REGION_GATEWAY_REQUIRED`**로 거부합니다. 유효한 Google 세션이나 개발 키만으로 Supabase 주소를 직접 호출할 수 없습니다. 테이블/RPC의 브라우저 직접 접근 금지도 유지합니다.
+
+이 설정은 **접속 IP 국가 기준**입니다. 한국 VPN·프록시를 이용하는 사람의 실제 위치를 판별하거나 이미 내려받은 데이터를 회수하지는 못합니다. 경계 데이터의 국외 반출 요건 충족 여부는 데이터 공급 조건과 별도로 확인해야 합니다.
+
+직접 운영자는 자체 경계 어댑터를 선택하거나 자신의 게이트웨이 주소·국가 정책을 구성할 수 있습니다. 공개 Supabase 프로젝트에 대한 기본 연결만 Termia의 Cloudflare 주소로 전환하며, 다른 Supabase 프로젝트 주소는 기존 연결 규칙을 유지합니다. 이 서버 구현을 복제할 경우 두 함수의 게이트웨이 검증에 맞춰 자신의 서버 비밀값도 설정해야 합니다.
+
 ## 요청 계약
 
 헤더는 `Content-Type: application/json`, `apikey: <publishable key>`, `Authorization: Bearer <사용자 access token>`입니다. 실제 값은 소스에 넣지 않습니다.
+
+공개 서비스에서는 아래 여섯 조회를 `/api/regions`, 검색을 `/api/region-search`로 전송합니다. Cloudflare가 동일한 본문을 Supabase의 `/functions/v1/regions`·`/functions/v1/region-search`에 전달합니다. 클라이언트 헤더에는 게이트웨이 비밀값을 넣지 않습니다.
 
 | operation      | 본문 필드                                           | 응답                                                            |
 | -------------- | --------------------------------------------------- | --------------------------------------------------------------- |
@@ -40,7 +52,31 @@
 }
 ```
 
-HTTP 상태: **401** 세션 누락·무효, **403** origin·계정 정책 거부, **409** 타일 버전 변경(메타데이터 재조회), **422** 불완전한 타일 응답(캐시하지 않음), **429** 호출량 초과. 오류 응답이나 데이터 없음은 공개 테이블 직접 조회로 우회하지 않습니다.
+HTTP 상태: **401** 세션 누락·무효, **403** 접속 국가·게이트웨이·origin·계정 정책 거부, **409** 타일 버전 변경(메타데이터 재조회), **422** 불완전한 타일 응답(캐시하지 않음), **429** 호출량 초과. 오류 응답이나 데이터 없음은 공개 테이블 직접 조회로 우회하지 않습니다.
+
+### 이름·코드 검색
+
+```json
+{
+  "operation": "search",
+  "country": "KR",
+  "kind": "adminDong",
+  "query": "서울 종로 청운",
+  "limit": 20
+}
+```
+
+`kind`는 `adminDong`·`legalDong`·`postalCode`입니다. 이름·코드·시도·시군구를 공백으로 나누어 함께 검색하며, 현재 지도 범위와 줌에 제한되지 않습니다. 우편번호는 이름 필드에 저장된 5자리 번호로도 검색됩니다. 검색어는 2~100자, limit은 1~20이며 잘못된 값은 400입니다. 프런트엔드는 마지막 입력값 변경 후 300ms에 검색하며 한글 조합 종료를 기다리지 않습니다. 조합을 확정하는 Enter는 중복 요청을 만들지 않습니다.
+
+우편번호에서 **숫자만 2~4자리 입력하면 앞자리 검색**, **5자리 입력하면 정확한 우편번호 검색**을 수행합니다. `030`은 `030`으로 시작하는 번호, `03064`는 해당 번호의 경계만 반환하며 앞자리 0을 유지합니다. `종로`·`서울 030` 같은 지역명/혼합 검색은 시도·시군구 범위를 먼저 좁혀 기존 포함 검색과 정렬 규칙으로 조회합니다. 6자리 이상 내부 코드와 행정동·법정동의 검색 규칙은 동일합니다.
+
+응답은 `{ country, kind, items, hasMore }`입니다. 각 항목은 `id`, `kind`, `code`, `name`, `context`(시도·시군구), `center`([경도, 위도]), `bbox`([서쪽, 남쪽, 동쪽, 북쪽]), `minZoom`을 포함합니다. 전체 geometry는 전송하지 않습니다. center는 원본 geometry의 `ST_PointOnSurface`로 계산한 내부 대표점입니다. 선택하면 이 지점으로 이동하고 경계가 표시되는 줌으로 조정합니다. 편집 scene과 저장 데이터는 변경하지 않습니다.
+
+**서버 반영:** 별도 Supabase 작업 디렉터리의 `20260913130000_add_region_search.sql` 마이그레이션 → `region-search` Edge Function → 에디터 순서입니다. 함수 진입점은 기존 `regions/handler.ts`의 인증·origin·호출량 검사를 공유하며 `regions_search` RPC는 `service_role`만 실행할 수 있습니다. 기존 `regions` 조회 endpoint와 경계 데이터는 유지합니다.
+
+우편번호 숫자 검색 최적화는 후속 `20260913143000_optimize_postal_number_search.sql`로 적용합니다. 현재 우편번호 행만 포함하는 B-tree 인덱스에서 번호순 후보를 최대 `limit + 1`개로 좁힌 후, 반환할 경계의 상위 지역명과 이동 좌표를 조회합니다. 문자열 범위를 C 정렬로 비교하므로 반복 호출의 공통 실행 계획에서도 인덱스를 사용할 수 있습니다. API 입력·응답과 인증 정책은 유지되며 Edge Function 재배포는 필요하지 않습니다.
+
+지역명/혼합 검색은 `20260914090000_optimize_postal_region_search.sql`에서 상위 지역 코드 표현식을 포함한 현재 우편번호 전용 인덱스를 추가합니다. 가벼운 인덱스 정보로 지역 범위를 구성하고, 글자 검색어가 시도·시군구 이름에 일치하는 범위의 후보를 조회한 뒤 최대 20개 경계의 좌표를 계산합니다. 숫자 이외의 이름/코드가 있는 범위는 사전 필터를 생략하여 기존 검색 결과를 유지합니다. 두 글자 포함 검색, 공백으로 나눈 조건의 AND 검색, 결과 정렬과 `hasMore`도 유지합니다. 별도 테이블·컬럼·검색 결과 캐시는 추가하지 않으며, 지역 이름과 현재 경계의 변경은 다음 DB 조회에서 반영됩니다. 기존 시도 명칭 목록과 코드 앞 5자리를 이용한 시군구 연결 규칙은 유지하므로, 이 규칙 자체가 바뀌는 지역 개편에는 별도 대응이 필요합니다.
 
 호출·응답 검증의 기준: [regionsApi.ts](../src/pages/editor/features/regions/api/regionsApi.ts). 세션 헤더 생성: [supabaseClient.ts](../src/features/auth/api/supabaseClient.ts).
 
@@ -70,22 +106,25 @@ HTTP 상태: **401** 세션 누락·무효, **403** origin·계정 정책 거부
 
 ## 배포 설정
 
-| 위치          | 설정                                                               | 목적                              |
-| ------------- | ------------------------------------------------------------------ | --------------------------------- |
-| 에디터 빌드   | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`               | 접속할 프로젝트와 공개 키         |
-| 에디터 빌드   | `VITE_EDITOR_PARENT_ORIGINS`                                       | INIT을 보낼 서비스 origin 목록    |
-| Google OAuth  | `https://<project-ref>.supabase.co/auth/v1/callback`               | Google → Supabase 복귀            |
-| Supabase Auth | `https://<editor-domain>/auth/callback`                            | Supabase → 에디터 인증 팝업 복귀  |
-| regions 함수  | 정확한 에디터 origin 목록                                          | 함수 호출자 origin 검사           |
-| regions 함수  | `MAPS_EDITOR_ALLOWED_EMAILS` / `MAPS_EDITOR_ALLOWED_EMAIL_DOMAINS` | 필요할 때 Google 사용자 범위 제한 |
+| 위치                           | 설정                                                               | 목적                                                    |
+| ------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------- |
+| 에디터 빌드                    | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`               | 접속할 프로젝트와 공개 키                               |
+| 에디터 빌드                    | `VITE_EDITOR_PARENT_ORIGINS`                                       | INIT을 보낼 서비스 origin 목록                          |
+| Google OAuth                   | `https://<project-ref>.supabase.co/auth/v1/callback`               | Google → Supabase 복귀                                  |
+| Supabase Auth                  | `https://<editor-domain>/auth/callback`                            | Supabase → 에디터 인증 팝업 복귀                        |
+| regions 함수                   | 정확한 에디터 origin 목록                                          | 함수 호출자 origin 검사                                 |
+| regions 함수                   | `MAPS_EDITOR_ALLOWED_EMAILS` / `MAPS_EDITOR_ALLOWED_EMAIL_DOMAINS` | 필요할 때 Google 사용자 범위 제한                       |
+| Cloudflare Pages·Supabase 함수 | `REGION_GATEWAY_SECRET`                                            | 국가 검사 경유를 검증하는 동일한 서버 비밀값(32자 이상) |
 
 환경 변수는 빌드 시 적용됩니다. 로컬 `localhost:4174`와 `127.0.0.1:4174`는 다른 origin이므로 사용하는 주소를 각각 등록합니다. 프리뷰 도메인도 별도 설정 대상입니다.
 
-**서버 비밀값을 프런트엔드에 넣지 않습니다.** Google Client Secret은 Supabase Provider 설정, 서버용 key는 함수 안에서만 사용합니다.
+**서버 비밀값을 프런트엔드에 넣지 않습니다.** Google Client Secret은 Supabase Provider 설정, 서버용 key와 `REGION_GATEWAY_SECRET`은 서버 함수 안에서만 사용합니다. `VITE_` 변수나 정적 배포 파일에 넣으면 안 됩니다.
+
+국가 제한의 최초 배포 순서는 양쪽 서버 비밀값 설정 → Cloudflare 게이트웨이와 에디터 배포 → 한국 요청 확인 → Supabase 두 함수의 직접 호출 차단 → 정상 경유/직접 호출 검증입니다. Pages의 `public/_routes.json`은 `/api/*`에만 함수를 실행합니다. 게이트웨이는 Supabase 함수를 서울 리전으로 요청하고, 응답은 `private, no-store`로 반환합니다. 국가별 검사 이전에 공개 CDN 캐시를 두지 않습니다. 기존 탭이 이전 Supabase 주소를 사용하는 경우 새로고침해야 합니다.
 
 허용 목록을 설정하지 않으면 HTTPS 사이트는 도메인 등록 없이 연동할 수 있습니다. HTTP 사이트는 에디터와 프로토콜·호스트·포트가 같을 때 기본 허용됩니다. 다른 HTTP 주소도 허용하거나 특정 사이트로 제한하려면 정확한 origin 목록을 설정합니다. 이 목록은 함수 origin 검사나 계정 제한을 대신하지 않습니다.
 
-Origin/CORS는 curl 위조를 막는 자격 증명이 아닙니다. 유효한 Google 사용자는 자기 토큰으로 직접 호출할 수 있습니다. 계정 허용 목록이 없으면 모든 유효한 Google 사용자를 허용합니다.
+Origin/CORS는 curl 위조를 막는 자격 증명이 아닙니다. 공개 서비스에서는 한국 IP와 유효한 인증으로 Cloudflare API를 호출할 수 있으며, Supabase 직접 호출에는 별도 서버 검증이 필요합니다. 계정 허용 목록이 없으면 국가 검사를 통과한 모든 유효한 Google 사용자를 허용합니다.
 
 ## 데이터 버전과 운영 점검
 
@@ -95,7 +134,8 @@ DB는 `base_date`, `is_current`, `created_at`으로 버전을 구분합니다. �
 
 배포 또는 버전 갱신 시 확인할 항목:
 
-- 비로그인 경계 요청이 401로 거부되는지
+- 한국에서 게이트웨이를 통한 비로그인 경계 요청이 401로 거부되는지
+- 해외·국가 미확인 요청과 Supabase 직접 요청이 403으로 거부되는지
 - 실제 Google 팝업 로그인 후 경계가 표시되는지
 - 로그인 전 편집과 서비스 페이지 반환 연결이 유지되는지
 - 로그아웃 후 경계는 해제되고 채택한 도형은 유지되는지
