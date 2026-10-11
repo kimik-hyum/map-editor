@@ -20,7 +20,7 @@ export function LayerVisibilityIcon({
   disabled = false,
 }: LayerVisibilityIconProps) {
   const statusLabel = disabled
-    ? "레이어가 숨김 상태"
+    ? "현재 상태에서는 표시를 변경할 수 없습니다"
     : isVisible
       ? isDimmed
         ? "흐리게 표시"

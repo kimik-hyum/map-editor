@@ -10,7 +10,12 @@ import { LayerPanel } from "./features/layers";
 import { useOpenLayersEditorMap } from "./features/map";
 import { EditorModePanel, getToolActivation } from "./features/modes";
 import { useRadiusTool } from "./features/radius";
-import { useRegionBoundaries, useRegionBoundaryOps } from "./features/regions";
+import {
+  useRegionBoundaries,
+  useRegionBoundaryOps,
+  useBoundarySearchPanel,
+  RegionSearchPanel,
+} from "./features/regions";
 import { EditorSessionActions } from "./features/session";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
@@ -29,10 +34,13 @@ export function EditorPage() {
   const drawTool = useDrawTool(map);
   const radiusTool = useRadiusTool(map);
   const isSceneReady = useEditorStore((state) => state.scene !== null);
+  const sessionId = useEditorStore((state) => state.sessionId);
   const activeMode = useEditorStore((state) => state.activeMode);
   const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
   const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
-  const renameInProgress = useEditorStore((state) => state.renamingFeatureId !== null);
+  const renameInProgress = useEditorStore(
+    (state) => state.renamingFeatureId !== null || state.renamingEmptyLayerId !== null,
+  );
   const confirmationOpen = useConfirmationDialogOpen();
   const activation = getToolActivation(activeMode);
   const { allowed: boundaryAllowed } = useBoundaryAccess();
@@ -47,6 +55,10 @@ export function EditorPage() {
   const { layer: regionLayer, status: regionStatus } = useRegionBoundaries(
     map,
     boundaryKind,
+  );
+  const boundarySearch = useBoundarySearchPanel(
+    map,
+    isSceneReady ? boundaryKind : null,
   );
   // 현재 화면의 경계에 이름·추가/합치기·빼기 카드를 상시 표시합니다.
   const regionOps = useRegionBoundaryOps({
@@ -92,9 +104,19 @@ export function EditorPage() {
           boundaryStatus={regionStatus}
           confirmDiscardDraw={drawTool.confirmDiscardSketch}
           radiusTool={radiusTool}
+          onBoundarySearchOpen={boundarySearch.show}
         />
       </aside>
       <main className="relative min-h-0 min-w-0">
+        {boundarySearch.open && boundaryKind ? (
+          <RegionSearchPanel
+            key={`${sessionId ?? ""}:${boundaryKind}`}
+            kind={boundaryKind}
+            label={boundarySearch.label}
+            search={boundarySearch.search}
+            onClose={boundarySearch.close}
+          />
+        ) : null}
         <section
           ref={mapElementRef}
           className="peer h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
@@ -160,7 +182,18 @@ export function EditorPage() {
           onSubtract={regionOps.onSubtract}
         />
         {isSceneReady ? (
-          <LayerPanel holeFillTool={holeFillTool} />
+          <LayerPanel
+            holeFillTool={holeFillTool}
+            blockedReason={
+              drawTool.isDrawing
+                ? "그리기를 먼저 완료하거나 취소하세요"
+                : holeFillTool.isOpen || regionOps.busy
+                  ? "진행 중인 도구를 먼저 완료하거나 취소하세요"
+                  : confirmationOpen
+                    ? "확인 창을 먼저 닫으세요"
+                    : null
+            }
+          />
         ) : (
           <div
             className="pointer-events-none absolute inset-0 flex items-center justify-center"

@@ -149,7 +149,7 @@ flowchart TB
 - Zustand store에 OpenLayers 객체, DOM node, React ref를 넣지 않는다.
 - `features/*/model`에서 React, Zustand, OpenLayers를 import하지 않는다.
 - `adapters/openlayers`에서 React hook을 import하지 않는다.
-- store의 `scene`은 `EditorScene -> EditorLayer[] -> EditorFeature[]` 구조를 유지한다. 운용은 "1레이어 = 1도형" 평탄 스택이며(입력 = 도형 목록, 정규화가 1:1로 펼침), 패널·순서·잠금 기능은 이 평탄 모델을 전제로 설계한다.
+- store의 `scene`은 `EditorScene -> EditorLayer[] -> EditorFeature[]` 구조를 유지한다. 운용은 "1레이어 = 1도형" 평탄 스택이며(입력 = 도형 목록, 정규화가 1:1로 펼침), 패널·순서·잠금 기능은 이 평탄 모델을 전제로 설계한다. 사용자가 추가한 빈 레이어는 그리기 전 대기 슬롯으로 허용한다. 선택한 빈 레이어에서 처음 그린 도형은 그 레이어의 이름·순서·표시 설정을 유지하며 채워지고, 이후 도형은 새 레이어가 된다. 빈 레이어 생성·이름 변경·삭제도 history에 쌓으며, 공개 v2 출력에는 완성된 도형만 포함한다.
 - 부모에게 반환되는 도메인 데이터 변경(geometry·이름·도형 추가/삭제·불리언 연산)은 history에 쌓는다. 선택, 호버, 패널 표시, 레이어 visibility 같은 view/UI 변경은 별도 정책이 없는 한 silent로 둔다.
 - scene 스냅샷은 읽기 전용 소비를 기본으로 보고, mutation은 store action 내부 경계에서만 수행한다.
 - 다른 상태에서 파생되는 값(예: 모드별 interaction 활성 플래그)은 store에 저장하지 않고 순수 함수로 계산한다(파생 상태 중복 금지).

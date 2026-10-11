@@ -85,6 +85,14 @@ export function DocsBoundaryAdapterPage() {
           headers={["기존 함수", "입력", "출력·책임"]}
           rows={[
             {
+              key: "search",
+              cells: [
+                "searchRegions",
+                "kind, query, signal, country",
+                "country·kind·items·hasMore. 항목은 id·kind·code·name·context·center·bbox·minZoom",
+              ],
+            },
+            {
               key: "kinds",
               cells: [
                 "fetchRegionKinds",
@@ -135,6 +143,14 @@ export function DocsBoundaryAdapterPage() {
           ]}
         />
         <DocsList className="mt-4">
+          <DocsListItem>
+            검색은 현재 지도 범위와 관계없이 2~100자 이름·코드를 받아 최대 20개를
+            반환합니다. center는 이동할 [경도, 위도], bbox는 [서쪽, 남쪽, 동쪽, 북쪽],
+            minZoom은 해당 경계를 표시할 최소 줌입니다. 목록 선택은 지도만 이동합니다.
+            JSON 예제는 bbox 중심을 사용하므로, 복잡한 경계에는 properties.center로 내부
+            대표점을 제공하세요. properties.context에는 동명 지역을 구분할 상위 지역명을
+            넣을 수 있습니다.
+          </DocsListItem>
           <DocsListItem>
             도형은 GeoJSON Polygon 또는 MultiPolygon이며 좌표는{" "}
             <DocsCode>[경도, 위도]</DocsCode>입니다. 링을 닫고, 서로 다른 정점 3개
@@ -199,7 +215,7 @@ export function DocsBoundaryAdapterPage() {
             로 복사합니다. 예제의 타입은 현재 API 인터페이스와 맞춰 검사됩니다.
           </DocsListItem>
           <DocsListItem>
-            <DocsCode>regionsApi.ts</DocsCode>의 기존 여섯 조회 함수 구현을 아래
+            <DocsCode>regionsApi.ts</DocsCode>의 검색 포함 일곱 조회 함수 구현을 아래
             위임으로 교체합니다. 같은 이름의 함수를 중복 선언하지 말고, 기존 타입과{" "}
             <DocsCode>RegionApiError</DocsCode> export는 유지합니다.
           </DocsListItem>

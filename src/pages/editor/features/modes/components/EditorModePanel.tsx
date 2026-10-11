@@ -34,6 +34,7 @@ type EditorModePanelProps = {
   boundaryOperationError: string | null;
   confirmDiscardDraw: () => Promise<boolean>;
   radiusTool: RadiusToolController;
+  onBoundarySearchOpen: () => void;
 };
 
 export function EditorModePanel({
@@ -41,6 +42,7 @@ export function EditorModePanel({
   boundaryOperationError,
   confirmDiscardDraw,
   radiusTool,
+  onBoundarySearchOpen,
 }: EditorModePanelProps) {
   const activeMode = useEditorStore((state) => state.activeMode);
   const setActiveMode = useEditorStore((state) => state.setActiveMode);
@@ -134,6 +136,7 @@ export function EditorModePanel({
                 }
 
                 setActiveMode(next);
+                if (next === EditorMode.Boundary) onBoundarySearchOpen();
                 setBoundaryPopupOpen(next === EditorMode.Boundary);
                 setDrawPopupOpen(next === EditorMode.Draw);
               })();
@@ -142,6 +145,7 @@ export function EditorModePanel({
 
             // 이미 활성화된 도구를 다시 누르면 value가 비워집니다. 옵션이 있는 도구면 팝업을 다시 엽니다.
             if (activeMode === EditorMode.Boundary) {
+              onBoundarySearchOpen();
               setBoundaryPopupOpen(true);
             } else if (activeMode === EditorMode.Draw) {
               setDrawPopupOpen(true);
@@ -226,6 +230,7 @@ export function EditorModePanel({
         onOpenChange={setBoundaryPopupOpen}
         operationError={boundaryOperationError}
         open={boundaryPopupOpen && activeMode === EditorMode.Boundary}
+        onSearchOpen={onBoundarySearchOpen}
       />
       <DrawShapePopup
         anchor={drawAnchorRef}

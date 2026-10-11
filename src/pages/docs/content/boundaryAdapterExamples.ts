@@ -9,6 +9,7 @@ export const adapterWiringExample = `// 직접 운영하는 편집기의 regions
 import { createJsonBoundaryAdapter } from "./jsonBoundaryAdapter";
 
 const adapter = createJsonBoundaryAdapter("/boundaries/regions.json");
+export const searchRegions = adapter.searchRegions;
 export const fetchRegionKinds = adapter.fetchRegionKinds;
 export const fetchRegionsByView = adapter.fetchRegionsByView;
 export const fetchRegionById = adapter.fetchRegionById;

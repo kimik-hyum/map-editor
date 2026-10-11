@@ -24,6 +24,7 @@ function isCurrentSession(session: HoleFillSession, state: EditorSnapshot) {
     session.snapshot.sessionId === state.sessionId &&
     session.snapshot.activeMode === state.activeMode &&
     state.renamingFeatureId === null &&
+    state.renamingEmptyLayerId === null &&
     state.selectedFeatureIds.length === 1 &&
     state.selectedFeatureIds[0] === session.featureId
   );
