@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { X } from "lucide-react";
 import { Rnd, type Props as RndProps } from "react-rnd";
 import { cn } from "@/shared/utils/cn";
 import { PanelShell } from "./PanelShell";
@@ -21,6 +22,7 @@ type FloatingPanelProps = {
   defaultSize?: FloatingPanelSize;
   minHeight?: number;
   minWidth?: number;
+  onClose?: () => void;
 };
 
 const panelDragHandleClassName = "floating-panel-drag-handle";
@@ -33,6 +35,7 @@ export function FloatingPanel({
   defaultSize = { width: 320, height: 420 },
   minHeight = 220,
   minWidth = 260,
+  onClose,
 }: FloatingPanelProps) {
   const defaultValue: RndProps["default"] = {
     ...defaultPosition,
@@ -45,6 +48,7 @@ export function FloatingPanel({
       className={cn("z-[5]", className)}
       default={defaultValue}
       dragHandleClassName={panelDragHandleClassName}
+      cancel="button, input, select, textarea"
       minHeight={minHeight}
       minWidth={minWidth}
     >
@@ -57,7 +61,21 @@ export function FloatingPanel({
         )}
         bodyClassName="p-3"
         header={
-          <h2 className="m-0 text-sm font-black leading-[1.2] text-ink">{title}</h2>
+          <>
+            <h2 className="m-0 flex-1 text-sm font-black leading-[1.2] text-ink">
+              {title}
+            </h2>
+            {onClose ? (
+              <button
+                aria-label={`${title} 닫기`}
+                className="ml-2 flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                onClick={onClose}
+                type="button"
+              >
+                <X aria-hidden className="h-4 w-4" />
+              </button>
+            ) : null}
+          </>
         }
       >
         {children}

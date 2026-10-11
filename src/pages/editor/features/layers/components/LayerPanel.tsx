@@ -13,6 +13,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { Plus } from "lucide-react";
 import { FloatingPanel } from "@/pages/editor/components/FloatingPanel";
 import type { HoleFillTool } from "@/pages/editor/features/hole-fill";
 import { useLayerPanelActions } from "../hooks/useLayerPanelActions";
@@ -21,9 +22,16 @@ import { FeatureStackRow } from "./FeatureStackRow";
 
 // 1레이어 = 1도형 평탄 스택을 위(맨 앞)부터 나열합니다.
 // 행 클릭 = 선택, 눈/자물쇠 = 토글, 순서 이동 = 끌기 핸들(⠿) 드래그(키보드는 핸들 포커스 후 스페이스+방향키).
-export function LayerPanel({ holeFillTool }: { holeFillTool: HoleFillTool }) {
+type LayerPanelProps = {
+  holeFillTool: HoleFillTool;
+  blockedReason: string | null;
+};
+
+export function LayerPanel({ holeFillTool, blockedReason }: LayerPanelProps) {
   const viewModel = useLayerPanelViewModel();
   const {
+    addEmptyLayer,
+    drawInRow,
     toggleRowVisibility,
     toggleRowLock,
     selectFeature,
@@ -45,8 +53,8 @@ export function LayerPanel({ holeFillTool }: { holeFillTool: HoleFillTool }) {
     if (!over || active.id === over.id) {
       return;
     }
-    const activeRow = viewModel.rows.find((row) => row.id === active.id);
-    const overRow = viewModel.rows.find((row) => row.id === over.id);
+    const activeRow = viewModel.rows.find((row) => row.layerId === active.id);
+    const overRow = viewModel.rows.find((row) => row.layerId === over.id);
     if (activeRow && overRow) {
       reorderRow(activeRow.layerId, overRow.layerId);
     }
@@ -60,23 +68,37 @@ export function LayerPanel({ holeFillTool }: { holeFillTool: HoleFillTool }) {
       minHeight={320}
       minWidth={320}
     >
-      {!viewModel.isReady ? (
-        <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm font-bold text-slate-500">
-          도형을 불러오는 중
+      <div className="flex h-full min-h-0 flex-col gap-2">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 pb-2">
+          <span className="text-[11px] font-black text-slate-500">
+            {viewModel.featureCount}개 도형
+            {viewModel.emptyLayerCount > 0
+              ? ` · 빈 레이어 ${viewModel.emptyLayerCount}개`
+              : ""}
+          </span>
+          <button
+            aria-label="레이어 추가"
+            className="flex shrink-0 items-center gap-1 rounded-md bg-teal-700 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={
+              !viewModel.isReady ||
+              blockedReason !== null ||
+              viewModel.renamingFeatureId !== null ||
+              viewModel.renamingEmptyLayerId !== null
+            }
+            onClick={addEmptyLayer}
+            title={blockedReason ?? "새 빈 레이어 만들기"}
+            type="button"
+          >
+            <Plus aria-hidden className="h-3.5 w-3.5" />새 레이어
+          </button>
         </div>
-      ) : viewModel.isEmpty ? (
-        <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm font-bold text-slate-500">
-          표시할 도형 없음
-        </div>
-      ) : (
-        <div className="flex h-full min-h-0 flex-col gap-2">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-            <p className="m-0 text-xs font-black uppercase text-teal-700">Stack</p>
-            <span className="text-[11px] font-black text-slate-500">
-              {viewModel.featureCount}개 도형
-            </span>
+        {!viewModel.isReady || viewModel.isEmpty ? (
+          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-center text-sm font-bold text-slate-500">
+            {viewModel.isReady
+              ? "새 레이어를 추가해 도형을 그려보세요"
+              : "도형을 불러오는 중"}
           </div>
-          {/* 세로축 고정 + 목록(부모) 경계 클램프: 아래·위로 무한히 끌려 스크롤 영역이 늘어나는 것을 막는다. */}
+        ) : (
           <DndContext
             collisionDetection={closestCenter}
             modifiers={[restrictToVerticalAxis, restrictToParentElement]}
@@ -84,19 +106,25 @@ export function LayerPanel({ holeFillTool }: { holeFillTool: HoleFillTool }) {
             sensors={sensors}
           >
             <SortableContext
-              items={viewModel.rows.map((row) => row.id)}
+              items={viewModel.rows.map((row) => row.layerId)}
               strategy={verticalListSortingStrategy}
             >
               <ol className="m-0 grid min-h-0 list-none gap-1.5 overflow-auto p-0">
                 {viewModel.rows.map((row) => (
                   <FeatureStackRow
-                    key={row.id}
+                    key={row.layerId}
                     holeFillTool={holeFillTool}
-                    isRenaming={viewModel.renamingFeatureId === row.id}
-                    renameBlocked={
-                      viewModel.renamingFeatureId !== null &&
-                      viewModel.renamingFeatureId !== row.id
+                    blockedReason={blockedReason}
+                    isRenaming={
+                      row.isEmpty
+                        ? viewModel.renamingEmptyLayerId === row.layerId
+                        : viewModel.renamingFeatureId === row.id
                     }
+                    renameBlocked={
+                      viewModel.renamingFeatureId !== null ||
+                      viewModel.renamingEmptyLayerId !== null
+                    }
+                    onDraw={drawInRow}
                     onDelete={deleteRow}
                     onCancelRename={endRenameRow}
                     onRename={renameRow}
@@ -110,8 +138,19 @@ export function LayerPanel({ holeFillTool }: { holeFillTool: HoleFillTool }) {
               </ol>
             </SortableContext>
           </DndContext>
-        </div>
-      )}
+        )}
+        {viewModel.emptyLayerCount > 0 ? (
+          <p className="m-0 shrink-0 text-[11px] leading-relaxed text-slate-500">
+            빈 레이어를 선택한 뒤 그리기 도구를 사용하세요. 레이어마다 도형 하나를
+            담으며, 빈 레이어는 완료 결과에 포함되지 않습니다.
+          </p>
+        ) : null}
+        {blockedReason ? (
+          <p role="status" className="m-0 text-[11px] text-slate-500">
+            {blockedReason}
+          </p>
+        ) : null}
+      </div>
     </FloatingPanel>
   );
 }

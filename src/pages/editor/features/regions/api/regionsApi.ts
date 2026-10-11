@@ -1,5 +1,13 @@
 import { z } from "zod";
 import { getAuthenticatedFunctionRequest } from "@/features/auth/api/supabaseClient";
+import {
+  normalizeRegionSearch,
+  REGION_SEARCH_MIN_LENGTH,
+  REGION_SEARCH_MAX_LENGTH,
+  REGION_SEARCH_LIMIT,
+  regionSearchResponseSchema,
+  type RegionSearchResponse,
+} from "../model/regionSearchModel";
 
 const coordinateSchema = z.tuple([z.number(), z.number()]);
 const polygonalGeometrySchema = z.discriminatedUnion("type", [
@@ -69,8 +77,15 @@ export class RegionApiError extends Error {
   constructor(
     label: string,
     public readonly status: number,
+    public readonly code?: string,
   ) {
-    super(`${label} 호출 실패: ${status}`);
+    super(
+      code === "REGION_COUNTRY_BLOCKED"
+        ? "경계 데이터는 한국에서만 이용할 수 있습니다."
+        : code === "REGION_GATEWAY_REQUIRED"
+          ? "한국 접속 확인을 위해 에디터를 새로고침해주세요."
+          : `${label} 호출 실패: ${status}`,
+    );
     this.name = "RegionApiError";
   }
 }
@@ -96,16 +111,55 @@ async function callRegionFunction<T>(
   signal?: AbortSignal,
 ): Promise<T> {
   const { headers, url } = await getAuthenticatedFunctionRequest();
-  const response = await fetch(url, {
+  const endpoint =
+    operation === "search" ? url.replace(/\/regions$/, "/region-search") : url;
+  const response = await fetch(endpoint, {
     method: "POST",
     headers,
     signal,
     body: JSON.stringify({ operation, ...payload }),
   });
   if (!response.ok) {
-    throw new RegionApiError(label, response.status);
+    const error: unknown = await response.json().catch(() => null);
+    const code =
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      typeof error.code === "string"
+        ? error.code
+        : undefined;
+    throw new RegionApiError(label, response.status, code);
   }
   return parseResponse(response, schema, label);
+}
+
+// 검색은 전체 geometry 대신 목록과 지도 이동에 필요한 메타데이터만 받습니다.
+export async function searchRegions(
+  kind: string,
+  query: string,
+  signal?: AbortSignal,
+  country = "KR",
+): Promise<RegionSearchResponse> {
+  const normalized = normalizeRegionSearch(query);
+  if (
+    normalized.length < REGION_SEARCH_MIN_LENGTH ||
+    normalized.length > REGION_SEARCH_MAX_LENGTH
+  )
+    throw new Error("검색어를 2–100자로 입력해주세요.");
+  const result = await callRegionFunction(
+    "search",
+    { country, kind, query: normalized, limit: REGION_SEARCH_LIMIT },
+    regionSearchResponseSchema,
+    "regions_search",
+    signal,
+  );
+  if (
+    result.kind !== kind ||
+    result.country !== country ||
+    result.items.some((item) => item.kind !== kind)
+  )
+    throw new Error("검색 결과의 경계 종류가 일치하지 않습니다.");
+  return result;
 }
 
 // region_kind 카탈로그의 한 행(메뉴 종류와 줌 전용 상위 종류를 모두 포함).

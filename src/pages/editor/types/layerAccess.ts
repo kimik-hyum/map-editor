@@ -71,3 +71,16 @@ export function canDeleteCreatedFeature(
     layer.behavior.lock === LockState.Unlocked
   );
 }
+
+// 빈 레이어는 에디터 안에서만 만드는 그리기 대기 슬롯입니다.
+export function canEditEmptyLayer(layer: DeepReadonly<EditorLayer>): boolean {
+  return (
+    layer.features.length === 0 &&
+    layer.behavior.editability === EditabilityState.Editable &&
+    layer.behavior.lock === LockState.Unlocked
+  );
+}
+
+export function canDrawInEmptyLayer(layer: DeepReadonly<EditorLayer>): boolean {
+  return canEditEmptyLayer(layer) && layer.view.visibility !== VisibilityState.Hidden;
+}

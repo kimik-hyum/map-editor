@@ -15,6 +15,7 @@
 
 | 함수                      | 입력                                     | 반환·역할                                                            |
 | ------------------------- | ---------------------------------------- | -------------------------------------------------------------------- |
+| `searchRegions`           | kind, query, AbortSignal?, country?      | country·kind·items·hasMore. 지도 이동용 최대 20개 검색 결과          |
 | `fetchRegionKinds`        | country, AbortSignal?                    | `RegionKind[]`: kind, label, level, min_zoom, sort_order, selectable |
 | `fetchRegionsByView`      | bbox·zoom·kind·country?, AbortSignal?    | 화면 표시용 `RegionFeatureCollection`                                |
 | `fetchRegionById`         | boundaryId, AbortSignal?                 | 같은 ID의 원본 Polygon/MultiPolygon Feature 또는 null                |
@@ -24,6 +25,8 @@
 
 타입의 현재 기준은 [regionsApi.ts](../src/pages/editor/features/regions/api/regionsApi.ts)입니다. 카탈로그는 선택 가능한 종류만 메뉴에 보여주고 `sort_order`로 정렬합니다. 카탈로그를 못 읽었을 때의 기본 종류는 `features/regions/model/regionKindModel.ts`에서 바꿉니다.
 
+`searchRegions`는 현재 지도 범위와 관계없이 이름·코드를 검색합니다. 검색어는 2~100자이며 최대 20개와 추가 결과 여부 `hasMore`를 반환합니다. 항목은 `id`, `kind`, `code`, `name`, `context`(상위 지역명), `center`([경도, 위도]), `bbox`([서쪽, 남쪽, 동쪽, 북쪽]), `minZoom`(경계 표시 최소 줌)입니다. [검색 응답 스키마](../src/pages/editor/features/regions/model/regionSearchModel.ts)를 유지하면 검색 UI와 지도 이동 코드를 바꿀 필요가 없습니다. 목록 선택은 지도만 이동하며 도형 추가는 기존 경계 작업 버튼으로 수행합니다.
+
 `RegionFeatureCollection`에는 GeoJSON의 type·features 외에 `country`, `kind`, `level`, `truncated`가 필요합니다. 여러 bbox 응답을 합칠 수 있도록 메타데이터를 일관되게 반환하세요. `properties.name`은 지도 라벨입니다. 좌표는 WGS84 `[경도, 위도]`이며 geometry는 유효한 Polygon 또는 MultiPolygon입니다.
 
 표시용 geometry를 단순화하더라도 ID 조회는 원본 전체를 반환해야 합니다. 같은 ID를 다른 버전의 도형에 재사용하지 마세요. 버전이 바뀌면 ID·캐시 범위도 구분하고, 없어진 원본은 다른 도형으로 대체하지 말고 null을 반환합니다. 화면 bbox에 맞춰 잘라진 도형을 원본으로 채택하면 권역 일부가 사라질 수 있습니다.
@@ -32,12 +35,13 @@
 
 [예제 JSON](../src/pages/docs/content/examples/boundaries.example.json)은 실제 행정경계가 아닌 사각형입니다. 자신의 데이터로 바꾸고 `public/boundaries/regions.json`에 저장하면 `/boundaries/regions.json`으로 제공합니다. `kinds`는 메뉴·줌 정책이고 `features`의 `properties.kind`는 그 종류를 가리킵니다. 법정동·자체 권역을 추가할 때는 두 곳을 함께 채우세요.
 
-[JSON 어댑터 전체 코드](../src/pages/docs/content/examples/json-boundary-adapter.example.ts)를 `src/pages/editor/features/regions/api/jsonBoundaryAdapter.ts`로 복사합니다. 필요한 Turf bbox와 Zod는 이미 설치되어 있습니다. 기존 `regionsApi.ts`의 같은 이름 조회 함수 여섯 개를 아래 구현으로 **교체**합니다. 기존 타입·스키마와 `RegionApiError` export는 유지하고 사용하지 않게 된 Supabase 요청 helper·import는 제거합니다.
+[JSON 어댑터 전체 코드](../src/pages/docs/content/examples/json-boundary-adapter.example.ts)를 `src/pages/editor/features/regions/api/jsonBoundaryAdapter.ts`로 복사합니다. 필요한 Turf bbox와 Zod는 이미 설치되어 있습니다. 기존 `regionsApi.ts`의 같은 이름 조회 함수 일곱 개를 아래 구현으로 **교체**합니다. 기존 타입·스키마와 `RegionApiError` export는 유지하고 사용하지 않게 된 Supabase 요청 helper·import는 제거합니다.
 
 ```ts
 import { createJsonBoundaryAdapter } from "./jsonBoundaryAdapter";
 
 const adapter = createJsonBoundaryAdapter("/boundaries/regions.json");
+export const searchRegions = adapter.searchRegions;
 export const fetchRegionKinds = adapter.fetchRegionKinds;
 export const fetchRegionsByView = adapter.fetchRegionsByView;
 export const fetchRegionById = adapter.fetchRegionById;
@@ -47,6 +51,8 @@ export const fetchRegionsByTile = adapter.fetchRegionsByTile;
 ```
 
 이 예제는 전체 파일을 읽는 작은 공개 데이터셋용입니다. 국가·종류·최소 줌·bbox로 도형을 고르고, 표시와 ID 조회에 같은 전체 좌표를 사용합니다. 신호를 fetch로 전달하고 JSON 구조·좌표 범위·닫힌 링·ID 중복을 검사합니다. 교차 링 등 도메인에 필요한 추가 geometry 검사는 데이터 적재 단계에서 수행하세요.
+
+검색은 이름·코드와 선택적 `properties.context`를 사용합니다. 사각형 예제의 이동 위치는 bbox 중심이며, 오목한 경계나 다중 폴리곤에는 내부 대표점 `properties.center: [경도, 위도]`를 넣으세요. 자체 서버도 검색 결과에는 전체 geometry 대신 이 이동 정보만 반환하면 됩니다.
 
 타일 manifest는 null입니다. 기존 hook은 낮은 줌에서도 byView를 사용하며, 예제 데이터는 줌 12 이상에서 보입니다. 자체 타일 공급자를 구현하려면 현재 `RegionTileManifest`가 한국 시군구 정책에 특화되어 있다는 점을 확인하고 관련 타입과 query 모델을 함께 확장해야 합니다.
 

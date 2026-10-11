@@ -74,6 +74,33 @@ function createScene(layers: EditorLayer[]): EditorScene {
 }
 
 describe("createLayerPanelViewModel", () => {
+  it("빈 레이어도 표시하고 도형 개수와 별도로 센다", () => {
+    const empty = createFeatureLayer({ id: "empty", name: "새 레이어", features: [] });
+    const scene = createScene([empty, createFeatureLayer()]);
+    const viewModel = createLayerPanelViewModel(scene, [], "empty");
+    expect(viewModel).toMatchObject({
+      isEmpty: false,
+      featureCount: 1,
+      emptyLayerCount: 1,
+    });
+    expect(viewModel.rows[0]).toMatchObject({
+      isEmpty: true,
+      isSelected: true,
+      canDraw: true,
+      canRename: true,
+      canDelete: true,
+    });
+    expect(
+      createLayerPanelViewModel(scene, ["feature"], "empty").rows[0].isSelected,
+    ).toBe(false);
+    empty.behavior.lock = LockState.Locked;
+    expect(createLayerPanelViewModel(scene).rows[0]).toMatchObject({
+      canDraw: false,
+      canRename: false,
+      canDelete: false,
+    });
+  });
+
   it("쌓임 값 높은 순(위→아래)으로 행을 나열한다", () => {
     const scene = createScene([
       createFeatureLayer(

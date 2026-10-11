@@ -37,10 +37,39 @@ afterEach(() => {
 });
 
 describe("문서의 공개 JSON 경계 어댑터", () => {
-  it("기존 여섯 조회 함수의 입력·출력 계약과 호환된다", () => {
+  it("검색을 포함한 일곱 조회 함수의 입력·출력 계약과 호환된다", () => {
     expectTypeOf<BoundaryDataAdapter>().toEqualTypeOf<
       Pick<typeof RegionApi, keyof BoundaryDataAdapter>
     >();
+  });
+
+  it("자체 JSON의 이름·코드를 검색하고 지도 이동 정보만 반환한다", async () => {
+    const result = await adapter.searchRegions("adminDong", "  예시   DEMO-001 ");
+    expect(result).toMatchObject({ country: "KR", kind: "adminDong", hasMore: false });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: bundle.features[0].id,
+      bbox: [127.01, 37.48, 127.05, 37.51],
+      minZoom: 12,
+    });
+    expect(result.items[0]).not.toHaveProperty("geometry");
+    expect((await adapter.searchRegions("legalDong", "예시")).items).toEqual([]);
+    expect(
+      (await adapter.searchRegions("adminDong", "예시", undefined, "JP")).items,
+    ).toEqual([]);
+    await expect(adapter.searchRegions("adminDong", "예")).rejects.toThrow("2~100");
+  });
+
+  it("검색은 최대 20개와 추가 결과 여부를 반환한다", async () => {
+    const source = structuredClone(bundle);
+    source.features = Array.from({ length: 21 }, (_, index) => ({
+      ...structuredClone(bundle.features[0]),
+      id: `demo-${index}`,
+    }));
+    respond(source);
+    const result = await adapter.searchRegions("adminDong", "예시");
+    expect(result.items).toHaveLength(20);
+    expect(result.hasMore).toBe(true);
   });
 
   it("국가별 카탈로그를 정렬하고 인증 헤더 없이 읽는다", async () => {

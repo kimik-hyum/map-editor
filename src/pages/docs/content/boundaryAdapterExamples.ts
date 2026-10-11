@@ -9,6 +9,7 @@ export const adapterWiringExample = `// 내재화한 regionsApi.ts에서 기존 
 import { createJsonBoundaryAdapter } from "./jsonBoundaryAdapter";
 
 const adapter = createJsonBoundaryAdapter("/boundaries/regions.json");
+export const searchRegions = adapter.searchRegions;
 export const fetchRegionKinds = adapter.fetchRegionKinds;
 export const fetchRegionsByView = adapter.fetchRegionsByView;
 export const fetchRegionById = adapter.fetchRegionById;

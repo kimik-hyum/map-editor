@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { addFeaturesToScene } from "../messaging/normalizeSceneInput";
 import {
   canDeleteCreatedFeature,
+  canEditEmptyLayer,
   canRenameFeature,
   EditabilityState,
   EditorMode,
@@ -21,6 +22,13 @@ import {
   type EditorInitMessage,
   type GeoJsonGeometry,
 } from "../types/editorTypes";
+
+import {
+  addEmptyLayerToScene,
+  deleteEmptyLayerInScene,
+  fillEmptyLayerInScene,
+  renameEmptyLayerInScene,
+} from "./emptyLayerEdits";
 
 // 편집 모드의 기본값입니다. 모드 패널의 초기 선택과 store 초기화가 같은 값을 공유합니다.
 const DEFAULT_EDITOR_MODE = EditorMode.Select;
@@ -58,6 +66,7 @@ type EditorStoreState = {
   featureFocusRequest: FeatureFocusRequest | null;
   // 레이어 행의 이름 입력이 열려 있는 도형. 다른 종료 액션과 beforeunload가 초안 유실을 막는 데 사용합니다.
   renamingFeatureId: string | null;
+  renamingEmptyLayerId: string | null;
   activeMode: EditorMode;
   activeBoundaryKind: string | null;
   activeDrawShape: DrawShape;
@@ -86,7 +95,14 @@ type EditorStoreActions = {
   ) => void;
   setLayerLocked: (layerId: string, locked: boolean) => void;
   updateFeatureView: (featureId: string, view: Partial<EditorFeatureViewState>) => void;
-  addFeatures: (inputs: ReadonlyArray<EditorFeatureInput>) => void;
+  addEmptyLayer: () => void;
+  deleteEmptyLayer: (layerId: string) => void;
+  renameEmptyLayer: (layerId: string, name: string) => void;
+  beginEmptyLayerRename: (layerId: string) => void;
+  addFeatures: (
+    inputs: ReadonlyArray<EditorFeatureInput>,
+    emptyLayerId?: string,
+  ) => void;
   deleteCreatedFeature: (featureId: string) => void;
   renameFeature: (featureId: string, name: string) => void;
   updateFeatureGeometry: (featureId: string, geometry: GeoJsonGeometry) => void;
@@ -112,6 +128,19 @@ function canContinueFeatureRename(scene: ReadonlyScene, featureId: string): bool
   }
 
   return false;
+}
+
+function reconcileLayerState(state: EditorStoreState, scene: ReadonlyScene) {
+  const renameLayer = scene.layers.find(
+    (layer) => layer.id === state.renamingEmptyLayerId,
+  );
+  return {
+    activeLayerId: scene.layers.some((layer) => layer.id === state.activeLayerId)
+      ? state.activeLayerId
+      : null,
+    renamingEmptyLayerId:
+      renameLayer && canEditEmptyLayer(renameLayer) ? renameLayer.id : null,
+  };
 }
 
 // undo/redo로 복원된 scene에 더 이상 존재하지 않는 피처를 가리키는 선택을 정리합니다.
@@ -230,9 +259,10 @@ function setLayerLockedInScene(
         // 잠금을 풀어도 부모 원본은 삭제 가능해지지 않습니다. 로컬 생성 레이어만 복원합니다.
         deletable:
           !locked &&
-          layer.features.length === 1 &&
-          layer.features[0]?.state.lifecycle === FeatureLifecycle.Created &&
-          layer.features[0]?.behavior?.deletable !== false,
+          (layer.features.length === 0 ||
+            (layer.features.length === 1 &&
+              layer.features[0]?.state.lifecycle === FeatureLifecycle.Created &&
+              layer.features[0]?.behavior?.deletable !== false)),
         draggable: !locked,
       },
     };
@@ -638,6 +668,7 @@ export const useEditorStore = create<EditorStore>((set) => {
 
       return {
         scene: next,
+        ...reconcileLayerState(state, next),
         past:
           past.length > HISTORY_LIMIT ? past.slice(past.length - HISTORY_LIMIT) : past,
         future: [],
@@ -664,6 +695,7 @@ export const useEditorStore = create<EditorStore>((set) => {
     hoveredFeatureId: null,
     featureFocusRequest: null,
     renamingFeatureId: null,
+    renamingEmptyLayerId: null,
     activeMode: DEFAULT_EDITOR_MODE,
     activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
     activeDrawShape: DEFAULT_DRAW_SHAPE,
@@ -683,6 +715,7 @@ export const useEditorStore = create<EditorStore>((set) => {
         hoveredFeatureId: null,
         featureFocusRequest: null,
         renamingFeatureId: null,
+        renamingEmptyLayerId: null,
         activeMode: DEFAULT_EDITOR_MODE,
         activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
         activeDrawShape: DEFAULT_DRAW_SHAPE,
@@ -699,6 +732,7 @@ export const useEditorStore = create<EditorStore>((set) => {
         hoveredFeatureId: null,
         featureFocusRequest: null,
         renamingFeatureId: null,
+        renamingEmptyLayerId: null,
         dirty: false,
       }),
     resetScene: () =>
@@ -713,6 +747,7 @@ export const useEditorStore = create<EditorStore>((set) => {
         hoveredFeatureId: null,
         featureFocusRequest: null,
         renamingFeatureId: null,
+        renamingEmptyLayerId: null,
         activeMode: DEFAULT_EDITOR_MODE,
         activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
         activeDrawShape: DEFAULT_DRAW_SHAPE,
@@ -727,6 +762,7 @@ export const useEditorStore = create<EditorStore>((set) => {
 
         return {
           scene: previous,
+          ...reconcileLayerState(state, previous),
           past: state.past.slice(0, -1),
           future: [state.scene, ...state.future],
           selectedFeatureIds: reconcileSelection(state.selectedFeatureIds, previous),
@@ -747,6 +783,7 @@ export const useEditorStore = create<EditorStore>((set) => {
 
         return {
           scene: next,
+          ...reconcileLayerState(state, next),
           past: [...state.past, state.scene],
           future: state.future.slice(1),
           selectedFeatureIds: reconcileSelection(state.selectedFeatureIds, next),
@@ -758,13 +795,28 @@ export const useEditorStore = create<EditorStore>((set) => {
           dirty: next !== state.baselineScene,
         };
       }),
-    setActiveLayerId: (activeLayerId) => set({ activeLayerId }),
+    setActiveLayerId: (layerId) =>
+      set((state) => ({
+        activeLayerId: state.scene?.layers.some((layer) => layer.id === layerId)
+          ? layerId
+          : null,
+        selectedFeatureIds: [],
+      })),
     // 호버는 pointermove 핫패스라, 같은 id면 상태 갱신·구독 알림을 건너뛴다.
     setHoveredFeatureId: (hoveredFeatureId) =>
       set((state) =>
         state.hoveredFeatureId === hoveredFeatureId ? state : { hoveredFeatureId },
       ),
-    setSelectedFeatureIds: (selectedFeatureIds) => set({ selectedFeatureIds }),
+    setSelectedFeatureIds: (selectedFeatureIds) =>
+      set((state) => ({
+        selectedFeatureIds,
+        activeLayerId:
+          selectedFeatureIds.length === 1
+            ? (state.scene?.layers.find((layer) =>
+                layer.features.some((feature) => feature.id === selectedFeatureIds[0]),
+              )?.id ?? null)
+            : null,
+      })),
     // "이 도형이 보이게 지도를 옮겨 달라"는 1회성 요청. 같은 도형 연속 요청도 번호로 구분된다.
     requestFeatureFocus: (featureId) =>
       set((state) => ({
@@ -785,6 +837,7 @@ export const useEditorStore = create<EditorStore>((set) => {
       set((state) => {
         if (
           state.renamingFeatureId !== null ||
+          state.renamingEmptyLayerId !== null ||
           !state.scene ||
           !canContinueFeatureRename(state.scene, featureId)
         ) {
@@ -793,10 +846,20 @@ export const useEditorStore = create<EditorStore>((set) => {
 
         return { renamingFeatureId: featureId };
       }),
+    beginEmptyLayerRename: (layerId) =>
+      set((state) => {
+        const layer = state.scene?.layers.find((item) => item.id === layerId);
+        if (
+          state.renamingFeatureId !== null ||
+          state.renamingEmptyLayerId !== null ||
+          !layer ||
+          !canEditEmptyLayer(layer)
+        )
+          return {};
+        return { renamingEmptyLayerId: layerId };
+      }),
     endFeatureRename: () =>
-      set((state) =>
-        state.renamingFeatureId === null ? {} : { renamingFeatureId: null },
-      ),
+      set({ renamingFeatureId: null, renamingEmptyLayerId: null }),
     setActiveMode: (activeMode) => set({ activeMode }),
     setActiveBoundaryKind: (activeBoundaryKind) => set({ activeBoundaryKind }),
     setActiveDrawShape: (activeDrawShape) => set({ activeDrawShape }),
@@ -814,6 +877,7 @@ export const useEditorStore = create<EditorStore>((set) => {
 
         return {
           scene: next,
+          ...reconcileLayerState(state, next),
           renamingFeatureId:
             state.renamingFeatureId &&
             canContinueFeatureRename(next, state.renamingFeatureId)
@@ -850,6 +914,7 @@ export const useEditorStore = create<EditorStore>((set) => {
 
         return {
           scene: next,
+          ...reconcileLayerState(state, next),
           renamingFeatureId:
             state.renamingFeatureId &&
             canContinueFeatureRename(next, state.renamingFeatureId)
@@ -875,19 +940,40 @@ export const useEditorStore = create<EditorStore>((set) => {
 
         return { scene: next, dirty: next !== state.baselineScene };
       }),
-    // 붙여넣기·그리기로 새 도형을 추가합니다(undo 1단계). 추가된 도형을 선택 상태로 만들어
-    // 곧바로 이동/편집할 수 있게 합니다(commitSceneEdit는 선택을 못 바꿔 별도 set으로 작성).
-    // 빈 입력이면 아무것도 하지 않습니다.
-    addFeatures: (inputs) =>
+    // 빈 레이어 생성도 undo 한 단계이며 선택을 새 대기 슬롯으로 옮깁니다.
+    addEmptyLayer: () =>
+      set((state) => {
+        if (!state.scene || state.renamingFeatureId || state.renamingEmptyLayerId)
+          return {};
+        const { scene: next, layerId } = addEmptyLayerToScene(
+          state.scene as EditorScene,
+        );
+        return {
+          scene: next,
+          past: [...state.past, state.scene].slice(-HISTORY_LIMIT),
+          future: [],
+          activeLayerId: layerId,
+          selectedFeatureIds: [],
+          activeMode: EditorMode.Select,
+          dirty: true,
+        };
+      }),
+    deleteEmptyLayer: (layerId) =>
+      commitSceneEdit((scene) => deleteEmptyLayerInScene(scene, layerId)),
+    renameEmptyLayer: (layerId, name) =>
+      commitSceneEdit((scene) => renameEmptyLayerInScene(scene, layerId, name)),
+    // 그리기가 빈 레이어를 지정하면 그 레이어를 채우고, 나머지는 새 레이어로 추가합니다.
+    // 추가된 도형을 선택하며 undo 한 단계로 기록합니다. 빈 입력은 no-op입니다.
+    addFeatures: (inputs, emptyLayerId) =>
       set((state) => {
         if (!state.scene || inputs.length === 0) {
           return {};
         }
 
-        const { scene: next, addedFeatureIds } = addFeaturesToScene(
-          state.scene as EditorScene,
-          inputs,
-        );
+        const { scene: next, addedFeatureIds } =
+          emptyLayerId !== undefined
+            ? fillEmptyLayerInScene(state.scene as EditorScene, emptyLayerId, inputs)
+            : addFeaturesToScene(state.scene as EditorScene, inputs);
         if (next === state.scene) {
           return {};
         }
@@ -895,12 +981,17 @@ export const useEditorStore = create<EditorStore>((set) => {
         const past = [...state.past, state.scene];
         return {
           scene: next,
+          ...reconcileLayerState(state, next),
           past:
             past.length > HISTORY_LIMIT
               ? past.slice(past.length - HISTORY_LIMIT)
               : past,
           future: [],
           selectedFeatureIds: addedFeatureIds,
+          activeLayerId:
+            next.layers.find((layer) =>
+              layer.features.some((feature) => feature.id === addedFeatureIds[0]),
+            )?.id ?? null,
           dirty: next !== state.baselineScene,
         };
       }),
