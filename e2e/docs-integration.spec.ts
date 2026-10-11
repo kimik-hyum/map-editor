@@ -1,5 +1,30 @@
 import { expect, test } from "@playwright/test";
 
+for (const { path, label } of [
+  { path: "/", label: "편집 흐름 체험하기" },
+  { path: "/integration", label: "문서 안의 실습" },
+]) {
+  test(`${path}의 실습 링크는 현재 창에서 해당 구역으로 이동한다`, async ({
+    page,
+    context,
+  }) => {
+    await page.goto(path);
+    const link = page.getByRole("main").getByRole("link", { name: label, exact: true });
+    const section = page.locator("#quickstart");
+    const pageCount = context.pages().length;
+    await link.click();
+    await expect(page).toHaveURL(new RegExp(`${path}#quickstart$`));
+    await expect.poll(async () => (await section.boundingBox())?.y).toBeGreaterThan(60);
+    await expect.poll(async () => (await section.boundingBox())?.y).toBeLessThan(200);
+    expect(context.pages()).toHaveLength(pageCount);
+
+    // 이미 같은 해시인 상태에서도 다시 누르면 실습 위치로 이동해야 합니다.
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    await link.click();
+    await expect.poll(async () => (await section.boundingBox())?.y).toBeLessThan(200);
+  });
+}
+
 test("전송 예제에는 주석을 표시하고 복사하면 전송 가능한 JSON을 받는다", async ({
   page,
   context,
