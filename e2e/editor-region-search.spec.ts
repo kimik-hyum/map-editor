@@ -172,6 +172,40 @@ test("검색 오류 재시도와 빈 결과, 검색어 초기화를 표시한다
   ).toBeVisible();
 });
 
+for (const { code, status, message } of [
+  {
+    code: "REGION_COUNTRY_BLOCKED",
+    status: 403,
+    message: "경계 데이터는 한국에서만 이용할 수 있습니다.",
+  },
+  {
+    code: "REGION_GATEWAY_REQUIRED",
+    status: 403,
+    message: "한국 접속 확인을 위해 에디터를 새로고침해주세요.",
+  },
+  {
+    code: "INTERNAL_ERROR",
+    status: 500,
+    message: "검색 결과를 불러오지 못했습니다. 다시 시도해주세요.",
+  },
+]) {
+  test(`검색은 ${code} 오류에 맞는 안내를 표시한다`, async ({ context, page }) => {
+    const { editor } = await prepare(context, page);
+    await context.route("**/region-api/functions/v1/region-search", (route) =>
+      route.fulfill({
+        status,
+        json: { code, message: "upstream diagnostic details" },
+      }),
+    );
+    const panel = editor.getByRole("region", { name: "행정동 검색", exact: true });
+    await panel.getByRole("textbox").fill("연산");
+    await expect(panel.getByRole("alert")).toContainText(message);
+    await expect(panel.getByRole("alert")).not.toContainText(
+      "upstream diagnostic details",
+    );
+  });
+}
+
 for (const [kind, label] of Object.entries(labels)) {
   test(`${label} 검색은 한글 조합 확정 없이 마지막 입력 후 300ms에 요청한다`, async ({
     context,

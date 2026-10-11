@@ -77,7 +77,7 @@ export class RegionApiError extends Error {
   constructor(
     label: string,
     public readonly status: number,
-    code?: string,
+    public readonly code?: string,
   ) {
     super(
       code === "REGION_COUNTRY_BLOCKED"

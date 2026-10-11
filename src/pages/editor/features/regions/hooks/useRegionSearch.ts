@@ -46,6 +46,20 @@ export function useRegionSearch(
     retry: (count, error) =>
       count < 1 && !(error instanceof RegionApiError && error.status < 500),
   });
+  let error: string | null = null;
+  if (canSearch && result.isError) {
+    error = "검색 결과를 불러오지 못했습니다. 다시 시도해주세요.";
+    if (result.error instanceof RegionApiError) {
+      if (result.error.status === 429) {
+        error = "검색 요청이 많습니다. 잠시 후 다시 검색해주세요.";
+      } else if (
+        result.error.code === "REGION_COUNTRY_BLOCKED" ||
+        result.error.code === "REGION_GATEWAY_REQUIRED"
+      ) {
+        error = result.error.message;
+      }
+    }
+  }
   return {
     input,
     setInput: (value: string) => {
@@ -60,12 +74,7 @@ export function useRegionSearch(
     hasQuery: query.length >= REGION_SEARCH_MIN_LENGTH,
     waiting,
     loading: canSearch && result.isFetching,
-    error:
-      canSearch && result.isError
-        ? result.error instanceof RegionApiError && result.error.status === 429
-          ? "검색 요청이 많습니다. 잠시 후 다시 검색해주세요."
-          : "검색 결과를 불러오지 못했습니다. 다시 시도해주세요."
-        : null,
+    error,
     items: canSearch ? (result.data?.items ?? []) : [],
     hasMore: canSearch && (result.data?.hasMore ?? false),
     selectedId: selection?.scope === scope ? selection.id : null,
