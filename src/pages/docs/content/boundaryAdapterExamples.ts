@@ -4,7 +4,7 @@ import boundaryJson from "./examples/boundaries.example.json?raw";
 export const boundaryJsonExample = boundaryJson;
 export const jsonAdapterExample = jsonAdapter;
 
-export const adapterWiringExample = `// 내재화한 regionsApi.ts에서 기존 같은 이름의 함수 구현을 교체합니다.
+export const adapterWiringExample = `// 직접 운영하는 편집기의 regionsApi.ts에서 기존 같은 이름의 함수 구현을 교체합니다.
 // 기존 타입과 RegionApiError export는 유지합니다.
 import { createJsonBoundaryAdapter } from "./jsonBoundaryAdapter";
 

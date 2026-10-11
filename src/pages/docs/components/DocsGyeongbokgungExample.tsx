@@ -26,10 +26,10 @@ export function DocsGyeongbokgungExample() {
         sceneRef.current = next;
         setScene(next);
         setSaved(true);
-        setStatus("저장 결과를 받았습니다. 아래 지도와 JSON에 반영했습니다.");
+        setStatus("편집 결과를 받았습니다. 아래 지도와 JSON에 반영했습니다.");
       },
       onCancel() {
-        setStatus("취소했습니다. 기존 권역을 유지합니다.");
+        setStatus("취소했습니다. 기존 편집 데이터를 유지합니다.");
       },
       onError: setStatus,
     });
@@ -62,7 +62,7 @@ export function DocsGyeongbokgungExample() {
     <div className="overflow-hidden rounded-2xl border border-line bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-teal-50/60 p-4">
         <div>
-          <strong className="block text-sm text-ink">내 서비스의 지도</strong>
+          <strong className="block text-sm text-ink">서비스 페이지의 예제 지도</strong>
           <span className="text-xs text-ink-soft">
             경복궁 권역·경로·위치 마커 · 편집 결과를 이곳에 반영합니다
           </span>
@@ -106,12 +106,12 @@ export function DocsGyeongbokgungExample() {
         </p>
         <details className="mt-3" open={saved || undefined}>
           <summary className="cursor-pointer text-sm font-bold text-ink">
-            {saved ? "방금 돌려받은 scene JSON" : "새 창에 보낼 scene JSON"}
+            {saved ? "돌려받은 편집 결과 JSON" : "편집 창에 보낼 데이터 JSON"}
           </summary>
           {!saved && (
             <p className="mb-0 mt-3 text-xs leading-5 text-ink-soft">
               각 필드의 목적을 주석으로 적은 JSONC 예제입니다. ‘JSON 복사’를 누르면 주석
-              없는 실제 데이터를 복사합니다. 새 창에는 이 데이터를 INIT 메시지의 scene
+              없는 실제 데이터를 복사합니다. 편집 창에는 이 데이터를 INIT 메시지의 scene
               객체로 보냅니다.
             </p>
           )}

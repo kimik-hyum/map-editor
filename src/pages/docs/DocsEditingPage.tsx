@@ -16,7 +16,7 @@ export function DocsEditingPage() {
       <DocsHero
         title="편집 도구 안내"
         eyebrow="도구 사용법"
-        description="경복궁 사각형을 연 실제 편집 화면입니다. 아래 도구 이름을 눌러 위치와 사용법을 확인하고, 새 창 실습에서 같은 동작을 따라 해보세요."
+        description="편집 창에서 도형을 만들고 수정하는 방법입니다. 경복궁 사각형이 표시된 화면에서 도구 위치를 확인하고, 실습에서 같은 동작을 따라 해보세요."
       />
       <DocsSection id="screen" title="화면 구성">
         <DocsEditorTour />
@@ -71,7 +71,7 @@ export function DocsEditingPage() {
               key: "boundary",
               cells: [
                 "경계 데이터",
-                "공개 에디터의 로그인 안내를 따른 뒤 행정동·법정동·우편번호를 조회합니다. 경계 이름 옆의 작은 아이콘으로 추가·합치기·빼기를 실행합니다. 호버 없이 표시되며 버튼에 마우스를 올리면 동작을 설명합니다.",
+                "편집 창의 로그인 안내를 따른 뒤 행정동·법정동·우편번호를 조회합니다. 경계 이름 옆의 작은 아이콘으로 추가·합치기·빼기를 실행합니다. 호버 없이 표시되며 버튼에 마우스를 올리면 동작을 설명합니다.",
                 "축소하면 시군구 경계를 대신 표시할 수 있습니다. 원하는 경계가 보이지 않으면 확대하세요. 표시용 경계는 경량화되지만 추가·연산은 원본을 사용하며 서버의 경계 데이터는 변경하지 않습니다.",
               ],
             },
@@ -94,9 +94,9 @@ export function DocsEditingPage() {
           ]}
         />
         <Callout className="mt-4" title="잠금과 원본 보호" tone="note">
-          잠금은 편집 UI에서 해제할 수 있는 상태이며 서버 권한이 아닙니다. 서비스
+          잠금은 편집 화면에서 해제할 수 있는 상태이며 서버 권한이 아닙니다. 서비스
           페이지가 전달한 원본에는 삭제 버튼이 없습니다. 다만 병합·차집합 같은 연산으로
-          결과가 달라질 수 있으므로 서비스 페이지도 저장 전 검증해야 합니다.
+          결과가 달라질 수 있으므로 서비스에서도 서버에 저장하기 전에 검증해야 합니다.
         </Callout>
       </DocsSection>
       <DocsSection id="operations" title="합치기·빼기·교집합 아이콘">
@@ -136,24 +136,26 @@ export function DocsEditingPage() {
           확인할 수 있고, 적용한 연산은 되돌리기로 복원할 수 있습니다.
         </Callout>
       </DocsSection>
-      <DocsSection id="finish" title="저장·취소 조건">
+      <DocsSection id="finish" title="편집 완료·취소 조건">
         <DocsList>
           <DocsListItem>
-            저장 시 <DocsCode>MAP_EDITOR_SUBMIT</DocsCode>으로 전체 scene을 반환합니다.
-            Point나 Path만 있어도 저장할 수 있습니다. ‘반환할 폴리곤이 없습니다’는
-            안내이며 저장을 차단하지 않습니다.
+            ‘저장하고 편집 완료’를 누르면 <DocsCode>MAP_EDITOR_SUBMIT</DocsCode>으로
+            전체 편집 데이터(<DocsCode>scene</DocsCode>)를 서비스 페이지에 보냅니다.
+            점이나 선만 있어도 편집을 완료할 수 있습니다. ‘반환할 폴리곤이 없습니다’는
+            안내이며 결과 전송을 차단하지 않습니다.
           </DocsListItem>
           <DocsListItem>
             오류가 있는 도형, 진행 중 그리기·반경 입력·경계 연산·이름 변경·빈 공간
             채우기는 먼저 완료하거나 취소해야 합니다.
           </DocsListItem>
           <DocsListItem>
-            취소 시 <DocsCode>MAP_EDITOR_CANCEL</DocsCode>만 반환합니다. 미저장 변경이
-            있으면 확인하며, 서비스 페이지는 기존 데이터를 유지합니다.
+            취소 시 <DocsCode>MAP_EDITOR_CANCEL</DocsCode>만 보냅니다. 완료하지 않은
+            변경이 있으면 확인하며, 서비스 페이지는 기존 데이터를 유지합니다.
           </DocsListItem>
           <DocsListItem>
-            숨긴 도형도 반환 데이터에 포함됩니다. 서버 저장이나 중간 변경 자동 전송은
-            하지 않습니다.
+            숨긴 도형도 편집 결과에 포함됩니다. 결과를 화면에 반영하거나 서버에 저장하는
+            동작은 서비스 페이지에서 연결합니다. 편집 중 변경 사항은 자동 전송하지
+            않습니다.
           </DocsListItem>
         </DocsList>
       </DocsSection>

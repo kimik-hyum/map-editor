@@ -24,20 +24,20 @@ export function DocsBoundaryAdapterPage() {
     <DocsArticle>
       <DocsHero
         title="경계 데이터 어댑터"
-        eyebrow="내재화 안내"
-        description="자신이 모은 행정동·법정동·커스텀 경계를 JSON이나 별도 서버에서 읽도록 연결합니다. 경계 조회와 인증 정책을 각각 교체하고, 편집기의 공통 데이터 계약을 유지합니다."
+        eyebrow="직접 운영 안내"
+        description="자신이 모은 행정동·법정동·커스텀 경계를 JSON이나 별도 서버에서 읽도록 연결합니다. 경계 조회와 인증 정책을 각각 교체하고, 편집기의 공통 데이터 형식을 유지합니다."
       />
       <DocsSection id="boundary" title="데이터 공급자와 접근 정책을 나눕니다">
         <DocsText>
-          서비스가 <DocsCode>INIT.scene.features</DocsCode>로 보낸 폴리곤은 바로 편집할
-          도형입니다. 이 페이지의 어댑터는 에디터 안에서 조회하고 골라 쓰는 참고 경계를
-          공급합니다. 입력 scene에 경계를 넣는 것만으로 경계 선택 메뉴의 데이터가
-          바뀌지는 않습니다.
+          서비스 페이지가 <DocsCode>INIT.scene.features</DocsCode>로 보낸 도형은 편집할
+          도형 목록입니다. 이 페이지의 어댑터는 편집 창에서 조회하고 골라 쓰는 참고
+          경계를 공급합니다. 편집 데이터에 도형을 넣는 것만으로 참고 경계 메뉴의
+          데이터가 바뀌지는 않습니다.
         </DocsText>
         <DocsTable
           className="mt-4"
           label="데이터 흐름과 교체 지점"
-          headers={["역할", "현재 구현", "내재화할 때"]}
+          headers={["역할", "현재 구현", "직접 운영할 때"]}
           rows={[
             {
               key: "transport",
@@ -66,22 +66,22 @@ export function DocsBoundaryAdapterPage() {
             {
               key: "render",
               cells: [
-                "표시·채택·편집",
-                "TanStack Query → OpenLayers → scene",
-                "원래 흐름 유지. 선택한 원본 geometry만 scene에 반영",
+                "참고 경계 표시·도형에 반영·편집",
+                "TanStack Query → OpenLayers → 편집 데이터(scene)",
+                "원래 흐름 유지. 선택한 원본의 형태와 좌표(geometry)를 편집 데이터에 반영",
               ],
             },
           ]}
         />
         <Callout className="mt-4" tone="note" title="현재 구현과 연결 예제">
-          아래 코드는 내재화한 소스에 적용하는 어댑터 예제입니다. 기본 에디터에 자동
-          등록되거나 환경 변수만으로 활성화되지 않습니다. 데이터 요청부와 인증 게이트를
-          함께 바꾸어야 합니다.
+          아래 코드는 직접 운영하는 소스에 적용하는 어댑터 예제입니다. 기본 편집기에
+          자동 등록되거나 환경 변수만으로 활성화되지 않습니다. 데이터 요청부와 인증
+          게이트를 함께 바꾸어야 합니다.
         </Callout>
       </DocsSection>
       <DocsSection id="contract" title="조회 함수가 돌려줘야 하는 데이터">
         <DocsTable
-          label="경계 어댑터 계약"
+          label="경계 어댑터 인터페이스"
           headers={["기존 함수", "입력", "출력·책임"]}
           rows={[
             {
@@ -113,7 +113,7 @@ export function DocsBoundaryAdapterPage() {
               cells: [
                 "fetchRegionByCode",
                 "kind·code·country, signal",
-                "코드로 조회한 원본 또는 null. 편집 채택은 byId 사용",
+                "코드로 조회한 원본 또는 null. 편집 도형에 반영할 때는 byId 사용",
               ],
             },
             {
@@ -152,16 +152,17 @@ export function DocsBoundaryAdapterPage() {
           </DocsListItem>
           <DocsListItem>
             같은 조회를 나눠 호출해도 country·kind·level은 일치해야 합니다. 화면 표시용
-            좌표를 단순화할 수 있지만, 채택할 때의 byId는 원본을 돌려줘야 합니다.
+            좌표를 단순화할 수 있지만, 편집 도형에 반영할 때의 byId는 원본을 돌려줘야
+            합니다.
           </DocsListItem>
         </DocsList>
       </DocsSection>
       <DocsSection id="json" title="작은 데이터셋을 JSON으로 제공하기">
         <DocsText className="mb-4">
           아래는 실제 행정경계가 아닌 형식 설명용 사각형입니다. 자신의 경계로 바꿔{" "}
-          <DocsCode>public/boundaries/regions.json</DocsCode>에 저장하면 같은 origin의{" "}
-          <DocsCode>/boundaries/regions.json</DocsCode>으로 읽을 수 있습니다. 파일을
-          두는 것에 더해 다음 어댑터 연결이 필요합니다.
+          <DocsCode>public/boundaries/regions.json</DocsCode>에 저장하면 같은 사이트
+          주소(origin)의 <DocsCode>/boundaries/regions.json</DocsCode>으로 읽을 수
+          있습니다. 파일을 두는 것에 더해 다음 어댑터 연결이 필요합니다.
         </DocsText>
         <DocsCodeBlock
           code={boundaryJsonExample}
@@ -187,15 +188,15 @@ export function DocsBoundaryAdapterPage() {
         </details>
         <DocsText className="mt-4">
           전체 파일을 읽고 bbox와 겹치는 도형을 고르는 작은 데이터셋용 예제입니다.
-          도형을 화면 경계로 자르지 않으며 표시와 채택에 같은 원본을 사용합니다. 전국
-          단위 데이터는 서버에서 bbox·종류·줌을 처리하고 원본 ID 조회를 분리하세요.
+          도형을 화면 경계로 자르지 않으며 표시와 도형 반영에 같은 원본을 사용합니다.
+          전국 단위 데이터는 서버에서 bbox·종류·줌을 처리하고 원본 ID 조회를 분리하세요.
         </DocsText>
       </DocsSection>
       <DocsSection id="connect" title="기존 호출부에 어댑터 연결하기">
         <DocsList>
           <DocsListItem>
             전체 예제를 <DocsCode>features/regions/api/jsonBoundaryAdapter.ts</DocsCode>
-            로 복사합니다. 예제의 타입은 현재 API 계약과 맞춰 검사됩니다.
+            로 복사합니다. 예제의 타입은 현재 API 인터페이스와 맞춰 검사됩니다.
           </DocsListItem>
           <DocsListItem>
             <DocsCode>regionsApi.ts</DocsCode>의 기존 여섯 조회 함수 구현을 아래
@@ -215,8 +216,9 @@ export function DocsBoundaryAdapterPage() {
           title="regionsApi.ts의 조회 함수 교체"
         />
         <DocsText className="mt-4">
-          별도 서버도 같은 함수 계약에 맞춰 응답을 변환하면 됩니다. 자체 인증의 쿠키나
-          토큰은 이 서버 어댑터에서 처리하며, Google 토큰을 요구할 필요는 없습니다.
+          별도 서버도 같은 함수 인터페이스에 맞춰 응답을 변환하면 됩니다. 자체 인증의
+          쿠키나 토큰은 이 서버 어댑터에서 처리하며, Google 토큰을 요구할 필요는
+          없습니다.
         </DocsText>
         <DocsCodeBlock
           className="mt-4"
@@ -229,7 +231,7 @@ export function DocsBoundaryAdapterPage() {
         <DocsText className="mb-4">
           공개 JSON 배포는 아래처럼 허용 상태와 데이터 범위를 반환할 수 있습니다.{" "}
           <DocsCode>subject</DocsCode>는 인증 토큰이 아니라 Query 캐시를 구분하는
-          값이며, 비어 있으면 조회·원본 채택이 실행되지 않습니다.
+          값이며, 비어 있으면 조회·원본 반영이 실행되지 않습니다.
         </DocsText>
         <DocsCodeBlock
           code={publicAccessExample}
@@ -250,9 +252,10 @@ export function DocsBoundaryAdapterPage() {
             정리합니다. Provider만 먼저 삭제하면 소비 hook이 오류를 냅니다.
           </DocsListItem>
           <DocsListItem>
-            로그인 없는 구성에서도 서비스 메시지의 origin·세션 검증과 geometry 검증은
-            유지합니다. 기본 운영 서버의 인증을 끄는 것이 아니라 자신의 데이터 공급자와
-            접근 정책을 연결하는 작업입니다.
+            로그인 없는 구성에서도 서비스 페이지 메시지의 사이트 주소(origin)·편집 작업
+            ID(sessionId) 검증과 도형의 형태와 좌표(geometry) 검증은 유지합니다. 기본
+            운영 서버의 인증을 끄는 것이 아니라 자신의 데이터 공급자와 접근 정책을
+            연결하는 작업입니다.
           </DocsListItem>
           <DocsListItem>
             <DocsCode>VITE_E2E_AUTH_BYPASS</DocsCode>는 테스트 전용입니다. 운영 인증
@@ -278,8 +281,8 @@ export function DocsBoundaryAdapterPage() {
             확인합니다.
           </DocsListItem>
           <DocsListItem>
-            저장 시 선택해 반영한 도형만 전체 scene에 포함되고, 참고 경계 목록이나 인증
-            정보는 반환되지 않는지 확인합니다.
+            편집 완료 시 선택해 반영한 도형만 전체 편집 데이터에 포함되고, 참고 경계
+            목록이나 인증 정보는 반환되지 않는지 확인합니다.
           </DocsListItem>
         </DocsList>
       </DocsSection>

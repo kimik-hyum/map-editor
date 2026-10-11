@@ -18,8 +18,8 @@ export function DocsSelfHostingPage() {
     <DocsArticle>
       <DocsHero
         title="직접 운영·커스텀"
-        eyebrow="내재화 안내"
-        description="저장소를 가져와 에디터를 직접 운영하는 분을 위한 안내입니다. 공통 입출력 계약 위에 자신의 경계 데이터, 인증, 화면과 배포 환경을 연결합니다."
+        eyebrow="직접 운영 안내"
+        description="저장소를 가져와 Termia 편집기를 직접 운영하는 분을 위한 안내입니다. 서비스 페이지와 데이터를 주고받는 인터페이스를 유지하면서 참고 경계, 로그인, 화면과 배포 환경을 설정합니다."
       />
       <Callout tone="note" title="경계 데이터와 인증은 운영 환경에 맞게 선택합니다">
         Google·Supabase는 현재 공개 서비스가 사용하는 구성입니다. 자체 JSON 파일이나
@@ -29,8 +29,8 @@ export function DocsSelfHostingPage() {
       <DocsSection id="shared" title="사용·연동 안내는 공통입니다">
         <DocsText>
           직접 배포해도 서비스 페이지가 데이터를 보내고 결과를 받는 방식은 같습니다.
-          에디터 주소를 자신의 주소로 바꾸고 같은 v2 계약을 유지하면 기존 연동을
-          재사용할 수 있습니다.
+          편집기 주소를 자신의 주소로 바꾸고 같은 버전 2 데이터 형식을 유지하면 기존
+          연동을 재사용할 수 있습니다.
         </DocsText>
         <div className="mt-4 flex flex-wrap gap-3">
           <DocsButton to="/integration">연동 인터페이스</DocsButton>
@@ -58,7 +58,7 @@ export function DocsSelfHostingPage() {
       <DocsSection id="architecture" title="변경하려는 기능의 연결 지점">
         <DocsTable
           label="커스텀 위치"
-          headers={["바꾸려는 것", "소스 위치", "유지할 계약"]}
+          headers={["바꾸려는 것", "소스 위치", "유지할 인터페이스"]}
           rows={[
             {
               key: "data",
@@ -103,15 +103,15 @@ export function DocsSelfHostingPage() {
             {
               key: "messaging",
               cells: [
-                "서비스와의 입출력",
+                "서비스 페이지와 데이터 주고받기",
                 "src/pages/editor/messaging/",
-                "공개 v2 scene과 세션 검증",
+                "버전 2 편집 데이터와 편집 작업 ID 검증",
               ],
             },
           ]}
         />
         <DocsText className="mt-4">
-          경계 데이터 어댑터는 JSON·HTTP 응답을 에디터의 데이터 형식으로 바꿉니다.
+          경계 데이터 어댑터는 JSON·HTTP 응답을 편집기의 데이터 형식으로 바꿉니다.
           OpenLayers 어댑터는 이 데이터를 지도 객체로 바꿉니다. 데이터 공급자를 교체할
           때 지도 렌더링이나 도형 편집 로직에 서버 코드를 넣지 않습니다.
         </DocsText>
@@ -138,18 +138,19 @@ export function DocsSelfHostingPage() {
           <DocsListItem>
             기본 <DocsCode>deploy:production</DocsCode> 명령과 GitHub Actions는 원래
             운영 서비스의 Google·Supabase 설정과 Cloudflare 프로젝트를 전제로 합니다.
-            내재화한 배포에서는 환경 검사·배포 대상·인증 smoke test를 자신의 정책에 맞게
-            수정하세요.
+            직접 운영하는 배포에서는 환경 검사·배포 대상·인증 smoke test를 자신의 정책에
+            맞게 수정하세요.
           </DocsListItem>
           <DocsListItem>
-            HTTP·로컬의 다른 origin을 허용하거나 연결 서비스를 한정하려면{" "}
-            <DocsCode>VITE_EDITOR_PARENT_ORIGINS</DocsCode>에 정확한 서비스 origin을
-            쉼표로 구분합니다. 이 값은 경계 API의 인증과 별개입니다.
+            HTTP·로컬의 다른 사이트 주소(origin)를 허용하거나 연결 서비스를 한정하려면{" "}
+            <DocsCode>VITE_EDITOR_PARENT_ORIGINS</DocsCode>에 정확한 서비스 페이지의
+            사이트 주소를 쉼표로 구분합니다. 이 값은 경계 API의 인증과 별개입니다.
           </DocsListItem>
         </DocsList>
         <Callout className="mt-4" tone="note" title="운영 방식을 바꿔도 유지할 것">
-          서비스 연결의 source·origin·sessionId 검증, 외부 geometry 검증, 원본 도형의
-          안정적인 ID, 편집 결과와 참고 데이터의 분리를 유지하세요.
+          메시지를 보낸 창(source)·사이트 주소(origin)·편집 작업 ID(sessionId) 검증,
+          도형의 형태와 좌표(geometry) 검증, 원본 도형의 안정적인 ID, 편집 결과와 참고
+          경계의 분리를 유지하세요.
         </Callout>
       </DocsSection>
     </DocsArticle>

@@ -6,11 +6,11 @@ test("전송 예제에는 주석을 표시하고 복사하면 전송 가능한 J
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/integration");
-  await page.getByText("새 창에 보낼 scene JSON", { exact: true }).click();
+  await page.getByText("편집 창에 보낼 데이터 JSON", { exact: true }).click();
   const example = page.locator("figure").filter({
     has: page.getByText("현재 입력.jsonc · 필드 설명", { exact: true }),
   });
-  await expect(example).toContainText("// 필수: 에디터와 주고받는 데이터 형식");
+  await expect(example).toContainText("// 필수: 편집 창과 주고받는 데이터 형식");
   await expect(example).toContainText("[경도, 위도]");
   await expect(example).toContainText("필드명과 값은 서비스에서 자유롭게 정합니다");
   await example.getByRole("button", { name: "JSON 복사", exact: true }).click();
@@ -23,35 +23,51 @@ test("전송 예제에는 주석을 표시하고 복사하면 전송 가능한 J
   );
 });
 
-test("경복궁 예제를 먼저 보여주고 보조 코드는 접어서 제공한다", async ({ page }) => {
+test("연결 조건과 메시지 다음에 최소 예제를 보여주고 보조 코드는 접어서 제공한다", async ({
+  page,
+}) => {
   await page.goto("/integration");
   await expect(
-    page.getByRole("heading", { name: "연동 인터페이스", level: 1 }),
+    page.getByRole("heading", { name: "편집 창 연동하기", level: 1 }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "경복궁 예제 새 창으로 편집" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "1. 보낼 도형 만들기" }),
+    page.getByRole("heading", { name: "사각형 하나를 보내고 결과 JSON 받기" }),
   ).toBeVisible();
   await expect(
-    page.locator("figcaption").getByText("gyeongbokgung.example.ts"),
+    page.locator("figcaption").getByText("minimal-service.example.ts"),
   ).toBeVisible();
+  const sections = await page
+    .locator("main section[id]")
+    .evaluateAll((elements) => elements.map((element) => element.id));
+  expect(sections.slice(0, 7)).toEqual([
+    "addresses",
+    "messages",
+    "example",
+    "scene",
+    "roundtrip",
+    "quickstart",
+    "validation",
+  ]);
   await expect(
     page.locator("figcaption").getByText("map-editor-host.example.ts"),
   ).toBeHidden();
-  await page.getByText("보조 파일 · 팝업과 메시지 처리", { exact: true }).click();
+  await page
+    .getByText("필수 보조 파일 · 창 연결과 메시지 처리", { exact: true })
+    .click();
   await expect(
     page.locator("figcaption").getByText("map-editor-host.example.ts"),
   ).toBeVisible();
   await page
-    .getByText("이미 쓰는 지도와 연결하기 · bindMapEditor", { exact: true })
+    .getByText("지도 화면에 결과 반영하기 · bindMapEditor", { exact: true })
     .click();
   await expect(
-    page.getByRole("table", { name: "bindMapEditor 연결 인터페이스" }),
+    page.getByRole("table", { name: "서비스 페이지 연결 함수" }),
   ).toContainText("renderOnMap(featureCollection)");
   await expect(
-    page.getByRole("heading", { name: "주소만 열어 바로 그릴 수는 없나요?" }),
+    page.getByRole("heading", { name: "주소만 직접 열면 편집 데이터를 기다립니다" }),
   ).toBeVisible();
 });
 
@@ -98,7 +114,7 @@ test("경복궁 도형의 실제 편집 결과를 받고 다음 창에 수정본
   await editor.keyboard.up(modifier);
   await editor.getByRole("button", { name: "저장하고 편집 완료" }).click();
   await expect(
-    page.getByRole("status").filter({ hasText: "저장 결과를 받았습니다" }),
+    page.getByRole("status").filter({ hasText: "편집 결과를 받았습니다" }),
   ).toBeVisible();
   const result = JSON.parse(await page.getByTestId("palace-scene").innerText());
   expect(result.features[0].id).toBe("gyeongbokgung-area");
@@ -132,25 +148,27 @@ test("경복궁 도형의 실제 편집 결과를 받고 다음 창에 수정본
   );
 });
 
-test("시작 문서에서 서비스 지도 연동 문서로 이동한다", async ({ page }) => {
+test("소개 문서에서 편집 창 연동 문서로 이동한다", async ({ page }) => {
   await page.goto("/");
 
   await page.getByRole("main").getByRole("link", { name: "연동 인터페이스" }).click();
   await expect(page).toHaveURL(/\/integration$/);
   await expect(
-    page.getByRole("heading", { name: "연동 인터페이스", level: 1 }),
+    page.getByRole("heading", { name: "편집 창 연동하기", level: 1 }),
   ).toBeVisible();
 });
 
-test("시작과 Demo는 서비스 지도 폴리곤의 편집·결과 반영을 안내한다", async ({
+test("소개와 데모는 서비스 페이지의 데이터 전송과 편집 결과 반영을 안내한다", async ({
   page,
 }) => {
   await page.goto("/");
   await expect(page.getByRole("main")).toContainText(
-    "서비스에서 사용 중인 지도와 에디터의 입출력 인터페이스를 맞추면",
+    "서비스 페이지에서 편집 창을 열고 도형 데이터를 보내세요",
   );
-  await expect(page.getByRole("main")).not.toContainText("지도가 없어도");
-  await page.getByRole("link", { name: "연동 데모 실행", exact: true }).click();
+  await expect(page.getByRole("table", { name: "두 화면의 역할" })).toContainText(
+    "편집 창을 열고 편집할 데이터를 보냅니다",
+  );
+  await page.getByRole("link", { name: "지도 연동 데모", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       level: 1,

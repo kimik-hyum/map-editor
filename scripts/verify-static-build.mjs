@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(fileURLToPath(import.meta.url), "../..");
 const routes = [
-  ["", "내 지도에 연결하는 폴리곤 편집기"],
-  ["integration", "연동 인터페이스"],
+  ["", "도형을 보내고, 편집 결과를 돌려받으세요"],
+  ["integration", "편집 창 연동하기"],
   ["authentication", "Google·Supabase 구성 (선택)"],
   ["editing", "편집 도구 안내"],
   ["about", "경계를 그리고,"],
@@ -33,7 +33,7 @@ for (const [route, heading] of routes) {
     const footer = html.match(/<footer\b[^>]*>[\s\S]*?<\/footer>/)?.[0];
     assert(footer?.includes('href="/about"'), `${route}: introduction in footer`);
     for (const navigation of html.matchAll(
-      /<(?:nav|aside)\b[^>]*aria-label="(?:Primary navigation|사용·연동 안내|내재화 안내)"[^>]*>[\s\S]*?<\/(?:nav|aside)>/g,
+      /<(?:nav|aside)\b[^>]*aria-label="(?:Primary navigation|사용·연동 안내|직접 운영 안내)"[^>]*>[\s\S]*?<\/(?:nav|aside)>/g,
     )) {
       assert(
         !navigation[0].includes('href="/about"'),
@@ -42,7 +42,7 @@ for (const [route, heading] of routes) {
     }
     if (route !== "about") {
       const selfHosted = route === "authentication" || route.startsWith("self-hosting");
-      const label = selfHosted ? "내재화 안내" : "사용·연동 안내";
+      const label = selfHosted ? "직접 운영 안내" : "사용·연동 안내";
       const nav = html.match(
         new RegExp(`<nav\\b[^>]*aria-label="${label}"[^>]*>[\\s\\S]*?<\\/nav>`),
       )?.[0];

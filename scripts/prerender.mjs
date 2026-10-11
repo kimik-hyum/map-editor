@@ -9,10 +9,10 @@ const serverEntryPath = resolve(rootDir, "dist-ssr/entry-server.js");
 const template = await readFile(templatePath, "utf8");
 const { render } = await import(serverEntryPath);
 const titles = {
-  "/": "내 지도에 연결하는 폴리곤 편집기 | Termia",
+  "/": "도형을 보내고, 편집 결과를 돌려받으세요 | Termia",
   "/authentication": "Google·Supabase 구성 (선택) | Termia",
   "/editing": "편집 도구 안내 | Termia",
-  "/integration": "연동 인터페이스 | Termia",
+  "/integration": "편집 창 연동하기 | Termia",
   "/about": "Termia 소개 · 경계를 그리고, 공간에 가치를 더하다",
   "/self-hosting": "직접 운영·커스텀 | Termia",
   "/self-hosting/boundaries": "경계 데이터 어댑터 | Termia",
