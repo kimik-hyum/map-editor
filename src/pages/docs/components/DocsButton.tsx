@@ -25,7 +25,7 @@ const variantClassName: Record<DocsButtonVariant, string> = {
     "border border-line bg-white text-ink-soft hover:border-brand-line hover:text-brand",
 };
 
-// 내부 라우트(to)·외부 링크(href)·동작(onClick)을 한 가지 모양으로 묶는 docs 전용 버튼입니다.
+// 내부 라우트(to)·앵커와 외부 링크(href)·동작(onClick)을 한 가지 모양으로 묶는 docs 전용 버튼입니다.
 export function DocsButton({
   children,
   className,
@@ -55,8 +55,14 @@ export function DocsButton({
   }
 
   if (href) {
+    const isAnchor = href.startsWith("#");
     return (
-      <a className={classes} href={href} rel="noreferrer" target="_blank">
+      <a
+        className={classes}
+        href={href}
+        rel={isAnchor ? undefined : "noreferrer"}
+        target={isAnchor ? undefined : "_blank"}
+      >
         {content}
       </a>
     );

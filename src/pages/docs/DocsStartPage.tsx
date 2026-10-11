@@ -24,7 +24,7 @@ export function DocsStartPage() {
             <DocsButton icon={ArrowRight} to="/integration">
               연동 인터페이스
             </DocsButton>
-            <DocsButton to="/#quickstart" variant="secondary">
+            <DocsButton href="#quickstart" variant="secondary">
               편집 흐름 체험하기
             </DocsButton>
           </>

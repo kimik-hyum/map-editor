@@ -93,8 +93,7 @@ export function DocsIntegrationPage() {
         >
           <span id="standalone" className="scroll-mt-24" />
           서비스 페이지에서 편집 창을 열고 데이터를 보내야 편집을 시작할 수 있습니다.
-          먼저 동작을 확인하려면 <Link to="#quickstart">문서 안의 실습</Link>을
-          사용하세요.
+          먼저 동작을 확인하려면 <a href="#quickstart">문서 안의 실습</a>을 사용하세요.
         </Callout>
       </DocsSection>
       <DocsSection id="messages" title="두 창이 데이터를 주고받는 순서">
