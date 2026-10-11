@@ -16,7 +16,8 @@ export function DocsLayout() {
   const audience = getDocsAudience(pathname);
   const docsMenuGroups =
     audience === "integration" ? integrationMenuGroups : selfHostingMenuGroups;
-  const navigationTitle = audience === "integration" ? "사용·연동 안내" : "내재화 안내";
+  const navigationTitle =
+    audience === "integration" ? "사용·연동 안내" : "직접 운영 안내";
   const activeGroup = docsMenuGroups.find(
     (group) => group.to === (pathname.replace(/\/$/, "") || "/"),
   );

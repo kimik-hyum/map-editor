@@ -11,3 +11,4 @@ export const parentHostExample = mapEditorHostSource;
 export const resultUsageExample = parentPageSource;
 
 export { default as palaceStarterExample } from "./examples/gyeongbokgung.example.ts?raw";
+export { default as minimalServiceExample } from "./examples/minimal-service.example.ts?raw";

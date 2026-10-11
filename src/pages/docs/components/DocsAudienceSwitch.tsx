@@ -7,7 +7,7 @@ const audiences = [
     id: "integration",
     to: "/",
     label: "사용·연동 안내",
-    description: "내 지도에 연결하고 결과 받기",
+    description: "서비스 페이지에서 편집 결과 받기",
   },
   {
     id: "self-hosting",

@@ -15,7 +15,9 @@ test("도형 편집 문서가 선택부터 완료까지 현재 기능을 안내�
     "참고 경계에는 교집합 버튼이 없습니다",
   );
   await expect(page.getByRole("heading", { name: "필수 단축키" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "저장·취소 조건" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "편집 완료·취소 조건" }),
+  ).toBeVisible();
   await expect(
     page.getByRole("cell", { name: "폴리곤 연산", exact: true }),
   ).toBeVisible();
@@ -53,13 +55,13 @@ test("실제 화면 안내에서 선택한 도구 위치와 설명이 바뀐다"
   expect(
     await tour.getByTestId("editor-tour-highlight").getAttribute("style"),
   ).not.toBe(original);
-  await tour.getByRole("button", { name: "7. 저장·완료", exact: true }).focus();
+  await tour.getByRole("button", { name: "7. 편집 완료", exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(
-    tour.getByRole("button", { name: "7. 저장·완료", exact: true }),
+    tour.getByRole("button", { name: "7. 편집 완료", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(
-    tour.getByRole("heading", { name: "완료하면 원래 페이지로 결과를 돌려줍니다" }),
+    tour.getByRole("heading", { name: "완료하면 서비스 페이지로 결과를 돌려줍니다" }),
   ).toBeVisible();
   await expect(tour.locator("iframe")).toHaveCount(0);
 });

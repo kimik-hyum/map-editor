@@ -13,15 +13,15 @@ import {
 import { DocsTable } from "./components/DocsTable";
 
 const configuration =
-  "VITE_SUPABASE_URL=https://<project-ref>.supabase.co\nVITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...\n# 선택: 정확한 서비스 페이지 origin을 쉼표로 구분\nVITE_EDITOR_PARENT_ORIGINS=https://service.example.com";
+  "VITE_SUPABASE_URL=https://<project-ref>.supabase.co\nVITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...\n# 선택: 정확한 서비스 페이지의 사이트 주소(origin)를 쉼표로 구분\nVITE_EDITOR_PARENT_ORIGINS=https://service.example.com";
 
 export function DocsAuthenticationPage() {
   return (
     <DocsArticle>
       <DocsHero
         title="Google·Supabase 구성 (선택)"
-        eyebrow="내재화 안내 · 기본 공급자"
-        description="현재 공개 서비스와 같은 Google 로그인·Supabase 경계 서버 구성을 유지할 때 사용하는 운영 안내입니다. Termia를 연동하는 일반 사용자나 다른 데이터 공급자를 선택한 운영자에게는 필요하지 않습니다."
+        eyebrow="직접 운영 안내 · 기본 공급자"
+        description="현재 공개 서비스와 같은 Google 로그인·Supabase 경계 서버 구성을 유지할 때 사용하는 운영 안내입니다. 서비스 페이지에 Termia 편집기를 연결하는 개발자나 다른 데이터 공급자를 선택한 편집기 운영자에게는 필요하지 않습니다."
       />
       <Callout tone="note" title="모든 배포의 필수 설정이 아닙니다">
         자체 JSON이나 별도 서버를 사용하고 로그인 정책을 직접 정하려면{" "}
@@ -39,12 +39,12 @@ export function DocsAuthenticationPage() {
             유지합니다.
           </DocsListItem>
           <DocsListItem>
-            확인: 별도 Google 팝업에서 PKCE 인증을 진행합니다. 에디터 창은 이동하지 않아
-            서비스 페이지 연결·scene·편집 이력이 유지됩니다.
+            확인: 별도 Google 로그인 창에서 PKCE 인증을 진행합니다. 편집 창은 이동하지
+            않아 서비스 페이지와의 연결·편집 데이터·편집 이력이 유지됩니다.
           </DocsListItem>
           <DocsListItem>
-            로그아웃: 참고 경계를 숨기고 경계 조회를 중단합니다. 이미 scene에 채택한
-            도형은 삭제하지 않습니다.
+            로그아웃: 참고 경계를 숨기고 경계 조회를 중단합니다. 이미 편집 데이터에
+            추가한 도형은 삭제하지 않습니다.
           </DocsListItem>
         </DocsList>
       </DocsSection>
@@ -80,7 +80,7 @@ export function DocsAuthenticationPage() {
                 <DocsCode key="editor-callback">
                   https://&lt;editor-domain&gt;/auth/callback
                 </DocsCode>,
-                "Supabase에서 에디터 인증 팝업으로 복귀",
+                "Supabase에서 편집기의 로그인 창으로 복귀",
               ],
             },
             {
@@ -88,7 +88,7 @@ export function DocsAuthenticationPage() {
               cells: [
                 "regions 함수의 서버 허용 origin",
                 <DocsCode key="editor-origin">https://&lt;editor-domain&gt;</DocsCode>,
-                "경계 API를 호출하는 에디터 origin 허용",
+                "경계 API를 호출하는 편집기의 사이트 주소 허용",
               ],
             },
             {
@@ -96,21 +96,21 @@ export function DocsAuthenticationPage() {
               cells: [
                 <DocsCode key="parent-setting">VITE_EDITOR_PARENT_ORIGINS</DocsCode>,
                 <DocsCode key="parent-origin">https://&lt;service-domain&gt;</DocsCode>,
-                "INIT을 보낼 서비스 허용",
+                "편집 시작 데이터를 보낼 서비스 페이지 허용",
               ],
             },
           ]}
         />
         <Callout
           className="mt-4"
-          title="에디터의 로컬·프리뷰 주소도 각각 등록합니다"
+          title="편집기의 로컬·프리뷰 주소도 각각 등록합니다"
           tone="note"
         >
           <DocsCode>http://localhost:4174</DocsCode>와{" "}
-          <DocsCode>http://127.0.0.1:4174</DocsCode>는 다른 origin입니다. 사용할 에디터
-          origin은 함수 허용 목록에, 그 에디터의 <DocsCode>/auth/callback</DocsCode>은
-          Supabase 복귀 목록에 등록해야 합니다. 에디터를 여는 서비스 주소를 이 두 목록에
-          등록하는 것이 아닙니다.
+          <DocsCode>http://127.0.0.1:4174</DocsCode>는 다른 사이트 주소(origin)입니다.
+          사용할 편집기의 사이트 주소는 함수 허용 목록에, 해당 편집기의{" "}
+          <DocsCode>/auth/callback</DocsCode>은 Supabase 복귀 목록에 등록해야 합니다.
+          편집 창을 여는 서비스 페이지 주소를 이 두 목록에 등록하는 것이 아닙니다.
         </Callout>
       </DocsSection>
       <DocsSection id="security" title="서로 다른 두 접근 경계">
@@ -121,14 +121,14 @@ export function DocsAuthenticationPage() {
             {
               key: "host",
               cells: [
-                "서비스 페이지 ↔ 에디터",
-                "opener·정확한 origin·메시지 구조를 검사합니다. SUBMIT/CANCEL은 sessionId를 확인합니다. 서비스 페이지는 결과 저장 권한을 따로 검증합니다.",
+                "서비스 페이지 ↔ 편집 창",
+                "창 연결(opener)·사이트 주소(origin)·메시지 구조를 검사합니다. 완료·취소 알림은 편집 작업 ID(sessionId)를 확인합니다. 서비스는 서버 저장 권한을 따로 검증합니다.",
               ],
             },
             {
               key: "api",
               cells: [
-                "에디터 → regions 함수",
+                "편집 창 → regions 함수",
                 "사용자 access token을 전달합니다. 서버가 JWT·Google 사용자·허용 origin·호출량을 검사합니다.",
               ],
             },
@@ -144,9 +144,9 @@ export function DocsAuthenticationPage() {
         <DocsList className="mt-4">
           <DocsListItem>
             허용 목록을 설정하지 않으면 HTTPS 사이트는 도메인 등록 없이 연동할 수
-            있습니다. HTTP 사이트는 에디터와 프로토콜·호스트·포트가 같을 때 기본
+            있습니다. HTTP 사이트는 편집기와 프로토콜·도메인·포트가 같을 때 기본
             허용됩니다. 다른 HTTP 주소도 허용하거나 특정 사이트로 제한하려면 정확한
-            origin 목록을 설정하세요.
+            사이트 주소(origin) 목록을 설정하세요.
           </DocsListItem>
           <DocsListItem>
             Origin/CORS는 사용자 인증을 대신하지 않습니다. 로그인 사용자가 자기 토큰을
@@ -173,7 +173,7 @@ export function DocsAuthenticationPage() {
               key: "blocked",
               cells: [
                 "로그인 팝업 차단·수동 종료",
-                "팝업을 허용한 뒤 에디터에서 로그인 취소 → 다시 시도합니다. 기존 편집 내용은 유지됩니다.",
+                "팝업을 허용한 뒤 편집 창에서 로그인 취소 → 다시 시도합니다. 기존 편집 내용은 유지됩니다.",
               ],
             },
             {
@@ -187,14 +187,14 @@ export function DocsAuthenticationPage() {
               key: "401",
               cells: [
                 "경계 요청 401",
-                "세션이 없거나 유효하지 않습니다. 로그아웃 후 다시 로그인하고 올바른 Supabase 프로젝트인지 확인합니다.",
+                "로그인 세션이 없거나 유효하지 않습니다. 로그아웃 후 다시 로그인하고 올바른 Supabase 프로젝트인지 확인합니다.",
               ],
             },
             {
               key: "403",
               cells: [
                 "경계 요청 403",
-                "서버의 에디터 origin 허용 목록과 계정·이메일 도메인 제한을 확인합니다.",
+                "서버의 편집기 사이트 주소(origin) 허용 목록과 계정·이메일 도메인 제한을 확인합니다.",
               ],
             },
             {
@@ -207,8 +207,8 @@ export function DocsAuthenticationPage() {
           ]}
         />
         <DocsText className="mt-4">
-          새 INIT·편집·도구 변경이 로그인 대기 중 발생하면 이전 경계 전환을 취소합니다.
-          iframe의 저장소 분할 환경은 지원을 검증하지 않았습니다.
+          새 편집 시작 데이터 수신·편집·도구 변경이 로그인 대기 중 발생하면 이전 경계
+          전환을 취소합니다. iframe의 저장소 분할 환경은 지원을 검증하지 않았습니다.
         </DocsText>
       </DocsSection>
     </DocsArticle>

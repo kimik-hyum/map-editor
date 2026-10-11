@@ -4,14 +4,14 @@ import type { EditorSceneInput } from "./editor-contract.example";
 // 실제 지적·행정 경계나 공식 관람 동선이 아닙니다.
 export const inputScene = {
   version: 2, // 필수: 입출력 데이터 형식의 버전
-  name: "경복궁 권역 편집", // 선택: 편집 데이터 전체의 이름. 저장 결과에도 포함
+  name: "경복궁 권역 편집", // 선택: 편집 데이터 전체의 이름. 편집 결과에도 포함
   features: [
     // 필수: 표시할 도형 목록. []이면 빈 지도, 배열 뒤쪽 도형이 위에 표시
     {
       id: "gyeongbokgung-area", // 선택: 반환된 도형을 찾는 고유 ID. 생략 시 자동 생성
       name: "경복궁 예제 권역", // 선택: 도형 목록과 지도 라벨에 표시할 이름
       locked: false, // 선택, 기본 false: 편집 가능. true는 잠금 시작, UI에서 해제 가능
-      visible: true, // 선택, 기본 true: 지도 표시 여부. 숨겨도 저장 결과에 포함
+      visible: true, // 선택, 기본 true: 지도 표시 여부. 숨겨도 편집 결과에 포함
       // 필수: 실제 위치와 모양을 담는 GeoJSON geometry
       geometry: {
         type: "Polygon", // 면적을 가진 다각형

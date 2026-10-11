@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 const integrationDocuments = [
-  ["/", "내 지도에 연결하는 폴리곤 편집기"],
-  ["/integration", "연동 인터페이스"],
+  ["/", "도형을 보내고, 편집 결과를 돌려받으세요"],
+  ["/integration", "편집 창 연동하기"],
   ["/editing", "편집 도구 안내"],
 ];
 const selfHostingDocuments = [
@@ -27,7 +27,7 @@ test("대상별 문서 목차의 모든 경로·앵커가 유효하며 비로그
     const selfHosted = selfHostingDocuments.some(([route]) => route === path);
     const expectedDocuments = selfHosted ? selfHostingDocuments : integrationDocuments;
     const nav = page.getByRole("navigation", {
-      name: selfHosted ? "내재화 안내" : "사용·연동 안내",
+      name: selfHosted ? "직접 운영 안내" : "사용·연동 안내",
     });
     const audiences = page.getByRole("navigation", { name: "문서 대상 선택" });
     await expect(audiences.locator('a[aria-current="true"]')).toHaveAttribute(
@@ -52,7 +52,9 @@ test("사용자는 연동과 결과를 읽고 운영자는 별도 목차로 전�
   const nav = page.getByRole("navigation", { name: "사용·연동 안내" });
   await expect(nav.getByRole("link", { name: /인증|Supabase|어댑터/ })).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "저장하면 무엇을 받나요?" }),
+    page.getByRole("heading", {
+      name: "편집 완료, 결과 반영, 서버 저장은 각각의 동작입니다",
+    }),
   ).toBeVisible();
   await page
     .getByRole("navigation", { name: "문서 대상 선택" })
@@ -60,7 +62,7 @@ test("사용자는 연동과 결과를 읽고 운영자는 별도 목차로 전�
     .click();
   await expect(page).toHaveURL(/\/self-hosting$/);
   await page
-    .getByRole("navigation", { name: "내재화 안내" })
+    .getByRole("navigation", { name: "직접 운영 안내" })
     .getByRole("link", { name: "경계 데이터 어댑터", exact: true })
     .click();
   await expect(
@@ -90,7 +92,7 @@ test("예제 코드를 복사할 수 있다", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/integration");
   await page
-    .getByText("이미 쓰는 지도와 연결하기 · bindMapEditor", { exact: true })
+    .getByText("지도 화면에 결과 반영하기 · bindMapEditor", { exact: true })
     .click();
   const figure = page.locator("figure").filter({
     has: page.locator("figcaption").filter({ hasText: "service-page.example.ts" }),
@@ -118,7 +120,7 @@ test("다른 문서의 섹션 링크와 이전 screen 주소가 해당 본문으
   page,
 }) => {
   await page.goto("/integration");
-  await page.getByRole("link", { name: "저장 가능 조건", exact: true }).click();
+  await page.getByRole("link", { name: "편집 완료 조건", exact: true }).click();
   await expect(page).toHaveURL(/\/editing#finish$/);
   const finish = page.locator("#finish");
   await expect.poll(async () => (await finish.boundingBox())?.y).toBeGreaterThan(60);

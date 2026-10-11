@@ -18,7 +18,7 @@ import type {
 } from "@/pages/editor/features/regions/api/regionsApi";
 
 // 문서용 구현 예제입니다. 기본 에디터에는 자동 등록되지 않습니다.
-// 내재화한 소스에서 기존 regionsApi.ts의 조회 함수를 이 구현에 위임하세요.
+// 직접 운영하는 편집기의 소스에서 기존 regionsApi.ts의 조회 함수를 이 구현에 위임하세요.
 export type BoundaryDataAdapter = {
   searchRegions(
     kind: string,
