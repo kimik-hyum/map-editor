@@ -103,6 +103,7 @@ async function mockAuthAndRegions(context: BrowserContext, failLogin = false) {
 
 async function startLogin(editor: Page) {
   await editor.getByRole("button", { name: "행정동 경계" }).click();
+  await editor.getByRole("button", { name: "한국 경계 불러오기", exact: true }).click();
   const dialog = editor.getByRole("alertdialog");
   await expect(dialog).toContainText("경계 데이터를 사용하려면 로그인해주세요");
   const [popup] = await Promise.all([
@@ -142,6 +143,7 @@ test("로그인 안내를 취소하면 기존 그리기 도구와 진행 중 패
   await map.click({ position: { x: 780, y: 350 } });
   await expect(editor.getByRole("button", { name: "패스 그리기 완료" })).toBeEnabled();
   await editor.getByRole("button", { name: "행정동 경계" }).click();
+  await editor.getByRole("button", { name: "한국 경계 불러오기", exact: true }).click();
   const dialog = editor.getByRole("alertdialog");
   await expect(dialog).toContainText("경계 데이터를 사용하려면 로그인해주세요");
   await dialog.getByRole("button", { name: "취소", exact: true }).click();
@@ -191,6 +193,7 @@ test("팝업 차단에도 편집 내용과 이전 도구를 유지한다", async
   const editor = await openEditor(page);
   await renameFeature(editor, "팝업 차단에도 보존");
   await editor.getByRole("button", { name: "행정동 경계" }).click();
+  await editor.getByRole("button", { name: "한국 경계 불러오기", exact: true }).click();
   await editor
     .getByRole("alertdialog")
     .getByRole("button", { name: "Google로 로그인" })
@@ -282,6 +285,7 @@ test("로그아웃하면 경계 참조만 중단하고 편집 내용은 유지�
   await expect(editor.getByText("로그아웃 후에도 보존", { exact: true })).toBeVisible();
   const count = calls.length;
   await editor.getByRole("button", { name: "행정동 경계" }).click();
+  await editor.getByRole("button", { name: "한국 경계 불러오기", exact: true }).click();
   await expect(editor.getByRole("alertdialog")).toBeVisible();
   expect(calls.length).toBe(count);
 });

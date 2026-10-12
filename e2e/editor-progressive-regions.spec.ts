@@ -264,6 +264,7 @@ test("부분 로딩 중 로그아웃하면 대기 요청과 늦은 응답을 버
   await expect(editor.getByText("권역 A", { exact: true })).toBeVisible();
   expect(mock.calls).toHaveLength(3);
   await editor.getByRole("button", { name: "행정동 경계", exact: true }).click();
+  await editor.getByRole("button", { name: "한국 경계 불러오기" }).click();
   await expect(editor.getByRole("alertdialog")).toBeVisible();
   expect(mock.calls).toHaveLength(3);
 });

@@ -7,7 +7,6 @@ import { MovingHighlight, MovingHighlightItem } from "@/shared/ui/MovingHighligh
 import { cn } from "@/shared/utils/cn";
 import {
   type RegionBoundaryStatus,
-  useRegionKinds,
   useBoundaryLogin,
   BoundaryLoginStatus,
 } from "@/pages/editor/features/regions";
@@ -18,10 +17,9 @@ import {
 } from "@/pages/editor/features/radius";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import { EditorMode } from "@/pages/editor/types/editorTypes";
-import {
-  createBoundaryKindOptions,
-  fallbackBoundaryKindOptions,
-} from "../model/boundaryKindModel";
+import { useBoundaryKindOptions } from "../hooks/useBoundaryKindOptions";
+import type { useUsBoundaryPreview } from "@/pages/editor/features/us-boundaries";
+import type { BoundaryCountryCode } from "@/shared/config/boundaryCountries";
 import { drawShapeOptions } from "../model/drawShapeModel";
 import { editorModeOptions } from "../model/editorModeModel";
 import { BoundaryKindPopup } from "./BoundaryKindPopup";
@@ -35,6 +33,8 @@ type EditorModePanelProps = {
   confirmDiscardDraw: () => Promise<boolean>;
   radiusTool: RadiusToolController;
   onBoundarySearchOpen: () => void;
+  usPreview: ReturnType<typeof useUsBoundaryPreview>;
+  boundaryBusy: boolean;
 };
 
 export function EditorModePanel({
@@ -43,15 +43,15 @@ export function EditorModePanel({
   confirmDiscardDraw,
   radiusTool,
   onBoundarySearchOpen,
+  usPreview,
+  boundaryBusy,
 }: EditorModePanelProps) {
   const activeMode = useEditorStore((state) => state.activeMode);
   const setActiveMode = useEditorStore((state) => state.setActiveMode);
   const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
   const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
-  const { data: regionKinds } = useRegionKinds();
-  const boundaryKindOptions = regionKinds
-    ? createBoundaryKindOptions(regionKinds)
-    : fallbackBoundaryKindOptions;
+  const country = useEditorStore((state) => state.activeBoundaryCountry);
+  const { options: boundaryKindOptions } = useBoundaryKindOptions(country);
 
   const activeBoundaryOption = boundaryKindOptions.find(
     (option) => option.id === activeBoundaryKind,
@@ -74,11 +74,57 @@ export function EditorModePanel({
     previousAllowedRef.current = allowed;
     // Zustand의 도구 전환이 React 인증 상태보다 먼저 렌더될 수 있습니다.
     // 초기 비로그인 렌더가 아니라 실제 인증 상실 때만 도구를 되돌립니다.
-    if (lostAccess && useEditorStore.getState().activeMode === EditorMode.Boundary) {
+    if (
+      lostAccess &&
+      country === "KR" &&
+      useEditorStore.getState().activeMode === EditorMode.Boundary
+    ) {
       setActiveMode(EditorMode.Select);
       setBoundaryPopupOpen(false);
     }
-  }, [allowed, setActiveMode]);
+  }, [allowed, setActiveMode, country]);
+
+  const activateMode = async (next: EditorMode, kind?: string) => {
+    const context = useEditorStore.getState();
+    if (
+      next === EditorMode.Boundary &&
+      context.activeBoundaryCountry === "KR" &&
+      !(await login.requestBoundaryAccess())
+    )
+      return;
+    if (
+      context.activeMode === EditorMode.Draw &&
+      next !== EditorMode.Draw &&
+      !(await confirmDiscardDraw())
+    )
+      return;
+    const current = useEditorStore.getState();
+    if (
+      current.sessionId !== context.sessionId ||
+      current.scene !== context.scene ||
+      current.activeBoundaryCountry !== context.activeBoundaryCountry
+    )
+      return;
+    if (
+      next === EditorMode.Radius &&
+      resolveRadiusTarget(current.scene, current.selectedFeatureIds).target === null
+    )
+      return;
+    if (kind !== undefined) current.setActiveBoundaryKind(kind);
+    setActiveMode(next);
+    if (next === EditorMode.Boundary && current.activeBoundaryCountry === "KR")
+      onBoundarySearchOpen();
+    setBoundaryPopupOpen(next === EditorMode.Boundary);
+    setDrawPopupOpen(next === EditorMode.Draw);
+  };
+  const changeCountry = (next: BoundaryCountryCode) => {
+    if (boundaryBusy || next === country) return;
+    login.cancel();
+    useEditorStore.getState().setActiveBoundaryCountry(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("country", next);
+    window.history.replaceState(window.history.state, "", url);
+  };
 
   return (
     <>
@@ -95,57 +141,19 @@ export function EditorModePanel({
             const next = value[0] as EditorMode | undefined;
 
             if (next) {
-              void (async () => {
-                const context = useEditorStore.getState();
-                // 로그인 안내 취소는 진행 중 sketch를 버리거나 도구를 바꾸지 않습니다.
-                if (
-                  next === EditorMode.Boundary &&
-                  !(await login.requestBoundaryAccess())
-                ) {
-                  if (useEditorStore.getState().scene === context.scene) {
-                    setDrawPopupOpen(
-                      useEditorStore.getState().activeMode === EditorMode.Draw,
-                    );
-                  }
-                  return;
-                }
-                if (
-                  activeMode === EditorMode.Draw &&
-                  next !== EditorMode.Draw &&
-                  !(await confirmDiscardDraw())
-                ) {
-                  return;
-                }
-
-                const currentContext = useEditorStore.getState();
-                if (
-                  currentContext.sessionId !== context.sessionId ||
-                  currentContext.scene !== context.scene
-                ) {
-                  return;
-                }
-                // 도구 전환 확인을 기다리는 동안 기준 마커의 선택이 바뀔 수 있습니다.
-                if (
-                  next === EditorMode.Radius &&
-                  resolveRadiusTarget(
-                    currentContext.scene,
-                    currentContext.selectedFeatureIds,
-                  ).target === null
-                ) {
-                  return;
-                }
-
-                setActiveMode(next);
-                if (next === EditorMode.Boundary) onBoundarySearchOpen();
-                setBoundaryPopupOpen(next === EditorMode.Boundary);
-                setDrawPopupOpen(next === EditorMode.Draw);
-              })();
+              // 국가 메뉴는 인증 없이 탐색하고, 한국 자료를 실제 선택할 때 로그인합니다.
+              if (next === EditorMode.Boundary && country === "KR" && !allowed) {
+                setBoundaryPopupOpen(true);
+                setDrawPopupOpen(false);
+                return;
+              }
+              void activateMode(next);
               return;
             }
 
             // 이미 활성화된 도구를 다시 누르면 value가 비워집니다. 옵션이 있는 도구면 팝업을 다시 엽니다.
             if (activeMode === EditorMode.Boundary) {
-              onBoundarySearchOpen();
+              if (country === "KR") onBoundarySearchOpen();
               setBoundaryPopupOpen(true);
             } else if (activeMode === EditorMode.Draw) {
               setDrawPopupOpen(true);
@@ -229,7 +237,13 @@ export function EditorModePanel({
         boundaryStatus={boundaryStatus}
         onOpenChange={setBoundaryPopupOpen}
         operationError={boundaryOperationError}
-        open={boundaryPopupOpen && activeMode === EditorMode.Boundary}
+        open={boundaryPopupOpen}
+        onSelectKind={(kind) => {
+          if (!boundaryBusy) void activateMode(EditorMode.Boundary, kind);
+        }}
+        onCountryChange={changeCountry}
+        usPreview={usPreview}
+        busy={boundaryBusy}
         onSearchOpen={onBoundarySearchOpen}
       />
       <DrawShapePopup

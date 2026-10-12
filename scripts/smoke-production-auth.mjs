@@ -17,6 +17,7 @@ try {
   editor.on("pageerror", (error) => errors.push(error.message));
   await expect(editor.getByText("권역 A", { exact: true })).toBeVisible();
   await editor.getByRole("button", { name: "행정동 경계", exact: true }).click();
+  await editor.getByRole("button", { name: "한국 경계 불러오기", exact: true }).click();
   const dialog = editor.getByRole("alertdialog");
   await expect(dialog).toContainText("경계 데이터를 사용하려면 로그인해주세요");
   const [popup, authorizeRequest] = await Promise.all([

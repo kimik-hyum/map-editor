@@ -7,6 +7,7 @@ import {
   EditorMessageType,
   type EditorSceneInput,
 } from "@/pages/editor/types/editorTypes";
+import { resolveBoundaryCountry } from "@/shared/config/boundaryCountries";
 
 export type EditorHostStatus =
   | "idle"
@@ -28,6 +29,12 @@ type EditorHostOptions = {
 // 부모 상태와 별개로 팝업 한 회차의 입력·origin·session을 고정합니다.
 export function createEditorHost(options: EditorHostOptions) {
   const editorUrl = new URL("/editor/", window.location.href);
+  if (new URLSearchParams(window.location.search).has("country")) {
+    editorUrl.searchParams.set(
+      "country",
+      resolveBoundaryCountry(window.location.search).code,
+    );
+  }
   let child: Window | null = null;
   let sessionId: string | null = null;
   let inputSnapshot: EditorSceneInput | null = null;

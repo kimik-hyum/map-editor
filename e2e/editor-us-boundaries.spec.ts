@@ -5,7 +5,12 @@ import {
 } from "../src/shared/config/usBoundaries";
 import { readEditorEdits } from "./fixtures/mapNavigation";
 
-async function prepare(context: BrowserContext, page: Page, fail = false) {
+async function prepare(
+  context: BrowserContext,
+  page: Page,
+  fail = false,
+  country = "US",
+) {
   let shouldFail = fail;
   const files: string[] = [];
   await context.route("**/api/us-boundaries?*", async (route) => {
@@ -80,7 +85,7 @@ async function prepare(context: BrowserContext, page: Page, fail = false) {
       },
     });
   });
-  await page.goto("/demo");
+  await page.goto(`/demo?country=${country}`);
   const [editor] = await Promise.all([
     page.waitForEvent("popup"),
     page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
@@ -114,8 +119,8 @@ test("미국 경계를 로그인 없이 캔버스에 표시하고 편집 도형�
 }) => {
   const { editor, files } = await prepare(context, page);
   const before = await readEditorEdits(editor);
-  await editor.getByRole("button", { name: "미국 경계 보기" }).click();
-  const panel = editor.getByRole("region", { name: "미국 경계", exact: true });
+  await editor.getByRole("button", { name: "카운티 경계" }).click();
+  const panel = editor.getByRole("dialog", { name: "경계 종류", exact: true });
   await expect(panel.getByRole("status")).toHaveText("카운티 1개 표시");
   await expect.poll(() => blackVectorPixels(editor)).toBeGreaterThan(100);
   await expect(editor.getByRole("button", { name: /Google/ })).toHaveCount(0);
@@ -124,11 +129,11 @@ test("미국 경계를 로그인 없이 캔버스에 표시하고 편집 도형�
   await panel.getByRole("button", { name: "현재 화면 불러오기" }).click();
   await expect(panel.getByRole("status")).toHaveText("카운티 1개 표시");
   expect(files).toHaveLength(requestsBefore);
-  await panel.getByLabel("미국 경계 종류").selectOption("place");
-  await panel.getByRole("button", { name: "현재 화면 불러오기" }).click();
+  await panel
+    .getByRole("button", { name: "도시·타운 미국 Census 경계", exact: true })
+    .click();
   await expect(panel.getByRole("status")).toHaveText("도시·타운 1개 표시");
-  await panel.getByRole("button", { name: "미국 경계 닫기" }).click();
-  await expect(panel).toHaveCount(0);
+  await panel.getByRole("button", { name: "경계 숨기기" }).click();
   await expect.poll(() => blackVectorPixels(editor)).toBe(0);
   expect(await readEditorEdits(editor)).toEqual(before);
 });
@@ -138,11 +143,80 @@ test("미국 경계 요청 실패 후 재시도하고 다른 지역의 빈 결�
   page,
 }) => {
   const { editor } = await prepare(context, page, true);
-  await editor.getByRole("button", { name: "미국 경계 보기" }).click();
-  const panel = editor.getByRole("region", { name: "미국 경계", exact: true });
+  await editor.getByRole("button", { name: "카운티 경계" }).click();
+  const panel = editor.getByRole("dialog", { name: "경계 종류", exact: true });
   await expect(panel.getByRole("alert")).toContainText("다시 시도");
   await panel.getByRole("button", { name: "다시 시도", exact: true }).click();
   await expect(panel.getByRole("status")).toHaveText("카운티 1개 표시");
   await panel.getByRole("button", { name: "샌프란시스코" }).click();
   await expect(panel.getByRole("status")).toHaveText("카운티 0개 표시");
+});
+
+test("URL 국가를 메뉴 검색과 키보드로 바꿔도 편집 데이터와 이력은 유지한다", async ({
+  context,
+  page,
+}) => {
+  const { editor } = await prepare(context, page);
+  expect(new URL(editor.url()).searchParams.get("country")).toBe("US");
+  const before = await readEditorEdits(editor);
+  await editor.getByRole("button", { name: "카운티 경계" }).click();
+  const menu = editor.getByRole("dialog", { name: "경계 종류", exact: true });
+  await expect(menu.getByRole("status")).toHaveText("카운티 1개 표시");
+  await editor.getByRole("combobox", { name: "국가 선택: 미국" }).click();
+  const search = editor.getByRole("combobox", { name: "국가 이름 또는 코드 검색" });
+  await search.fill("Japan");
+  await expect(editor.getByText("지원하는 국가를 찾지 못했습니다.")).toBeVisible();
+  await search.fill("Korea");
+  await expect(editor.getByRole("option", { name: /대한민국/ })).toBeVisible();
+  await search.press("Enter");
+  await expect(
+    menu.getByRole("combobox", { name: "국가 선택: 대한민국" }),
+  ).toBeVisible();
+  expect(new URL(editor.url()).searchParams.get("country")).toBe("KR");
+  await expect(menu.getByRole("button", { name: "한국 경계 불러오기" })).toBeVisible();
+  await expect.poll(() => blackVectorPixels(editor)).toBe(0);
+  await expect(editor.getByRole("alertdialog")).toHaveCount(0);
+  expect(await readEditorEdits(editor)).toEqual(before);
+  await editor.getByRole("combobox", { name: "국가 선택: 대한민국" }).click();
+  await search.fill("US");
+  await search.press("Escape");
+  expect(new URL(editor.url()).searchParams.get("country")).toBe("KR");
+  await expect(menu).toBeVisible();
+  await editor.getByRole("combobox", { name: "국가 선택: 대한민국" }).click();
+  await search.fill("미국");
+  await editor.getByRole("option", { name: /미국/ }).click();
+  await expect(menu.getByRole("status")).toHaveText("카운티 1개 표시");
+  await expect.poll(() => blackVectorPixels(editor)).toBeGreaterThan(100);
+  expect(new URL(editor.url()).searchParams.get("country")).toBe("US");
+  expect(await readEditorEdits(editor)).toEqual(before);
+});
+
+test("한국 시작 화면에서 로그인 없이 미국을 고르고 좁은 화면에서도 국가 메뉴를 사용한다", async ({
+  context,
+  page,
+}) => {
+  const regionCalls: string[] = [];
+  await context.route("**/region-api/functions/v1/regions", async (route) => {
+    regionCalls.push(route.request().url());
+    await route.fulfill({ status: 500, json: {} });
+  });
+  const { editor } = await prepare(context, page, false, "KR");
+  await editor.setViewportSize({ width: 390, height: 700 });
+  await editor.getByRole("button", { name: "행정동 경계" }).click();
+  await editor.getByRole("combobox", { name: "국가 선택: 대한민국" }).click();
+  const search = editor.getByRole("combobox", { name: "국가 이름 또는 코드 검색" });
+  await search.fill("USA");
+  const option = editor.getByRole("option", { name: /미국/ });
+  const bounds = await option.boundingBox();
+  if (!bounds) throw new Error("국가 옵션이 화면에 없습니다.");
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
+  await option.click();
+  const menu = editor.getByRole("dialog", { name: "경계 종류", exact: true });
+  await menu
+    .getByRole("button", { name: "카운티 미국 Census 경계", exact: true })
+    .click();
+  await expect(menu.getByRole("status")).toHaveText("카운티 1개 표시");
+  await expect(editor.getByRole("alertdialog")).toHaveCount(0);
+  expect(regionCalls).toHaveLength(0);
 });

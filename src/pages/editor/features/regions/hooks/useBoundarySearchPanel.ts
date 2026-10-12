@@ -10,7 +10,7 @@ export function useBoundarySearchPanel(map: OpenLayersMap | null, kind: string |
   const scope = JSON.stringify([sessionId, kind]);
   const [closedScope, setClosedScope] = useState<string | null>(null);
   const open = closedScope !== scope;
-  const { data: kinds } = useRegionKinds();
+  const { data: kinds } = useRegionKinds("KR", kind !== null);
   const search = useRegionSearch(map, kind ?? "", open && kind !== null);
   const label =
     (kinds ?? fallbackRegionKinds).find((item) => item.kind === kind)?.label ??
