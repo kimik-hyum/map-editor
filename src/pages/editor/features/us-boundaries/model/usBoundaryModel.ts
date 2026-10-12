@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { US_BOUNDARY_KINDS, US_BOUNDARY_VERSION } from "@/shared/config/usBoundaries";
+import {
+  US_BOUNDARY_KINDS,
+  US_BOUNDARY_VERSION,
+  US_BOUNDARY_ORIGINAL_VERSION,
+} from "@/shared/config/usBoundaries";
 
 export const usKindSchema = z.enum(US_BOUNDARY_KINDS);
 export type UsBoundaryKind = z.infer<typeof usKindSchema>;
@@ -30,6 +34,7 @@ const kindSchema = z.object({
 });
 export const usManifestSchema = z.object({
   schema: z.literal("us-boundaries-display-v1"),
+  source_version: z.literal(US_BOUNDARY_ORIGINAL_VERSION),
   version: z.literal(US_BOUNDARY_VERSION),
   country: z.literal("US"),
   crs: z.literal("EPSG:4326"),
@@ -71,6 +76,22 @@ export const usCollectionSchema = z.object({
     )
     .max(40_000),
 });
+// 저장된 표시 파일의 원본 참조까지 검증해 표시 geometry가 편집에 쓰이지 않게 합니다.
+export const usDisplayShardSchema = usCollectionSchema.extend({
+  source_version: z.literal(US_BOUNDARY_ORIGINAL_VERSION),
+  original_object: z.string(),
+});
+export const usOriginalCollectionSchema = usCollectionSchema
+  .omit({
+    tolerance: true,
+    geometry_role: true,
+  })
+  .extend({
+    version: z.literal(US_BOUNDARY_ORIGINAL_VERSION),
+    geometry_role: z.never().optional(),
+    tolerance: z.never().optional(),
+  });
+export type UsDisplayShard = z.infer<typeof usDisplayShardSchema>;
 export type UsManifest = z.infer<typeof usManifestSchema>;
 export type UsIndex = z.infer<typeof usIndexSchema>;
 export type UsCollection = z.infer<typeof usCollectionSchema>;

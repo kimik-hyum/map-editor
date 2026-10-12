@@ -76,9 +76,10 @@ export function EditorPage() {
   // 현재 화면의 경계에 이름·추가/합치기·빼기 카드를 상시 표시합니다.
   const regionOps = useRegionBoundaryOps({
     map,
-    layer: regionLayer,
-    enabled: boundaryKind !== null && isSceneReady,
-    scopeKey: boundaryKind,
+    layer: boundaryCountry === "US" ? usPreview.layer : regionLayer,
+    enabled: (boundaryKind !== null || usPreview.kind !== null) && isSceneReady,
+    scopeKey: boundaryCountry === "US" ? usPreview.kind : boundaryKind,
+    originalSource: boundaryCountry === "US" ? usPreview.originalSource : null,
   });
 
   const messaging = useEditorMessaging();

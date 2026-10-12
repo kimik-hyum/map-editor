@@ -84,6 +84,11 @@ export function EditorModePanel({
     }
   }, [allowed, setActiveMode, country]);
 
+  useEffect(() => {
+    if (boundaryOperationError && activeMode === EditorMode.Boundary)
+      setBoundaryPopupOpen(true);
+  }, [boundaryOperationError, activeMode]);
+
   const activateMode = async (next: EditorMode, kind?: string) => {
     const context = useEditorStore.getState();
     if (

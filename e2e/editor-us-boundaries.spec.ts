@@ -2,6 +2,7 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import {
   US_BOUNDARY_KINDS,
   US_BOUNDARY_VERSION,
+  US_BOUNDARY_ORIGINAL_VERSION,
 } from "../src/shared/config/usBoundaries";
 import { readEditorEdits } from "./fixtures/mapNavigation";
 
@@ -16,10 +17,17 @@ async function prepare(
   const files: string[] = [];
   await context.route("**/api/us-boundaries?*", async (route) => {
     const url = new URL(route.request().url());
-    expect(url.searchParams.get("version")).toBe(US_BOUNDARY_VERSION);
+    const original = url.searchParams.get("version") === US_BOUNDARY_ORIGINAL_VERSION;
+    expect(url.searchParams.get("version")).toBe(
+      original ? US_BOUNDARY_ORIGINAL_VERSION : US_BOUNDARY_VERSION,
+    );
     const file = url.searchParams.get("file") ?? "";
     files.push(file);
-    const common = { version: US_BOUNDARY_VERSION, country: "US" };
+    const common = {
+      version: original ? US_BOUNDARY_ORIGINAL_VERSION : US_BOUNDARY_VERSION,
+      country: "US",
+      source_version: US_BOUNDARY_ORIGINAL_VERSION,
+    };
     if (file === "manifest.json")
       return route.fulfill({
         json: {
@@ -54,11 +62,15 @@ async function prepare(
           ...common,
           kind,
           items: [
-            { id: `${kind}-0001`, bbox: ny, object: `z15-plus/${kind}/0001.json` },
+            {
+              id: `US:${US_BOUNDARY_ORIGINAL_VERSION}:${kind}:0001`,
+              bbox: ny,
+              object: `z15-plus/${kind}/0001.json`,
+            },
             ...(extra
               ? [
                   {
-                    id: `${kind}-0002`,
+                    id: `US:${US_BOUNDARY_ORIGINAL_VERSION}:${kind}:0002`,
                     bbox: east,
                     object: `z15-plus/${kind}/0002.json`,
                   },
@@ -76,15 +88,15 @@ async function prepare(
         ...common,
         type: "FeatureCollection",
         kind,
-        tolerance: 0.00008,
-        geometry_role: "display",
+        ...(original ? {} : { tolerance: 0.00008, geometry_role: "display" }),
+        original_object: `us/${US_BOUNDARY_ORIGINAL_VERSION}/originals/${kind}/${part}.json`,
         truncated: false,
         features: [
           {
             type: "Feature",
-            id: `${kind}-${part}`,
+            id: `US:${US_BOUNDARY_ORIGINAL_VERSION}:${kind}:${part}`,
             bbox,
-            properties: { kind, code: "001", name: "Test boundary" },
+            properties: { kind, code: part, name: "Test boundary" },
             geometry: {
               type: "MultiPolygon",
               coordinates: [
@@ -92,6 +104,7 @@ async function prepare(
                   [
                     [bbox[0], bbox[1]],
                     [bbox[2], bbox[1]],
+                    ...(original ? [[bbox[2] + 0.02, (bbox[1] + bbox[3]) / 2]] : []),
                     [bbox[2], bbox[3]],
                     [bbox[0], bbox[3]],
                     [bbox[0], bbox[1]],
@@ -326,4 +339,209 @@ test("지도 이동을 시작하면 이전 범위의 대기 다운로드를 취�
   const menu = editor.getByRole("dialog", { name: "경계 종류", exact: true });
   await expect(menu.getByRole("status")).toHaveText("카운티 0개 표시");
   await expect(menu.getByRole("alert")).toHaveCount(0);
+});
+
+async function openUsCards(editor: Page) {
+  await editor.getByRole("button", { name: "카운티 경계" }).click();
+  await expect(
+    editor.getByRole("button", { name: "Test boundary 추가", exact: true }),
+  ).toBeVisible();
+  await editor.getByRole("button", { name: "경계 종류 닫기" }).click();
+}
+const originalTip = [-73.84, 40.75];
+function hasOriginalTip(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    ((value.length === 2 &&
+      typeof value[0] === "number" &&
+      Math.abs(value[0] - originalTip[0]) < 1e-8 &&
+      Math.abs(value[1] - originalTip[1]) < 1e-8) ||
+      value.some(hasOriginalTip))
+  );
+}
+
+test("미국 +는 클릭할 때만 원본을 추가하고 undo/redo와 부모 저장에 원본 좌표를 유지한다", async ({
+  context,
+  page,
+}) => {
+  const { editor, files } = await prepare(context, page);
+  const before = await readEditorEdits(editor);
+  await openUsCards(editor);
+  expect(files.filter((file) => file.startsWith("originals/"))).toHaveLength(0);
+  await editor.getByRole("button", { name: "Test boundary 추가", exact: true }).click();
+  await expect(editor.getByRole("button", { name: "도형 숨기기" })).toHaveCount(9);
+  const added = (await readEditorEdits(editor)).layers
+    ?.flatMap((layer) => layer.features)
+    .find((f) => f.name === "Test boundary");
+  expect(hasOriginalTip(added?.feature.geometry.coordinates)).toBe(true);
+  expect((await readEditorEdits(editor)).past).toBe(before.past + 1);
+  await editor.evaluate(async () => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    useEditorStore.getState().undo();
+  });
+  expect((await readEditorEdits(editor)).layers).toEqual(before.layers);
+  await editor.evaluate(async () => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    useEditorStore.getState().redo();
+  });
+  expect(files.filter((file) => file.startsWith("originals/"))).toHaveLength(1);
+  await Promise.all([
+    editor.waitForEvent("close"),
+    editor.getByRole("button", { name: "저장하고 편집 완료" }).click(),
+  ]);
+  await expect(page.getByText("완료됨 · 편집 결과 수신")).toBeVisible();
+  const saved = JSON.parse(
+    (await page.getByTestId("parent-scene").textContent()) ?? "null",
+  );
+  expect(
+    hasOriginalTip(
+      saved.features.find((f: { name: string }) => f.name === "Test boundary").geometry
+        .coordinates,
+    ),
+  ).toBe(true);
+});
+
+test("미국 합치기와 빼기는 원본을 사용하고 같은 파일을 다시 받지 않는다", async ({
+  context,
+  page,
+}) => {
+  const { editor, files } = await prepare(context, page);
+  await openUsCards(editor);
+  await editor.evaluate(async () => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    const state = useEditorStore.getState();
+    state.updateFeatureGeometry("feature-7", {
+      type: "Polygon",
+      coordinates: [
+        [
+          [-74.12, 40.6],
+          [-74.0, 40.6],
+          [-74.0, 40.9],
+          [-74.12, 40.9],
+          [-74.12, 40.6],
+        ],
+      ],
+    });
+    state.setSelectedFeatureIds(["feature-7"]);
+  });
+  const before = await readEditorEdits(editor);
+  const target = async () =>
+    (await readEditorEdits(editor)).layers
+      ?.flatMap((layer) => layer.features)
+      .find((f) => f.id === "feature-7")?.feature.geometry;
+  await editor
+    .getByRole("button", { name: "Test boundary 합치기", exact: true })
+    .click();
+  await expect
+    .poll(async () => (await readEditorEdits(editor)).past)
+    .toBe(before.past + 1);
+  expect(hasOriginalTip((await target())?.coordinates)).toBe(true);
+  await editor.evaluate(async () => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    useEditorStore.getState().undo();
+  });
+  expect((await readEditorEdits(editor)).layers).toEqual(before.layers);
+  await editor.evaluate(async () => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    useEditorStore.getState().updateFeatureGeometry("feature-7", {
+      type: "Polygon",
+      coordinates: [
+        [
+          [-73.9, 40.6],
+          [-73.8, 40.6],
+          [-73.8, 40.9],
+          [-73.9, 40.9],
+          [-73.9, 40.6],
+        ],
+      ],
+    });
+  });
+  const beforeSubtract = await readEditorEdits(editor);
+  await editor
+    .getByRole("button", { name: "Test boundary 겹친 부분 제거", exact: true })
+    .click();
+  await expect
+    .poll(async () => (await readEditorEdits(editor)).past)
+    .toBe(beforeSubtract.past + 1);
+  // 표시 사각형으로 빼면 없는 원본의 돌출 꼭짓점이 결과 경계에 남아야 합니다.
+  expect(hasOriginalTip((await target())?.coordinates)).toBe(true);
+  expect(files.filter((file) => file.startsWith("originals/"))).toHaveLength(1);
+  await editor.evaluate(async () => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    useEditorStore.getState().undo();
+  });
+  expect((await readEditorEdits(editor)).layers).toEqual(beforeSubtract.layers);
+});
+
+test("미국 원본 조회 실패는 scene을 바꾸지 않으며 다시 시도할 수 있다", async ({
+  context,
+  page,
+}) => {
+  const { editor } = await prepare(context, page);
+  await openUsCards(editor);
+  const before = await readEditorEdits(editor);
+  await context.route(
+    (url) => url.searchParams.get("version") === US_BOUNDARY_ORIGINAL_VERSION,
+    (route) => route.fulfill({ status: 503, json: { error: "unavailable" } }),
+    { times: 1 },
+  );
+  await editor.getByRole("button", { name: "Test boundary 추가", exact: true }).click();
+  await expect(
+    editor.getByText("경계 원본을 가져오거나 병합하지 못했습니다. 다시 시도해주세요."),
+  ).toBeVisible();
+  expect(await readEditorEdits(editor)).toEqual(before);
+  await editor.getByRole("button", { name: "경계 종류 닫기" }).click();
+  await editor.getByRole("button", { name: "Test boundary 추가", exact: true }).click();
+  await expect(editor.getByRole("button", { name: "도형 숨기기" })).toHaveCount(9);
+});
+
+test("미국 원본 대기 중 새 INIT은 다운로드를 취소하고 이전 편집 결과를 버린다", async ({
+  context,
+  page,
+}) => {
+  const { editor } = await prepare(context, page);
+  await openUsCards(editor);
+  let started = false;
+  let aborted = false;
+  editor.on("requestfailed", (request) => {
+    if (
+      new URL(request.url()).searchParams.get("version") ===
+      US_BOUNDARY_ORIGINAL_VERSION
+    )
+      aborted = true;
+  });
+  await context.route(
+    (url) => url.searchParams.get("version") === US_BOUNDARY_ORIGINAL_VERSION,
+    () => {
+      started = true;
+    },
+  );
+  await editor.getByRole("button", { name: "Test boundary 추가", exact: true }).click();
+  await expect.poll(() => started).toBe(true);
+  await expect(
+    editor.getByRole("button", { name: "저장하고 편집 완료" }),
+  ).toBeDisabled();
+  await page.evaluate(() =>
+    window.open("", "map-editor-child")?.postMessage(
+      {
+        type: "MAP_EDITOR_INIT",
+        sessionId: "us-replacement",
+        scene: {
+          version: 2,
+          id: "replacement",
+          features: [
+            {
+              name: "교체 도형",
+              geometry: { type: "Point", coordinates: [-74, 40.7] },
+            },
+          ],
+        },
+      },
+      window.location.origin,
+    ),
+  );
+  await expect(editor.getByText("교체 도형", { exact: true })).toBeVisible();
+  await expect.poll(() => aborted).toBe(true);
+  await expect(editor.getByRole("button", { name: "도형 숨기기" })).toHaveCount(1);
+  expect((await readEditorEdits(editor)).past).toBe(0);
 });

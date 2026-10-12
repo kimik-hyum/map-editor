@@ -7,7 +7,12 @@ import {
   readUsBoundaryViewport,
   type UsBoundaryPreset,
 } from "@/pages/editor/adapters/openlayers/usBoundaryViewport";
-import { US_BOUNDARY_VERSION } from "@/shared/config/usBoundaries";
+import {
+  US_BOUNDARY_VERSION,
+  US_BOUNDARY_ORIGINAL_VERSION,
+} from "@/shared/config/usBoundaries";
+import type { BoundaryOriginalSource } from "../../regions/hooks/useRegionBoundaryOps";
+import { fetchUsBoundaryOriginal } from "../api/usBoundaryOriginalApi";
 import { fetchUsBoundaryView } from "../api/usBoundariesApi";
 import { usKindSchema, type UsBbox, type UsCollection } from "../model/usBoundaryModel";
 
@@ -24,6 +29,21 @@ export function useUsBoundaryPreview(
     null,
   );
   const previous = useRef<{ scope: typeof scope; data: UsCollection } | null>(null);
+  const [attached, setAttached] = useState<{
+    scope: typeof scope;
+    handle: ReturnType<typeof attachRegionBoundaryLayer>;
+  } | null>(null);
+  const originalSource = useMemo<BoundaryOriginalSource | null>(
+    () =>
+      kind
+        ? {
+            scope: `US:${US_BOUNDARY_ORIGINAL_VERSION}:${kind}`,
+            fetchGeometry: (id, signal) =>
+              fetchUsBoundaryOriginal(client, kind, id, signal),
+          }
+        : null,
+    [client, kind],
+  );
   const attachment = useRef<ReturnType<typeof attachRegionBoundaryLayer> | null>(null);
 
   useEffect(() => {
@@ -47,6 +67,7 @@ export function useUsBoundaryPreview(
       },
     });
     attachment.current = handle;
+    setAttached({ scope, handle });
     return () => {
       clearTimeout(timer);
       handle.detach();
@@ -77,6 +98,8 @@ export function useUsBoundaryPreview(
   }, [scope, kind, data, query.data]);
 
   return {
+    layer: attached?.scope === scope ? attached.handle.layer : null,
+    originalSource,
     kind,
     loading: !!kind && !!map && !!sessionId && (!bbox || query.isFetching),
     count: kind && data ? data.features.length : 0,

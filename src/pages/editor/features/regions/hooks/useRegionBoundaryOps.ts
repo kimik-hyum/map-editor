@@ -48,6 +48,11 @@ type RegionOperationContext = {
   targetId: string | null;
 };
 
+export type BoundaryOriginalSource = {
+  scope: string;
+  fetchGeometry: (id: string | number, signal: AbortSignal) => Promise<GeoJsonGeometry>;
+};
+
 type UseRegionBoundaryOpsArgs = {
   map: OpenLayersMap | null;
   layer: RegionBoundaryLayer | null;
@@ -55,6 +60,7 @@ type UseRegionBoundaryOpsArgs = {
   enabled: boolean;
   // 같은 layer를 재사용해도 경계 종류가 바뀌면 카드와 진행 중 연산을 폐기합니다.
   scopeKey: string | null;
+  originalSource?: BoundaryOriginalSource | null;
 };
 
 // scene에서 폴리곤 geometry 조회(편집 대상의 면 가져오기).
@@ -80,13 +86,17 @@ async function fullResBoundaryGeom(
   queryClient: QueryClient,
   boundaryId: string | number,
   subject: string,
+  source: BoundaryOriginalSource | null | undefined,
+  signal: AbortSignal,
 ): Promise<PolygonalGeometry> {
-  const full = await queryClient.fetchQuery({
-    queryKey: ["region-full", String(boundaryId), subject],
-    queryFn: ({ signal }) => fetchRegionById(boundaryId, signal),
-    staleTime: REGION_BOUNDARY_CACHE_MS,
-    gcTime: REGION_BOUNDARY_CACHE_MS,
-  });
+  const full = source
+    ? { geometry: await source.fetchGeometry(boundaryId, signal) }
+    : await queryClient.fetchQuery({
+        queryKey: ["region-full", String(boundaryId), subject],
+        queryFn: ({ signal }) => fetchRegionById(boundaryId, signal),
+        staleTime: REGION_BOUNDARY_CACHE_MS,
+        gcTime: REGION_BOUNDARY_CACHE_MS,
+      });
   const geometry = full?.geometry as GeoJsonGeometry | undefined;
   if (!geometry || !isPolygonalGeometry(geometry)) {
     throw new Error("경계 원본 geometry가 없습니다.");
@@ -135,8 +145,11 @@ export function useRegionBoundaryOps({
   layer,
   enabled,
   scopeKey,
+  originalSource,
 }: UseRegionBoundaryOpsArgs) {
-  const { allowed, subject } = useBoundaryAccess();
+  const access = useBoundaryAccess();
+  const allowed = !!originalSource || access.allowed;
+  const subject = originalSource?.scope ?? access.subject;
   const scene = useEditorStore((state) => state.scene);
   const sessionId = useEditorStore((state) => state.sessionId);
   const selectedFeatureIds = useEditorStore((state) => state.selectedFeatureIds);
@@ -149,6 +162,7 @@ export function useRegionBoundaryOps({
   const boundaryByFeatureIdRef = useRef(new Map<string, BoundaryMetadata>());
   const busyRef = useRef(false);
   const operationGenerationRef = useRef(0);
+  const operationController = useRef<AbortController | null>(null);
   const [overlapCache] = useState(createGeometryOverlapCache);
   const target = useMemo(
     () => findGeometryOpTarget(scene, new Set(selectedFeatureIds)),
@@ -176,6 +190,7 @@ export function useRegionBoundaryOps({
   }, [allowed, enabled, visibleBoundaries, target, overlapCache, busy]);
 
   useEffect(() => {
+    operationController.current?.abort();
     operationGenerationRef.current += 1;
     busyRef.current = false;
     setBusy(false);
@@ -199,6 +214,7 @@ export function useRegionBoundaryOps({
     });
 
     return () => {
+      operationController.current?.abort();
       operationGenerationRef.current += 1;
       busyRef.current = false;
       attachment.detach();
@@ -225,11 +241,15 @@ export function useRegionBoundaryOps({
       busyRef.current = true;
       setBusy(true);
       setError(null);
+      const controller = new AbortController();
+      operationController.current = controller;
       try {
         const boundaryGeom = await fullResBoundaryGeom(
           queryClient,
           boundary.boundaryId,
           subject,
+          originalSource,
+          controller.signal,
         );
         if (
           operationGeneration !== operationGenerationRef.current ||
@@ -270,7 +290,7 @@ export function useRegionBoundaryOps({
         }
       }
     },
-    [allowed, enabled, queryClient, subject],
+    [allowed, enabled, queryClient, subject, originalSource],
   );
 
   const onSubtract = useCallback(
@@ -289,11 +309,15 @@ export function useRegionBoundaryOps({
       busyRef.current = true;
       setBusy(true);
       setError(null);
+      const controller = new AbortController();
+      operationController.current = controller;
       try {
         const boundaryGeom = await fullResBoundaryGeom(
           queryClient,
           boundary.boundaryId,
           subject,
+          originalSource,
+          controller.signal,
         );
         if (
           operationGeneration !== operationGenerationRef.current ||
@@ -328,7 +352,7 @@ export function useRegionBoundaryOps({
         }
       }
     },
-    [allowed, enabled, queryClient, subject],
+    [allowed, enabled, queryClient, subject, originalSource],
   );
 
   return { overlays: chips, onMerge, onSubtract, error, busy };

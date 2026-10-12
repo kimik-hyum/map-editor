@@ -1,5 +1,7 @@
 import {
   isUsBoundaryObject,
+  isUsBoundaryOriginalObject,
+  US_BOUNDARY_ORIGINAL_VERSION,
   US_BOUNDARY_VERSION,
 } from "../../src/shared/config/usBoundaries";
 
@@ -14,7 +16,7 @@ type Context = {
   waitUntil: (promise: Promise<unknown>) => void;
 };
 
-// 공개 Census 표시본만 읽습니다. 버킷 목록/원본/다른 버전은 이 경로로 노출하지 않습니다.
+// 고정한 Census 표시본과 연결된 원본만 읽습니다. 버킷 목록·다른 버전은 노출하지 않습니다.
 export async function onRequest({ request, env, waitUntil }: Context) {
   const error = (status: number, message: string) =>
     Response.json(
@@ -25,16 +27,19 @@ export async function onRequest({ request, env, waitUntil }: Context) {
     return error(405, "지원하지 않는 메서드입니다.");
   const url = new URL(request.url);
   const key = url.searchParams.get("file") ?? "";
+  const version = url.searchParams.get("version") ?? "";
   if (
-    url.searchParams.get("version") !== US_BOUNDARY_VERSION ||
-    !isUsBoundaryObject(key)
+    !(
+      (version === US_BOUNDARY_VERSION && isUsBoundaryObject(key)) ||
+      (version === US_BOUNDARY_ORIGINAL_VERSION && isUsBoundaryOriginalObject(key))
+    )
   )
     return error(404, "존재하지 않는 미국 경계 파일입니다.");
   if (!env.US_BOUNDARIES) return error(503, "미국 경계 저장소에 연결하지 못했습니다.");
   const cache = (globalThis.caches as (CacheStorage & { default?: Cache }) | undefined)
     ?.default;
   url.search = new URLSearchParams({
-    version: US_BOUNDARY_VERSION,
+    version,
     file: key,
     representation: "json-v1",
   }).toString();
@@ -48,7 +53,7 @@ export async function onRequest({ request, env, waitUntil }: Context) {
         ? new Response(null, { headers: cached.headers })
         : cached;
     }
-    const object = await env.US_BOUNDARIES.get(`us/${US_BOUNDARY_VERSION}/${key}`);
+    const object = await env.US_BOUNDARIES.get(`us/${version}/${key}`);
     if (!object) return error(404, "미국 경계 파일을 찾지 못했습니다.");
     const headers = new Headers();
     object.writeHttpMetadata(headers);

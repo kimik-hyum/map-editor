@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { onRequest } from "../../../functions/api/us-boundaries";
 import {
   isUsBoundaryObject,
+  US_BOUNDARY_ORIGINAL_VERSION,
+  usBoundaryOriginalUrl,
   usBoundaryObjectUrl,
   US_BOUNDARY_VERSION,
 } from "./usBoundaries";
@@ -48,6 +50,31 @@ describe("미국 R2 읽기 경로", () => {
     expect(r.headers.get("Cache-Control")).toContain("immutable");
     expect(r.headers.get("ETag")).toBe('W/"test-etag"');
     expect(await r.json()).toEqual({ ok: true });
+  });
+  it("연결된 원본 버전의 종류별 파일만 읽고 표시본·목록과 혼용하지 않는다", async () => {
+    const c = makeContext();
+    const originalKey = "originals/county/0021.json";
+    c.request = new Request(
+      `https://preview.example${usBoundaryOriginalUrl(originalKey)}`,
+    );
+    expect(await (await onRequest(c)).json()).toEqual({ ok: true });
+    expect(c.env.US_BOUNDARIES.get).toHaveBeenCalledWith(
+      `us/${US_BOUNDARY_ORIGINAL_VERSION}/${originalKey}`,
+    );
+    for (const key of [
+      "manifest.json",
+      "search-index.json",
+      "z15-plus/county/0021.json",
+      "originals/private/0001.json",
+      "originals/county/../../private.json",
+    ]) {
+      const invalid = makeContext();
+      invalid.request = new Request(
+        `https://preview.example${usBoundaryOriginalUrl(key)}`,
+      );
+      expect((await onRequest(invalid)).status).toBe(404);
+      expect(invalid.env.US_BOUNDARIES.get).not.toHaveBeenCalled();
+    }
   });
   it("다른 버전과 쓰기 요청을 차단하고 조건부 요청을 처리한다", async () => {
     const c = makeContext();

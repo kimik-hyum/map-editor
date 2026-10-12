@@ -46,7 +46,7 @@ export function BoundaryKindPopup({
     options.find((option) => option.id === boundaryStatus.kind)?.label ??
     boundaryStatus.kind ??
     "-";
-  const error = boundaryStatus.error ?? operationError;
+  const error = boundaryStatus.error;
   return (
     <ToolOptionPopup
       activeId={activeKind ?? ""}
@@ -154,6 +154,11 @@ export function BoundaryKindPopup({
               ) : null}
             </>
           )}
+          {activeKind !== null && operationError ? (
+            <p role="alert" className="m-0 text-[11px] text-red-600">
+              {operationError}
+            </p>
+          ) : null}
           {activeKind !== null ? (
             <button
               className="justify-self-start rounded-md px-2 py-1 text-[11px] font-bold text-slate-500 hover:bg-slate-100"
