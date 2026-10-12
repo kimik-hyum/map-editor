@@ -41,14 +41,6 @@ export function UsBoundaryMenuStatus({
           미국 본토
         </button>
       </div>
-      <button
-        type="button"
-        disabled={!preview.kind || preview.loading}
-        onClick={preview.load}
-        className="rounded-md bg-teal-700 px-3 py-2 text-xs font-bold text-white hover:bg-teal-800 disabled:opacity-50"
-      >
-        현재 화면 불러오기
-      </button>
       <p
         role="status"
         aria-live="polite"
@@ -72,11 +64,9 @@ export function UsBoundaryMenuStatus({
           </button>
         </div>
       ) : null}
-      {preview.hasResult && preview.moved ? (
-        <p className="m-0 text-[11px] text-slate-500">
-          이동한 지역은 현재 화면 불러오기로 갱신하세요.
-        </p>
-      ) : null}
+      <p className="m-0 text-[11px] text-slate-500">
+        지도 이동·확대 후 경계가 자동으로 갱신됩니다.
+      </p>
       <p className="m-0 text-[10px] leading-4 text-slate-400">
         U.S. Census Bureau · 2026 TIGER/Line
         <br />

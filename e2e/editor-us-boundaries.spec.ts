@@ -10,6 +10,7 @@ async function prepare(
   page: Page,
   fail = false,
   country = "US",
+  extra = false,
 ) {
   let shouldFail = fail;
   const files: string[] = [];
@@ -30,22 +31,40 @@ async function prepare(
           kinds: US_BOUNDARY_KINDS.map((kind) => ({
             kind,
             label: kind,
-            features: 1,
+            features: extra ? 2 : 1,
             index: `indexes/${kind}.json`,
-            shards: [{ key: `z15-plus/${kind}/0001.json`, bytes: 1000, features: 1 }],
+            shards: (extra ? ["0001", "0002"] : ["0001"]).map((part) => ({
+              key: `z15-plus/${kind}/${part}.json`,
+              bytes: 1000,
+              features: 1,
+            })),
           })),
         },
       });
     const kind = file.startsWith("indexes/")
       ? file.split("/")[1].replace(".json", "")
       : file.split("/")[1];
-    const bbox = [-74.08, 40.65, -73.86, 40.85];
+    const ny = [-74.08, 40.65, -73.86, 40.85];
+    const east = [-73, 40.65, -72.95, 40.75];
+    const part = file.endsWith("0002.json") ? "0002" : "0001";
+    const bbox = part === "0002" ? east : ny;
     if (file.startsWith("indexes/"))
       return route.fulfill({
         json: {
           ...common,
           kind,
-          items: [{ id: `${kind}-ny`, bbox, object: `z15-plus/${kind}/0001.json` }],
+          items: [
+            { id: `${kind}-0001`, bbox: ny, object: `z15-plus/${kind}/0001.json` },
+            ...(extra
+              ? [
+                  {
+                    id: `${kind}-0002`,
+                    bbox: east,
+                    object: `z15-plus/${kind}/0002.json`,
+                  },
+                ]
+              : []),
+          ],
         },
       });
     if (shouldFail) {
@@ -63,7 +82,7 @@ async function prepare(
         features: [
           {
             type: "Feature",
-            id: `${kind}-ny`,
+            id: `${kind}-${part}`,
             bbox,
             properties: { kind, code: "001", name: "Test boundary" },
             geometry: {
@@ -71,11 +90,11 @@ async function prepare(
               coordinates: [
                 [
                   [
-                    [-74.08, 40.65],
-                    [-73.86, 40.65],
-                    [-73.86, 40.85],
-                    [-74.08, 40.85],
-                    [-74.08, 40.65],
+                    [bbox[0], bbox[1]],
+                    [bbox[2], bbox[1]],
+                    [bbox[2], bbox[3]],
+                    [bbox[0], bbox[3]],
+                    [bbox[0], bbox[1]],
                   ],
                 ],
               ],
@@ -117,7 +136,7 @@ test("미국 경계를 로그인 없이 캔버스에 표시하고 편집 도형�
   context,
   page,
 }) => {
-  const { editor, files } = await prepare(context, page);
+  const { editor } = await prepare(context, page);
   const before = await readEditorEdits(editor);
   await editor.getByRole("button", { name: "카운티 경계" }).click();
   const panel = editor.getByRole("dialog", { name: "경계 종류", exact: true });
@@ -125,10 +144,6 @@ test("미국 경계를 로그인 없이 캔버스에 표시하고 편집 도형�
   await expect.poll(() => blackVectorPixels(editor)).toBeGreaterThan(100);
   await expect(editor.getByRole("button", { name: /Google/ })).toHaveCount(0);
   expect(await readEditorEdits(editor)).toEqual(before);
-  const requestsBefore = files.length;
-  await panel.getByRole("button", { name: "현재 화면 불러오기" }).click();
-  await expect(panel.getByRole("status")).toHaveText("카운티 1개 표시");
-  expect(files).toHaveLength(requestsBefore);
   await panel
     .getByRole("button", { name: "도시·타운 미국 Census 경계", exact: true })
     .click();
@@ -219,4 +234,96 @@ test("한국 시작 화면에서 로그인 없이 미국을 고르고 좁은 화
   await expect(menu.getByRole("status")).toHaveText("카운티 1개 표시");
   await expect(editor.getByRole("alertdialog")).toHaveCount(0);
   expect(regionCalls).toHaveLength(0);
+});
+
+async function dragNorth(editor: Page) {
+  const map = await editor.getByLabel("OSM map editor").boundingBox();
+  if (!map) throw new Error("지도가 없습니다.");
+  // 왼쪽 메뉴와 레이어를 피해 실제 지도를 세 번 드래그합니다.
+  for (let i = 0; i < 3; i++) {
+    await editor.mouse.move(map.x + map.width * 0.75, map.y + map.height * 0.3);
+    await editor.mouse.down();
+    await editor.mouse.move(map.x + map.width * 0.75, map.y + map.height * 0.8, {
+      steps: 15,
+    });
+    await editor.mouse.up();
+  }
+}
+
+test("메뉴를 닫아도 드래그 후 범위를 자동 갱신하고 돌아오면 캐시를 재사용한다", async ({
+  context,
+  page,
+}) => {
+  const { editor, files } = await prepare(context, page);
+  const before = await readEditorEdits(editor);
+  await editor.getByRole("button", { name: "카운티 경계" }).click();
+  const menu = editor.getByRole("dialog", { name: "경계 종류", exact: true });
+  await expect(menu.getByRole("status")).toHaveText("카운티 1개 표시");
+  await editor.getByRole("button", { name: "경계 종류 닫기" }).click();
+  await dragNorth(editor);
+  // 메뉴를 열거나 새로고침 버튼을 누르기 전에 참고 레이어가 갱신되어야 합니다.
+  await expect.poll(() => blackVectorPixels(editor)).toBe(0);
+  await editor.getByRole("button", { name: "카운티 경계" }).click();
+  await expect(menu.getByRole("status")).toHaveText("카운티 0개 표시");
+  const requests = files.length;
+  await menu.getByRole("button", { name: "뉴욕", exact: true }).click();
+  await expect(menu.getByRole("status")).toHaveText("카운티 1개 표시");
+  await expect.poll(() => blackVectorPixels(editor)).toBeGreaterThan(100);
+  expect(files).toHaveLength(requests);
+  expect(await readEditorEdits(editor)).toEqual(before);
+});
+
+test("줌 축소로 새 파일을 자동 조회하고 확대할 때 캐시에서 현재 화면만 표시한다", async ({
+  context,
+  page,
+}) => {
+  const { editor, files } = await prepare(context, page, false, "US", true);
+  const before = await readEditorEdits(editor);
+  await editor.getByRole("button", { name: "카운티 경계" }).click();
+  const menu = editor.getByRole("dialog", { name: "경계 종류", exact: true });
+  await expect(menu.getByRole("status")).toHaveText("카운티 1개 표시");
+  await editor.getByRole("button", { name: "경계 종류 닫기" }).click();
+  for (let i = 0; i < 3; i++)
+    await editor.getByTitle("지도 축소", { exact: true }).click();
+  await expect.poll(() => files.includes("z15-plus/county/0002.json")).toBe(true);
+  await editor.getByRole("button", { name: "카운티 경계" }).click();
+  await expect(menu.getByRole("status")).toHaveText("카운티 2개 표시");
+  await editor.getByRole("button", { name: "경계 종류 닫기" }).click();
+  const requests = files.length;
+  for (let i = 0; i < 3; i++)
+    await editor.getByTitle("지도 확대", { exact: true }).click();
+  await editor.getByRole("button", { name: "카운티 경계" }).click();
+  await expect(menu.getByRole("status")).toHaveText("카운티 1개 표시");
+  expect(files).toHaveLength(requests);
+  expect(files.filter((file) => file === "z15-plus/county/0002.json")).toHaveLength(1);
+  expect(await readEditorEdits(editor)).toEqual(before);
+});
+
+test("지도 이동을 시작하면 이전 범위의 대기 다운로드를 취소한다", async ({
+  context,
+  page,
+}) => {
+  const { editor } = await prepare(context, page);
+  let started = false;
+  const aborted: string[] = [];
+  editor.on("requestfailed", (request) => {
+    if (request.url().includes("z15-plus")) aborted.push(request.url());
+  });
+  await context.route(
+    (url) =>
+      url.pathname === "/api/us-boundaries" &&
+      url.searchParams.get("file")?.startsWith("z15-plus/") === true,
+    () => {
+      started = true;
+    },
+  );
+  await editor.getByRole("button", { name: "카운티 경계" }).click();
+  await expect.poll(() => started).toBe(true);
+  await editor.getByRole("button", { name: "경계 종류 닫기" }).click();
+  await dragNorth(editor);
+  await expect.poll(() => aborted.length).toBe(1);
+  await editor.getByRole("button", { name: "카운티 경계" }).click();
+  const menu = editor.getByRole("dialog", { name: "경계 종류", exact: true });
+  await expect(menu.getByRole("status")).toHaveText("카운티 0개 표시");
+  await expect(menu.getByRole("alert")).toHaveCount(0);
 });

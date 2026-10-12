@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type OpenLayersMap from "ol/Map";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { attachRegionBoundaryLayer } from "@/pages/editor/adapters/openlayers/attachRegionBoundaryLayer";
 import {
   focusUsBoundaryPreset,
@@ -9,7 +9,7 @@ import {
 } from "@/pages/editor/adapters/openlayers/usBoundaryViewport";
 import { US_BOUNDARY_VERSION } from "@/shared/config/usBoundaries";
 import { fetchUsBoundaryView } from "../api/usBoundariesApi";
-import { usKindSchema, type UsBbox } from "../model/usBoundaryModel";
+import { usKindSchema, type UsBbox, type UsCollection } from "../model/usBoundaryModel";
 
 export function useUsBoundaryPreview(
   map: OpenLayersMap | null,
@@ -19,43 +19,43 @@ export function useUsBoundaryPreview(
   const client = useQueryClient();
   const parsedKind = usKindSchema.safeParse(selectedKind);
   const kind = parsedKind.success ? parsedKind.data : null;
-  const [bbox, setBbox] = useState<UsBbox | null>(null);
-  const [moved, setMoved] = useState(false);
-  const requestedBbox = useRef<UsBbox | null>(null);
+  const scope = useMemo(() => ({ map, kind, sessionId }), [map, kind, sessionId]);
+  const [request, setRequest] = useState<{ scope: typeof scope; bbox: UsBbox } | null>(
+    null,
+  );
+  const previous = useRef<{ scope: typeof scope; data: UsCollection } | null>(null);
   const attachment = useRef<ReturnType<typeof attachRegionBoundaryLayer> | null>(null);
-  const load = useCallback(() => {
-    if (!map) return;
-    const next = readUsBoundaryViewport(map);
-    if (!next) return;
-    requestedBbox.current = next;
-    setMoved(false);
-    setBbox(next);
-  }, [map]);
+
   useEffect(() => {
-    if (!map) return;
-    const handle = attachRegionBoundaryLayer(map, {
+    if (!scope.map || !scope.kind || !scope.sessionId) return;
+    const activeMap = scope.map;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const pause = () => {
+      clearTimeout(timer);
+      // Query key를 비워 이동 전 범위의 다운로드를 즉시 취소합니다.
+      setRequest(null);
+    };
+    const handle = attachRegionBoundaryLayer(activeMap, {
+      onMoveStart: pause,
       onViewChange: () => {
-        const current = readUsBoundaryViewport(map);
-        const previous = requestedBbox.current;
-        setMoved(
-          Boolean(
-            current &&
-            previous &&
-            current.some((n, i) => Math.abs(n - previous[i]) > 1e-7),
-          ),
-        );
+        pause();
+        // moveend 후에도 연속 휠/키보드 이동이 이어지면 마지막 범위만 조회합니다.
+        timer = setTimeout(() => {
+          const bbox = readUsBoundaryViewport(activeMap);
+          if (bbox) setRequest({ scope, bbox });
+        }, 200);
       },
     });
     attachment.current = handle;
     return () => {
+      clearTimeout(timer);
       handle.detach();
       attachment.current = null;
     };
-  }, [map]);
-  useEffect(() => {
-    if (!map || !kind || !sessionId) return;
-    load();
-  }, [map, kind, sessionId, load]);
+  }, [scope]);
+
+  // 국가·종류·편집 회차를 바꿀 때 이전 범위로 요청하거나 늦은 결과를 표시하지 않습니다.
+  const bbox = request?.scope === scope ? request.bbox : null;
   const query = useQuery({
     queryKey: ["us-boundary-view", US_BOUNDARY_VERSION, sessionId, kind, bbox],
     queryFn: ({ signal }) => {
@@ -67,25 +67,26 @@ export function useUsBoundaryPreview(
     gcTime: 5 * 60_000,
     retry: false,
   });
+  // 같은 종류의 다음 화면을 받는 동안 이미 표시한 참고 경계를 유지합니다.
+  const data =
+    query.data ??
+    (!query.error && previous.current?.scope === scope ? previous.current.data : null);
   useEffect(() => {
-    if (!map) return;
-    attachment.current?.sync(kind && query.data ? query.data : null);
-  }, [kind, query.data, map]);
+    attachment.current?.sync(kind ? data : null);
+    if (query.data) previous.current = { scope, data: query.data };
+  }, [scope, kind, data, query.data]);
+
   return {
     kind,
-    moved,
-    loading: !!kind && query.isFetching,
-    count: kind && query.data ? query.data.features.length : 0,
-    hasResult: !!kind && query.isSuccess,
+    loading: !!kind && !!map && !!sessionId && (!bbox || query.isFetching),
+    count: kind && data ? data.features.length : 0,
+    hasResult: !!kind && !!data,
     error: kind && query.error ? query.error.message : null,
     moveTo: (preset: UsBoundaryPreset) => {
-      if (!map) return;
-      focusUsBoundaryPreset(map, preset);
-      load();
+      if (map) focusUsBoundaryPreset(map, preset);
     },
-    load,
     retry: () => {
-      void query.refetch();
+      if (bbox) void query.refetch();
     },
   };
 }
