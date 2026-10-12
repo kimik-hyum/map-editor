@@ -24,7 +24,7 @@ us/<display-version>/indexes/<kind>.json
 us/<display-version>/z15-plus/<kind>/<part>.json
 ```
 
-`GET /api/us-boundaries?version=<display-version>&file=<relative-key>`는 고정 버전의 manifest, 종류별 인덱스, 표시용 JSON만 읽습니다. 다른 버전·원본·경로 탐색·쓰기 메서드는 허용하지 않습니다. gzip 객체의 인코딩을 유지하고 ETag, 조건부 요청, 버전별 브라우저/Cloudflare 캐시를 사용합니다. 배포용 비밀값이나 계정 토큰은 브라우저에 전달하지 않습니다.
+`GET /api/us-boundaries?version=<display-version>&file=<relative-key>`는 고정 버전의 manifest, 종류별 인덱스, 표시용 JSON만 읽습니다. 다른 버전·원본·경로 탐색·쓰기 메서드는 허용하지 않습니다. R2의 gzip 객체를 스트리밍으로 풀어 JSON을 캐시하고, 브라우저 전송 시 Cloudflare가 gzip/Brotli를 협상합니다. 이렇게 압축 중복을 방지하며, ETag·조건부 요청·버전별 브라우저/Cloudflare 캐시를 사용합니다. 배포용 비밀값이나 계정 토큰은 브라우저에 전달하지 않습니다.
 
 일반 `npm run dev`는 Pages Functions를 실행하지 않습니다. 실제 R2 확인은 바인딩을 적용한 Pages 미리보기 배포에서 수행합니다. 자동 E2E는 이 경로의 HTTP 응답을 합성 데이터로 대체하므로 네트워크 자격 증명 없이 실행됩니다.
 

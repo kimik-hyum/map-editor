@@ -1,3 +1,4 @@
+import { gzipSync } from "node:zlib";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { onRequest } from "../../../functions/api/us-boundaries";
 import {
@@ -15,7 +16,7 @@ const makeContext = (file = "manifest.json", init?: RequestInit) => ({
   env: {
     US_BOUNDARIES: {
       get: vi.fn(async () => ({
-        body: new Blob(["stored-gzip-bytes"]).stream(),
+        body: new Blob([new Uint8Array(gzipSync('{"ok":true}'))]).stream(),
         httpEtag: '"test-etag"',
         writeHttpMetadata: (headers: Headers) =>
           headers.set("Content-Encoding", "gzip"),
@@ -37,16 +38,16 @@ describe("미국 R2 읽기 경로", () => {
     expect((await onRequest(c)).status).toBe(404);
     expect(c.env.US_BOUNDARIES.get).not.toHaveBeenCalled();
   });
-  it("고정한 버전의 표시본만 gzip/ETag/cache 헤더와 함께 전달한다", async () => {
+  it("고정한 버전의 표시본만 JSON 스트림과 ETag/cache 헤더로 전달한다", async () => {
     const c = makeContext("z15-plus/county/0001.json");
     const r = await onRequest(c);
     expect(c.env.US_BOUNDARIES.get).toHaveBeenCalledWith(
       `us/${US_BOUNDARY_VERSION}/z15-plus/county/0001.json`,
     );
-    expect(r.headers.get("Content-Encoding")).toBe("gzip");
+    expect(r.headers.get("Content-Encoding")).toBeNull();
     expect(r.headers.get("Cache-Control")).toContain("immutable");
-    expect(r.headers.get("ETag")).toBe('"test-etag"');
-    expect(await r.text()).toBe("stored-gzip-bytes");
+    expect(r.headers.get("ETag")).toBe('W/"test-etag"');
+    expect(await r.json()).toEqual({ ok: true });
   });
   it("다른 버전과 쓰기 요청을 차단하고 조건부 요청을 처리한다", async () => {
     const c = makeContext();
@@ -56,7 +57,7 @@ describe("미국 R2 읽기 경로", () => {
       (await onRequest(makeContext("manifest.json", { method: "POST" }))).status,
     ).toBe(405);
     const notModified = await onRequest(
-      makeContext("manifest.json", { headers: { "If-None-Match": '"test-etag"' } }),
+      makeContext("manifest.json", { headers: { "If-None-Match": 'W/"test-etag"' } }),
     );
     expect(notModified.status).toBe(304);
     expect(await notModified.text()).toBe("");
@@ -64,32 +65,29 @@ describe("미국 R2 읽기 경로", () => {
       await (await onRequest(makeContext("manifest.json", { method: "HEAD" }))).text(),
     ).toBe("");
   });
-  it("캐시의 압축 바이트를 브라우저 전송 때 다시 압축하지 않는다", async () => {
-    const cached = new Response("stored-gzip-bytes", {
-      headers: { "Content-Encoding": "gzip", ETag: '"test-etag"' },
-    });
-    const match = vi.fn(async () => cached);
-    vi.stubGlobal("caches", { default: { match } });
-    const NativeResponse = Response;
-    const initValues: unknown[] = [];
-    vi.stubGlobal(
-      "Response",
-      class extends NativeResponse {
-        constructor(body?: BodyInit | null, init?: ResponseInit) {
-          super(body, init);
-          initValues.push(init);
-        }
+  it("캐시 적중 응답도 JSON을 한 번만 압축 해제해 읽을 수 있다", async () => {
+    let stored: Response | undefined;
+    vi.stubGlobal("caches", {
+      default: {
+        match: vi.fn(async () => stored?.clone()),
+        put: vi.fn(async (_key: Request, response: Response) => {
+          stored = response;
+        }),
       },
-    );
-    const c = makeContext("indexes/county.json");
-    const r = await onRequest(c);
-    expect(c.env.US_BOUNDARIES.get).not.toHaveBeenCalled();
-    expect(initValues).toContainEqual({
-      headers: cached.headers,
-      encodeBody: "manual",
     });
-    expect(r.headers.get("Content-Encoding")).toBe("gzip");
-    expect(await r.text()).toBe("stored-gzip-bytes");
+    const c = makeContext("indexes/county.json");
+    expect(await (await onRequest(c)).json()).toEqual({ ok: true });
+    const cached = await onRequest(c);
+    expect(c.env.US_BOUNDARIES.get).toHaveBeenCalledTimes(1);
+    expect(cached.headers.get("Content-Encoding")).toBeNull();
+    expect(await cached.json()).toEqual({ ok: true });
+    const revalidated = await onRequest({
+      ...c,
+      request: new Request(c.request.url, {
+        headers: { "If-None-Match": 'W/"test-etag"' },
+      }),
+    });
+    expect(revalidated.status).toBe(304);
   });
   it("저장소 미연결, 누락 파일, 장애는 캐시하지 않는다", async () => {
     const c = makeContext();

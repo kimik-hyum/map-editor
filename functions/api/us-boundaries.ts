@@ -4,7 +4,7 @@ import {
 } from "../../src/shared/config/usBoundaries";
 
 type StoredObject = {
-  body: ReadableStream<Uint8Array>;
+  body: ReadableStream<Uint8Array<ArrayBuffer>>;
   httpEtag: string;
   writeHttpMetadata: (headers: Headers) => void;
 };
@@ -36,6 +36,7 @@ export async function onRequest({ request, env, waitUntil }: Context) {
   url.search = new URLSearchParams({
     version: US_BOUNDARY_VERSION,
     file: key,
+    representation: "json-v1",
   }).toString();
   const cacheKey = new Request(url.toString());
   try {
@@ -45,20 +46,21 @@ export async function onRequest({ request, env, waitUntil }: Context) {
         return new Response(null, { status: 304, headers: cached.headers });
       return request.method === "HEAD"
         ? new Response(null, { headers: cached.headers })
-        : new Response(cached.body, {
-            headers: cached.headers,
-            encodeBody: "manual",
-          } as ResponseInit & { encodeBody: "manual" });
+        : cached;
     }
     const object = await env.US_BOUNDARIES.get(`us/${US_BOUNDARY_VERSION}/${key}`);
     if (!object) return error(404, "미국 경계 파일을 찾지 못했습니다.");
     const headers = new Headers();
     object.writeHttpMetadata(headers);
+    const gzipped = headers.get("Content-Encoding") === "gzip";
+    headers.delete("Content-Encoding");
+    headers.delete("Content-Length");
     headers.set("Content-Type", "application/json");
     headers.set("Cache-Control", "public, max-age=31536000, immutable");
-    headers.set("ETag", object.httpEtag);
+    const etag = `W/${object.httpEtag}`;
+    headers.set("ETag", etag);
     headers.set("X-Content-Type-Options", "nosniff");
-    if (request.headers.get("If-None-Match") === object.httpEtag) {
+    if (request.headers.get("If-None-Match") === etag) {
       await object.body.cancel();
       return new Response(null, { status: 304, headers });
     }
@@ -66,12 +68,12 @@ export async function onRequest({ request, env, waitUntil }: Context) {
       await object.body.cancel();
       return new Response(null, { headers });
     }
-    // R2의 gzip 바이트를 그대로 전송합니다. Workers의 이중 압축을 방지합니다.
-    const init: ResponseInit & { encodeBody: "manual" } = {
-      headers,
-      encodeBody: "manual",
-    };
-    const response = new Response(object.body, init);
+    // Pages/Cache API의 응답 래핑과 Brotli 협상에서 gzip이 중복 적용되지 않도록
+    // 저장본을 스트리밍으로 풀고, 실제 전송 압축은 Cloudflare에 맡깁니다.
+    const body = gzipped
+      ? object.body.pipeThrough(new DecompressionStream("gzip"))
+      : object.body;
+    const response = new Response(body, { headers });
     if (cache) waitUntil(cache.put(cacheKey, response.clone()).catch(() => undefined));
     return response;
   } catch {
