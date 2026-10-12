@@ -1,0 +1,7 @@
+name = "maps-editor"
+compatibility_date = "2026-08-27"
+pages_build_output_dir = "./dist"
+
+[[r2_buckets]]
+binding = "US_BOUNDARIES"
+bucket_name = "maps-editor-boundaries"

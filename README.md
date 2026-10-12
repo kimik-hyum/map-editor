@@ -41,4 +41,5 @@ HTTPS 사이트는 편집기와 도메인이 달라도 연결할 수 있습니�
 - [실행·커스텀 위치·검증·배포](docs/self-hosting.md)
 - [JSON·자체 API를 연결하는 경계 데이터 어댑터](docs/boundary-adapter.md)
 - [Google·Supabase 구성 (선택)](docs/supabase-region-api.md)
+- [미국 경계 미리보기와 R2 연결](docs/us-boundary-preview.md)
 - [아키텍처](src/pages/editor/ARCHITECTURE.md) · [도구·상태 모델](docs/editor-tool-model.md)

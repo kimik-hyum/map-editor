@@ -17,6 +17,7 @@ import {
   RegionSearchPanel,
 } from "./features/regions";
 import { EditorSessionActions } from "./features/session";
+import { UsBoundaryPreview } from "./features/us-boundaries";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
 import { useEditorHistoryShortcuts } from "./state/historyShortcuts";
@@ -108,6 +109,20 @@ export function EditorPage() {
         />
       </aside>
       <main className="relative min-h-0 min-w-0">
+        {isSceneReady ? (
+          <UsBoundaryPreview
+            key={sessionId}
+            map={map}
+            blocked={
+              drawTool.isDrawing ||
+              radiusTool.popupOpen ||
+              holeFillTool.isOpen ||
+              regionOps.busy ||
+              renameInProgress ||
+              confirmationOpen
+            }
+          />
+        ) : null}
         {boundarySearch.open && boundaryKind ? (
           <RegionSearchPanel
             key={`${sessionId ?? ""}:${boundaryKind}`}
