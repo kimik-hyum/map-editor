@@ -45,7 +45,10 @@ export async function onRequest({ request, env, waitUntil }: Context) {
         return new Response(null, { status: 304, headers: cached.headers });
       return request.method === "HEAD"
         ? new Response(null, { headers: cached.headers })
-        : cached;
+        : new Response(cached.body, {
+            headers: cached.headers,
+            encodeBody: "manual",
+          } as ResponseInit & { encodeBody: "manual" });
     }
     const object = await env.US_BOUNDARIES.get(`us/${US_BOUNDARY_VERSION}/${key}`);
     if (!object) return error(404, "미국 경계 파일을 찾지 못했습니다.");

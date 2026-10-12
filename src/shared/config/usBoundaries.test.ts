@@ -64,6 +64,33 @@ describe("미국 R2 읽기 경로", () => {
       await (await onRequest(makeContext("manifest.json", { method: "HEAD" }))).text(),
     ).toBe("");
   });
+  it("캐시의 압축 바이트를 브라우저 전송 때 다시 압축하지 않는다", async () => {
+    const cached = new Response("stored-gzip-bytes", {
+      headers: { "Content-Encoding": "gzip", ETag: '"test-etag"' },
+    });
+    const match = vi.fn(async () => cached);
+    vi.stubGlobal("caches", { default: { match } });
+    const NativeResponse = Response;
+    const initValues: unknown[] = [];
+    vi.stubGlobal(
+      "Response",
+      class extends NativeResponse {
+        constructor(body?: BodyInit | null, init?: ResponseInit) {
+          super(body, init);
+          initValues.push(init);
+        }
+      },
+    );
+    const c = makeContext("indexes/county.json");
+    const r = await onRequest(c);
+    expect(c.env.US_BOUNDARIES.get).not.toHaveBeenCalled();
+    expect(initValues).toContainEqual({
+      headers: cached.headers,
+      encodeBody: "manual",
+    });
+    expect(r.headers.get("Content-Encoding")).toBe("gzip");
+    expect(await r.text()).toBe("stored-gzip-bytes");
+  });
   it("저장소 미연결, 누락 파일, 장애는 캐시하지 않는다", async () => {
     const c = makeContext();
     expect((await onRequest({ ...c, env: {} })).status).toBe(503);
