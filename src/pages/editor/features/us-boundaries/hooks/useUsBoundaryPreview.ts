@@ -11,8 +11,11 @@ import {
   US_BOUNDARY_VERSION,
   US_BOUNDARY_ORIGINAL_VERSION,
 } from "@/shared/config/usBoundaries";
-import type { BoundaryOriginalSource } from "../../regions/hooks/useRegionBoundaryOps";
-import { fetchUsBoundaryOriginal } from "../api/usBoundaryOriginalApi";
+import type { BoundaryOriginalSource } from "../../regions/api/boundaryOriginalSource";
+import {
+  fetchUsBoundaryOriginal,
+  getCachedUsBoundaryOriginal,
+} from "../api/usBoundaryOriginalApi";
 import { fetchUsBoundaryView } from "../api/usBoundariesApi";
 import { usKindSchema, type UsBbox, type UsCollection } from "../model/usBoundaryModel";
 
@@ -38,6 +41,7 @@ export function useUsBoundaryPreview(
       kind
         ? {
             scope: `US:${US_BOUNDARY_ORIGINAL_VERSION}:${kind}`,
+            getCachedGeometry: (id) => getCachedUsBoundaryOriginal(client, kind, id),
             fetchGeometry: (id, signal) =>
               fetchUsBoundaryOriginal(client, kind, id, signal),
           }

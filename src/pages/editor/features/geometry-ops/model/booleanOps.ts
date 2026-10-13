@@ -84,27 +84,35 @@ export function intersectGeometries(
   return result === undefined ? undefined : fromTurf(result);
 }
 
-// 두 폴리곤이 공유하는 면적(㎡). 겹치지 않거나 변끼리 닿기만 하거나 연산이 실패하면 0입니다.
+// 두 폴리곤이 공유하는 면적(㎡). 겹치지 않거나 변끼리 닿으면 0, 계산 실패는 undefined입니다.
 export function overlapAreaSquareMeters(
   a: PolygonalGeometry,
   b: PolygonalGeometry,
-): number {
-  return safeTurf(() => {
+): number | undefined {
+  return safeTurf<number | undefined>(() => {
     const shared = intersect(featureCollection([toTurf(a), toTurf(b)]));
-    return shared ? area(shared) : 0;
-  }, 0);
+    const value = shared ? area(shared) : 0;
+    return Number.isFinite(value) ? value : undefined;
+  }, undefined);
 }
 
 // 제거(빼기) 버튼은 "실제 면적 겹침"이 있을 때만 의미가 있습니다.
 // 변끼리 닿기만 하면 면적이 0이므로, 작은 임계값으로 부동소수 슬리버를 거릅니다.
 const MIN_OVERLAP_AREA_SQUARE_METERS = 1e-6;
 
-export function hasAreaOverlap(
+export type GeometryOverlap = "overlap" | "disjoint" | "error";
+
+export function classifyGeometryOverlap(
   a: PolygonalGeometry,
   b: PolygonalGeometry,
   minArea: number = MIN_OVERLAP_AREA_SQUARE_METERS,
-): boolean {
-  return overlapAreaSquareMeters(a, b) > minArea;
+): GeometryOverlap {
+  const sharedArea = overlapAreaSquareMeters(a, b);
+  return sharedArea === undefined
+    ? "error"
+    : sharedArea > minArea
+      ? "overlap"
+      : "disjoint";
 }
 
 // 바운딩 박스 [minX(서), minY(남), maxX(동), maxY(북)] — 경위도.
@@ -118,7 +126,7 @@ export function geometryBbox(geometry: PolygonalGeometry): BBox2D {
 
 // 두 bbox가 겹치는지(broad-phase). 한 축이라도 분리되면 false.
 // 1차 필터라 "포함"이 안전: 경계가 닿기만 해도 통과시키고, 실제 면적 겹침은 narrow-phase
-// (hasAreaOverlap)에서 정확히 가린다. 절대 참 겹침을 잘못 버리면 안 되므로 ≤(포함) 비교.
+// (classifyGeometryOverlap)에서 정확히 가린다. 절대 참 겹침을 잘못 버리면 안 되므로 ≤(포함) 비교.
 export function bboxesOverlap(a: BBox2D, b: BBox2D): boolean {
   return a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3];
 }

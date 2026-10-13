@@ -545,3 +545,52 @@ test("미국 원본 대기 중 새 INIT은 다운로드를 취소하고 이전 �
   await expect(editor.getByRole("button", { name: "도형 숨기기" })).toHaveCount(1);
   expect((await readEditorEdits(editor)).past).toBe(0);
 });
+
+test("미국 경계 추가 직후 제거하고 원본에만 있는 부분도 캐시로 판정한다", async ({
+  context,
+  page,
+}) => {
+  const { editor, files } = await prepare(context, page);
+  await openUsCards(editor);
+  const minus = editor.getByRole("button", {
+    name: "Test boundary 겹친 부분 제거",
+    exact: true,
+  });
+  await expect(minus).toBeDisabled();
+  expect(files.filter((file) => file.startsWith("originals/"))).toHaveLength(0);
+  await editor.getByRole("button", { name: "Test boundary 추가", exact: true }).click();
+  await expect(minus).toBeEnabled();
+  const added = (await readEditorEdits(editor)).layers
+    ?.flatMap((layer) => layer.features)
+    .find((feature) => feature.name === "Test boundary");
+  if (!added) throw new Error("missing added boundary");
+  await minus.click();
+  await expect(editor.getByRole("button", { name: "도형 숨기기" })).toHaveCount(8);
+  await editor.evaluate(async (id) => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    useEditorStore.getState().undo();
+    // 선택은 history 대상이 아니므로 복원한 도형을 다시 선택합니다.
+    useEditorStore.getState().setSelectedFeatureIds([id]);
+  }, added.id);
+  await expect(minus).toBeEnabled();
+  await editor.evaluate(async (id) => {
+    const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");
+    // 표시 사각형 밖, 원본의 돌출부 안에만 있는 합성 도형입니다.
+    useEditorStore.getState().updateFeatureGeometry(id, {
+      type: "Polygon",
+      coordinates: [
+        [
+          [-73.853, 40.749],
+          [-73.849, 40.749],
+          [-73.849, 40.751],
+          [-73.853, 40.751],
+          [-73.853, 40.749],
+        ],
+      ],
+    });
+  }, added.id);
+  await expect(minus).toBeEnabled();
+  await minus.click();
+  await expect(editor.getByRole("button", { name: "도형 숨기기" })).toHaveCount(8);
+  expect(files.filter((file) => file.startsWith("originals/"))).toHaveLength(1);
+});

@@ -1,6 +1,6 @@
 import type { Coordinate } from "ol/coordinate";
 import type Feature from "ol/Feature";
-import GeoJSON from "ol/format/GeoJSON";
+import { getRegionBoundaryGeometry } from "./regionBoundaryGeometry";
 import type Geometry from "ol/geom/Geometry";
 import MultiPolygon from "ol/geom/MultiPolygon";
 import Polygon from "ol/geom/Polygon";
@@ -26,8 +26,6 @@ export type RegionBoundaryOverlay = {
   displayGeometry: PolygonalGeometry;
   zoom: number;
 };
-
-const geojson = new GeoJSON();
 
 function interiorCoordinate(geometry: Polygon | MultiPolygon): Coordinate | null {
   if (geometry instanceof Polygon)
@@ -108,14 +106,12 @@ export function attachRegionBoundaryOverlays(
       let cached = cache.get(feature);
       if (!cached || cached.revision !== feature.getRevision()) {
         const coordinate = interiorCoordinate(geometry);
-        if (!coordinate) return [];
+        const displayGeometry = getRegionBoundaryGeometry(feature);
+        if (!coordinate || !displayGeometry) return [];
         cached = {
           revision: feature.getRevision(),
           coordinate,
-          displayGeometry: geojson.writeGeometryObject(geometry, {
-            featureProjection: "EPSG:3857",
-            dataProjection: "EPSG:4326",
-          }) as PolygonalGeometry,
+          displayGeometry,
         };
         cache.set(feature, cached);
       }

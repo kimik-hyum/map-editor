@@ -6,7 +6,7 @@ export async function installGeometryOverlapProbe(context: BrowserContext) {
     const response = await route.fetch();
     expect(response.ok(), "교집합 계측 대상 모듈을 불러와야 합니다").toBe(true);
     const source = await response.text();
-    const marker = "return overlapAreaSquareMeters(a, b) > minArea;";
+    const marker = "const sharedArea = overlapAreaSquareMeters(a, b);";
     expect(source).toContain(marker);
     await route.fulfill({
       response,
