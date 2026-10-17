@@ -167,7 +167,7 @@ async function openEditorViaDemo(page: Page): Promise<Page> {
   await page.goto("/demo");
   const [editorPage] = await Promise.all([
     page.waitForEvent("popup"),
-    page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
+    page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
   await editorPage.waitForLoadState();
   await expect(page.getByText("연결됨 · scene 전달 완료")).toBeVisible();
@@ -361,7 +361,7 @@ test("퇴화 ring을 만드는 경계 병합도 저장·부모 갱신·다시 �
   expect(geometry?.coordinates).toHaveLength(1);
   const [reopened] = await Promise.all([
     page.waitForEvent("popup"),
-    page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
+    page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
   await expect(page.getByText("연결됨 · scene 전달 완료")).toBeVisible();
   await expect(

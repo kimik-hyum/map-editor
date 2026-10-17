@@ -120,7 +120,7 @@ async function prepare(
   await page.goto(`/demo?country=${country}`);
   const [editor] = await Promise.all([
     page.waitForEvent("popup"),
-    page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
+    page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
   await expect(editor.getByText("권역 A", { exact: true })).toBeVisible();
   return { editor, files };

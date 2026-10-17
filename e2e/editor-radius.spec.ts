@@ -19,7 +19,7 @@ async function openEditorWithMarkers(page: Page): Promise<Page> {
   await page.goto("/demo");
   const [editorPage] = await Promise.all([
     page.waitForEvent("popup"),
-    page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
+    page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
   await editorPage.waitForLoadState();
   // 자식 에디터가 메시지 listener를 붙이고 데모의 최초 INIT을 받은 뒤 테스트 scene으로 교체합니다.

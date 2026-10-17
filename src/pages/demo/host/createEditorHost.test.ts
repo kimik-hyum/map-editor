@@ -81,7 +81,6 @@ describe("Demo 부모 편집 회차", () => {
     expect(s.open).toHaveBeenCalledWith(
       `https://host.example/editor/${expected}`,
       "map-editor-child",
-      expect.any(String),
     );
   });
 

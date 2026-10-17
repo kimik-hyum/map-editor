@@ -138,7 +138,7 @@ async function openNationalEditor(page: Page) {
   await page.goto("/demo");
   const [editor] = await Promise.all([
     page.waitForEvent("popup"),
-    page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
+    page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
   await expect(editor.getByText("권역 A", { exact: true })).toBeVisible();
   // 기본 z12에서 z7로 이동한 뒤 경계를 켜서 초기 지도 애니메이션과 요청을 분리합니다.

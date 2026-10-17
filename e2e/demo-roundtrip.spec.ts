@@ -8,7 +8,7 @@ async function readParentScene(page: Page): Promise<EditorSceneInput> {
 async function openEditor(page: Page) {
   const [editor] = await Promise.all([
     page.waitForEvent("popup"),
-    page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
+    page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
   await expect(
     editor.getByRole("button", { name: "저장하고 편집 완료" }),
@@ -119,13 +119,13 @@ test("중복 열기와 팝업 수동 종료로 부모 데이터가 초기화되�
   const before = await readParentScene(page);
   const editor = await openEditor(page);
   await rename(editor, "권역 A", "진행 중 이름");
-  await page.getByRole("button", { name: "편집기 새 창으로 열기" }).click();
+  await page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click();
   expect(context.pages()).toHaveLength(2);
   await expect(
     editor.getByRole("button", { name: "진행 중 이름 선택", exact: true }),
   ).toBeVisible();
   await editor.close();
-  await expect(page.getByText("에디터 창이 닫힘 · 서비스 데이터 유지")).toBeVisible();
+  await expect(page.getByText("에디터 탭이 닫힘 · 서비스 데이터 유지")).toBeVisible();
   expect(await readParentScene(page)).toEqual(before);
 });
 
@@ -135,7 +135,7 @@ test("모바일에서도 지도·현재 데이터와 편집 버튼이 화면 폭
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/demo");
   await expect(
-    page.getByRole("button", { name: "편집기 새 창으로 열기" }),
+    page.getByRole("button", { name: "편집기 새 탭으로 열기" }),
   ).toBeVisible();
   await expect(
     page.getByRole("application", { name: "샘플 지도", exact: true }),

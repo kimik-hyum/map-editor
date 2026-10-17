@@ -102,11 +102,8 @@ export function createEditorHost(options: EditorHostOptions) {
       releaseChild();
       const snapshot = structuredClone(options.getScene());
       const nextSessionId = crypto.randomUUID();
-      const opened = window.open(
-        editorUrl.href,
-        "map-editor-child",
-        "width=1280,height=860",
-      );
+      // 창 크기 옵션을 생략해 새 탭으로 열고, 결과 전달에 필요한 opener를 유지합니다.
+      const opened = window.open(editorUrl.href, "map-editor-child");
       if (!opened) {
         options.onError(
           "팝업이 차단되었습니다. 브라우저 팝업 허용 후 다시 시도하세요.",
