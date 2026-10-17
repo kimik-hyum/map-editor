@@ -16,7 +16,7 @@ export function EditorRightDock({
     <aside
       aria-label="속성과 레이어 패널"
       className={cn(
-        "z-30 flex h-full shrink-0 flex-col border-l border-slate-200 bg-white shadow-[-4px_0_18px_rgba(15,23,42,0.03)] max-[899px]:absolute max-[899px]:inset-y-0 max-[899px]:right-0",
+        "absolute inset-y-0 right-0 z-30 flex h-full flex-col border-l border-slate-200 bg-white shadow-[-4px_0_18px_rgba(15,23,42,0.03)]",
         open ? "w-[340px] max-w-[calc(100vw-88px)]" : "w-10",
       )}
     >

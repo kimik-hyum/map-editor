@@ -187,7 +187,7 @@ flowchart TB
 2. `messaging`이 opener·origin·session과 postMessage payload를 검증하고 `editorStore`에 scene을 주입한다.
 3. `features/map/hooks/useOpenLayersEditorMap.ts`가 store 상태를 구독하고 OpenLayers adapter를 호출한다.
 4. `adapters/openlayers`가 scene을 OpenLayers layer/feature/interaction으로 변환하거나 동기화한다.
-5. `useEditorTools`가 좌측 도구 선택·국가 전환·인증을 조율하고 `EditorRightDock`이 오른쪽 위 도구 옵션과 아래 레이어 관리를 고정 배치한다. 옵션 탐색과 실제 활성 도구는 분리하며, 한국 경계는 접근 승인 후 국가·종류·도구를 함께 확정한다. `features/layers` 같은 UI 기능은 store action을 호출하고, map hook이 변경된 상태를 지도에 반영한다.
+5. `useEditorTools`가 좌측 도구 선택·국가 전환·인증을 조율하고 `EditorRightDock`이 오른쪽 위 도구 옵션과 아래 레이어 관리를 지도 위에 겹쳐 배치한다. 패널을 접고 펼쳐도 지도 영역 크기는 유지한다. 옵션 탐색과 실제 활성 도구는 분리하며, 한국 경계는 접근 승인 후 국가·종류·도구를 함께 확정한다. `features/layers` 같은 UI 기능은 store action을 호출하고, map hook이 변경된 상태를 지도에 반영한다.
 6. 기본 배포의 `features/regions`는 Google 세션으로 Edge Function을 호출하고 응답을 Zod로 검증한 뒤, `adapters/openlayers`의 별도 참고 레이어에만 표시한다. 사용자가 채택한 원본 geometry만 store action으로 scene에 복사한다.
 7. `features/draw`는 OpenLayers sketch를 adapter 안에 유지하고, 완성된 geometry만 `addFeatures`로 scene에 커밋한다.
 8. `features/radius`는 입력 중 원을 전용 preview layer에만 표시하고, 적용 시 완성 Polygon만 `addFeatures`로 커밋한다.

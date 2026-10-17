@@ -13,7 +13,7 @@ async function openEditor(page: Page) {
   return editor;
 }
 
-test("오른쪽 위 옵션과 아래 레이어는 지도 밖에 고정되며 접어도 지도·편집 상태를 보존한다", async ({
+test("오른쪽 패널은 지도에 겹치며 접고 펼쳐도 지도 크기·도형 위치·편집 상태를 보존한다", async ({
   page,
 }) => {
   const editor = await openEditor(page);
@@ -21,6 +21,9 @@ test("오른쪽 위 옵션과 아래 레이어는 지도 밖에 고정되며 접
   const options = editor.getByRole("region", { name: "도구 옵션", exact: true });
   const layers = editor.getByRole("region", { name: "레이어", exact: true });
   const map = editor.getByLabel("OSM map editor");
+  await editor.getByRole("button", { name: "권역 C 선택", exact: true }).click();
+  // 선택 도형으로 이동하는 기존 350ms 애니메이션이 끝난 뒤 위치를 비교합니다.
+  await editor.waitForTimeout(400);
   const [mapBox, dockBox, optionsBox, layersBox] = await Promise.all([
     map.boundingBox(),
     dock.boundingBox(),
@@ -29,19 +32,24 @@ test("오른쪽 위 옵션과 아래 레이어는 지도 밖에 고정되며 접
   ]);
   if (!mapBox || !dockBox || !optionsBox || !layersBox)
     throw new Error("패널 위치를 찾을 수 없습니다");
-  expect(mapBox.x + mapBox.width).toBeLessThanOrEqual(dockBox.x);
+  expect(dockBox.x).toBeGreaterThan(mapBox.x);
+  expect(dockBox.x + dockBox.width).toBe(mapBox.x + mapBox.width);
   expect(optionsBox.y + optionsBox.height).toBeLessThanOrEqual(layersBox.y);
   expect(optionsBox.x).toBe(layersBox.x);
   const before = await readEditorEdits(editor);
   const viewport = map.locator(".ol-viewport");
+  const annotation = editor.locator("[data-map-annotation]").first();
+  await expect(annotation).toBeVisible();
+  const annotationBox = await annotation.boundingBox();
   await viewport.evaluate((node) => node.setAttribute("data-same-map", "yes"));
   await editor.getByRole("button", { name: "오른쪽 패널 접기" }).click();
   await expect(layers).toBeHidden();
-  await expect
-    .poll(async () => (await map.boundingBox())?.width ?? 0)
-    .toBeGreaterThan(mapBox.width + 200);
+  expect(await map.boundingBox()).toEqual(mapBox);
+  expect(await annotation.boundingBox()).toEqual(annotationBox);
   await editor.getByRole("button", { name: "오른쪽 패널 펼치기" }).click();
   await expect(layers).toBeVisible();
+  expect(await map.boundingBox()).toEqual(mapBox);
+  expect(await annotation.boundingBox()).toEqual(annotationBox);
   await expect(viewport).toHaveAttribute("data-same-map", "yes");
   expect(await readEditorEdits(editor)).toEqual(before);
 });

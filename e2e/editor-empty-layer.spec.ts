@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { visibleMapPoint } from "./fixtures/mapNavigation";
 
 async function openEditor(page: Page) {
   await page.goto("/demo");
@@ -29,9 +30,8 @@ async function modifier(page: Page) {
 }
 
 async function mapClick(page: Page, x: number, y: number) {
-  const box = await page.getByLabel("OSM map editor").boundingBox();
-  if (!box) throw new Error("지도를 찾을 수 없습니다");
-  await page.mouse.click(box.x + box.width * x, box.y + box.height * y);
+  const point = await visibleMapPoint(page, x, y);
+  await page.mouse.click(point.x, point.y);
 }
 
 test("빈 레이어 생성·이름 변경 후 같은 레이어에 폴리곤을 그리고 undo/redo한다", async ({

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { seedGoogleSession } from "./fixtures/auth";
+import { visibleMapPoint as mapPoint } from "./fixtures/mapNavigation";
 
 type EditorSnapshot = {
   layerCount: number;
@@ -82,14 +83,6 @@ async function activateDrawShape(page: Page, shape: "폴리곤" | "패스" | "�
   if (shape !== "폴리곤") {
     await popup.getByRole("button", { name: new RegExp(`^${shape}`) }).click();
   }
-}
-
-async function mapPoint(page: Page, xRatio: number, yRatio: number) {
-  const box = await page.getByLabel("OSM map editor").boundingBox();
-  if (!box) {
-    throw new Error("지도 영역을 찾을 수 없습니다.");
-  }
-  return { x: box.x + box.width * xRatio, y: box.y + box.height * yRatio };
 }
 
 async function clickMapPoint(page: Page, xRatio: number, yRatio: number) {
@@ -199,7 +192,7 @@ test("Path는 정점 로컬 undo/redo 후 완료 버튼으로 별도 레이어�
   if (!mapBounds) {
     throw new Error("지도 영역을 찾을 수 없습니다.");
   }
-  await editorPage.mouse.move(mapBounds.x + mapBounds.width - 2, mapBounds.y + 2);
+  await editorPage.mouse.move(mapBounds.x + 2, mapBounds.y + 2);
   await expect(cursorTooltip).toBeVisible();
   await expect
     .poll(async () => {

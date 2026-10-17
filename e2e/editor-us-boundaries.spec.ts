@@ -255,11 +255,11 @@ test("한국 시작 화면에서 로그인 없이 미국을 고르고 좁은 화
 async function dragNorth(editor: Page) {
   const map = await editor.getByLabel("OSM map editor").boundingBox();
   if (!map) throw new Error("지도가 없습니다.");
-  // 왼쪽 메뉴와 레이어를 피해 실제 지도를 세 번 드래그합니다.
+  // 오른쪽에 겹친 패널을 피해 지도 중앙을 세 번 드래그합니다.
   for (let i = 0; i < 3; i++) {
-    await editor.mouse.move(map.x + map.width * 0.75, map.y + map.height * 0.3);
+    await editor.mouse.move(map.x + map.width * 0.5, map.y + map.height * 0.3);
     await editor.mouse.down();
-    await editor.mouse.move(map.x + map.width * 0.75, map.y + map.height * 0.8, {
+    await editor.mouse.move(map.x + map.width * 0.5, map.y + map.height * 0.8, {
       steps: 15,
     });
     await editor.mouse.up();
