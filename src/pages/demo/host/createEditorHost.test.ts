@@ -73,7 +73,7 @@ function setup(search = "") {
 describe("Demo 부모 편집 회차", () => {
   it.each([
     ["?country=us&unrelated=private", "?country=US"],
-    ["?country=unknown", "?country=KR"],
+    ["?country=unknown", ""],
     ["", ""],
   ])("초기 국가만 편집기 URL에 전달한다: %s", (search, expected) => {
     const s = setup(search);

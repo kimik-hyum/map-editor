@@ -18,11 +18,13 @@ export const boundaryCountries = [
 export type BoundaryCountry = (typeof boundaryCountries)[number];
 export type BoundaryCountryCode = BoundaryCountry["code"];
 
-export function resolveBoundaryCountry(search: string): BoundaryCountry {
+export function readBoundaryCountry(search: string): BoundaryCountry | undefined {
   const code = new URLSearchParams(search).get("country")?.trim().toUpperCase();
-  return (
-    boundaryCountries.find((country) => country.code === code) ?? boundaryCountries[0]
-  );
+  return boundaryCountries.find((country) => country.code === code);
+}
+
+export function resolveBoundaryCountry(search: string): BoundaryCountry {
+  return readBoundaryCountry(search) ?? boundaryCountries[0];
 }
 
 export function matchesBoundaryCountry(country: BoundaryCountry, query: string) {
