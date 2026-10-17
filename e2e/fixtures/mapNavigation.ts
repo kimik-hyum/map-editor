@@ -1,5 +1,16 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+// 지도에 겹친 패널을 제외하고 실제 드러난 영역에서 포인터를 조작합니다.
+export async function visibleMapPoint(page: Page, xRatio: number, yRatio: number) {
+  const box = await page.getByLabel("OSM map editor").boundingBox();
+  const dock = await page
+    .getByRole("complementary", { name: "속성과 레이어 패널" })
+    .boundingBox();
+  if (!box) throw new Error("지도 영역을 찾을 수 없습니다.");
+  const width = dock ? Math.min(box.width, dock.x - box.x) : box.width;
+  return { x: box.x + width * xRatio, y: box.y + box.height * yRatio };
+}
+
 export async function readEditorEdits(page: Page) {
   return page.evaluate(async () => {
     const { useEditorStore } = await import("/src/pages/editor/state/editorStore.ts");

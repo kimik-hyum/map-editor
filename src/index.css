@@ -84,6 +84,12 @@
   cursor: pointer;
 }
 
+/* 오른쪽 옵션 패널이 지도 위에 겹쳐도 출처 표시는 왼쪽 아래에 유지합니다. */
+.editor-map-viewport .ol-control.ol-attribution {
+  left: 0.5em;
+  right: auto;
+}
+
 /* 팬 중에는 버튼의 pointer/not-allowed보다 쥔 손이 우선하며 놓는 즉시 원래 커서로 복구합니다. */
 .editor-map-viewport[data-map-panning="true"],
 .editor-map-viewport[data-map-panning="true"] .map-annotation-overlay,

@@ -83,11 +83,10 @@ async function prepare(context: BrowserContext, page: Page, fail = false) {
     page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
   await expect(editor.getByText("권역 A", { exact: true })).toBeVisible();
-  await editor.getByRole("button", { name: "행정동 경계", exact: true }).click();
-  await editor.getByRole("button", { name: "경계 종류 닫기", exact: true }).click();
+  await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
   return { editor, searches, views };
 }
-test("레이어와 같은 검색 패널에서 결과 선택은 지도만 이동한다", async ({
+test("오른쪽 고정 검색 패널의 결과는 지도만 이동하고 패널은 드래그되지 않는다", async ({
   context,
   page,
 }) => {
@@ -118,10 +117,10 @@ test("레이어와 같은 검색 패널에서 결과 선택은 지도만 이동�
   await editor.mouse.down();
   await editor.mouse.move(box.x - 70, box.y + 70, { steps: 10 });
   await editor.mouse.up();
-  expect((await panel.boundingBox())?.x).toBeLessThan(panelBefore.x - 50);
+  expect((await panel.boundingBox())?.x).toBe(panelBefore.x);
   await panel.getByRole("button", { name: "행정동 검색 닫기" }).click();
   await expect(panel).toHaveCount(0);
-  await editor.getByRole("button", { name: "행정동 경계", exact: true }).click();
+  await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
   await expect(panel).toBeVisible();
 });
 test("종류 전환은 검색 결과를 분리하고 우편번호 검색을 지원한다", async ({
@@ -135,7 +134,7 @@ test("종류 전환은 검색 결과를 분리하고 우편번호 검색을 지�
     .fill("연산");
   await expect.poll(() => searches.length).toBe(1);
   for (const kind of ["legalDong", "postalCode"]) {
-    await editor.getByRole("button", { name: /^(행정동|법정동) 경계$/ }).click();
+    await editor.getByRole("button", { name: "경계 데이터" }).click();
     await editor
       .getByRole("button", { name: new RegExp(`^${labels[kind]} z`) })
       .click();
@@ -213,9 +212,8 @@ for (const [kind, label] of Object.entries(labels)) {
   }) => {
     const { editor, searches } = await prepare(context, page);
     if (kind !== "adminDong") {
-      await editor.getByRole("button", { name: "행정동 경계", exact: true }).click();
+      await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
       await editor.getByRole("button", { name: new RegExp(`^${label} z`) }).click();
-      await editor.getByRole("button", { name: "경계 종류 닫기", exact: true }).click();
     }
     const panel = editor.getByRole("region", { name: `${label} 검색`, exact: true });
     const input = panel.getByRole("textbox");

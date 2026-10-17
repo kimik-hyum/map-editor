@@ -152,7 +152,7 @@ async function openZoom10(page: Page) {
     await editor.getByTitle("지도 축소", { exact: true }).click();
     await editor.waitForTimeout(350);
   }
-  await editor.getByRole("button", { name: "행정동 경계", exact: true }).click();
+  await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
   return editor;
 }
 test("줌10은 고정 타일, 11은 bbox이며 메뉴 변경/줌 복귀는 캐시를 재사용한다", async ({

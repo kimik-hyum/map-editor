@@ -1,4 +1,3 @@
-import type { RefObject } from "react";
 import { useBoundaryAccess } from "@/features/auth";
 import type { RegionBoundaryStatus } from "@/pages/editor/features/regions";
 import {
@@ -9,12 +8,9 @@ import { useEditorStore } from "@/pages/editor/state/editorStore";
 import type { BoundaryCountryCode } from "@/shared/config/boundaryCountries";
 import { useBoundaryKindOptions } from "../hooks/useBoundaryKindOptions";
 import { BoundaryCountrySelect } from "./BoundaryCountrySelect";
-import { ToolOptionPopup } from "./ToolOptionPopup";
+import { ToolOptionsSection } from "./ToolOptionsSection";
 
 type Props = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  anchor: RefObject<HTMLButtonElement | null>;
   boundaryStatus: RegionBoundaryStatus;
   operationError: string | null;
   onSearchOpen: () => void;
@@ -24,10 +20,7 @@ type Props = {
   busy: boolean;
 };
 
-export function BoundaryKindPopup({
-  open,
-  onOpenChange,
-  anchor,
+export function BoundaryOptions({
   boundaryStatus,
   operationError,
   onSearchOpen,
@@ -48,21 +41,34 @@ export function BoundaryKindPopup({
     "-";
   const error = boundaryStatus.error;
   return (
-    <ToolOptionPopup
+    <ToolOptionsSection
       activeId={activeKind ?? ""}
-      anchor={anchor}
-      open={open}
-      onOpenChange={onOpenChange}
       onSelect={onSelectKind}
-      options={options}
-      title="경계 종류"
-      className="w-64"
+      options={country === "KR" && !allowed ? [] : options}
+      title="경계 데이터"
       header={
-        <BoundaryCountrySelect
-          value={country}
-          onChange={onCountryChange}
-          disabled={busy}
-        />
+        <>
+          <BoundaryCountrySelect
+            value={country}
+            onChange={onCountryChange}
+            disabled={busy}
+          />
+          {country === "KR" && !allowed ? (
+            <div className="mt-3 grid gap-3 rounded-lg border border-teal-100 bg-teal-50/60 p-3">
+              <p className="m-0 text-[11px] leading-5 text-slate-500">
+                대한민국 경계를 사용하려면 Google 계정으로 로그인하세요. 미국 경계는
+                로그인 없이 사용할 수 있습니다.
+              </p>
+              <button
+                type="button"
+                onClick={() => onSelectKind(activeKind ?? "adminDong")}
+                className="rounded-md bg-teal-700 px-3 py-2 text-xs font-bold text-white hover:bg-teal-800"
+              >
+                Google로 로그인
+              </button>
+            </div>
+          ) : null}
+        </>
       }
       notice={
         country === "KR" && allowed
@@ -79,20 +85,7 @@ export function BoundaryKindPopup({
         <div className="grid gap-2">
           {country === "US" ? (
             <UsBoundaryMenuStatus preview={usPreview} onSelectKind={onSelectKind} />
-          ) : !allowed ? (
-            <div className="grid gap-2 py-1">
-              <p className="m-0 text-[11px] leading-5 text-slate-500">
-                한국 경계 데이터는 Google 로그인 후 사용할 수 있습니다.
-              </p>
-              <button
-                type="button"
-                onClick={() => onSelectKind(activeKind ?? "adminDong")}
-                className="rounded-md bg-teal-700 px-3 py-2 text-xs font-bold text-white hover:bg-teal-800"
-              >
-                한국 경계 불러오기
-              </button>
-            </div>
-          ) : (
+          ) : !allowed ? null : (
             <>
               {activeKind ? (
                 <button
@@ -100,7 +93,6 @@ export function BoundaryKindPopup({
                   className="justify-self-start rounded-md px-2 py-1 text-[11px] font-bold text-teal-700 hover:bg-teal-50"
                   onClick={() => {
                     onSearchOpen();
-                    onOpenChange(false);
                   }}
                 >
                   경계 검색 열기

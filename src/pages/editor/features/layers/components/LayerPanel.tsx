@@ -13,8 +13,8 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Plus } from "lucide-react";
-import { FloatingPanel } from "@/pages/editor/components/FloatingPanel";
+import { Layers3, Plus } from "lucide-react";
+import { PanelShell } from "@/pages/editor/components/PanelShell";
 import type { HoleFillTool } from "@/pages/editor/features/hole-fill";
 import { useLayerPanelActions } from "../hooks/useLayerPanelActions";
 import { useLayerPanelViewModel } from "../hooks/useLayerPanelViewModel";
@@ -61,12 +61,17 @@ export function LayerPanel({ holeFillTool, blockedReason }: LayerPanelProps) {
   };
 
   return (
-    <FloatingPanel
-      title="레이어"
-      defaultPosition={{ x: 24, y: 24 }}
-      defaultSize={{ width: 360, height: 520 }}
-      minHeight={320}
-      minWidth={320}
+    <PanelShell
+      ariaLabel="레이어"
+      className="bg-white"
+      bodyClassName="flex min-h-0 flex-col p-3"
+      headerClassName="bg-slate-50 px-3 py-2.5"
+      header={
+        <h2 className="m-0 flex items-center gap-2 text-xs font-extrabold text-slate-700">
+          <Layers3 aria-hidden className="h-4 w-4" />
+          레이어 관리
+        </h2>
+      }
     >
       <div className="flex h-full min-h-0 flex-col gap-2">
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 pb-2">
@@ -151,6 +156,6 @@ export function LayerPanel({ holeFillTool, blockedReason }: LayerPanelProps) {
           </p>
         ) : null}
       </div>
-    </FloatingPanel>
+    </PanelShell>
   );
 }

@@ -84,9 +84,8 @@ test("새 도형 geometry를 부모에게 돌려주고 취소하면 마지막 �
   await page.goto("/demo");
   const editor = await openEditor(page);
   await editor.getByRole("button", { name: "폴리곤 그리기" }).click();
-  const shapePicker = editor.getByRole("dialog", { name: "추가할 도형" });
+  const shapePicker = editor.getByRole("region", { name: "추가할 도형" });
   await shapePicker.getByRole("button", { name: /^마커/ }).click();
-  await shapePicker.getByRole("button", { name: "추가할 도형 닫기" }).click();
   const map = editor.getByLabel("OSM map editor");
   const box = await map.boundingBox();
   if (!box) throw new Error("에디터 지도가 없습니다.");

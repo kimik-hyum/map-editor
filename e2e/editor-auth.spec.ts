@@ -102,8 +102,7 @@ async function mockAuthAndRegions(context: BrowserContext, failLogin = false) {
 }
 
 async function startLogin(editor: Page) {
-  await editor.getByRole("button", { name: "행정동 경계" }).click();
-  await editor.getByRole("button", { name: "한국 경계 불러오기", exact: true }).click();
+  await editor.getByRole("button", { name: "경계 데이터" }).click();
   const dialog = editor.getByRole("alertdialog");
   await expect(dialog).toContainText("경계 데이터를 사용하려면 로그인해주세요");
   const [popup] = await Promise.all([
@@ -137,13 +136,11 @@ test("로그인 안내를 취소하면 기존 그리기 도구와 진행 중 패
   const editor = await openEditor(page);
   await editor.getByRole("button", { name: "폴리곤 그리기" }).click();
   await editor.getByRole("button", { name: /^패스/ }).click();
-  await editor.getByRole("button", { name: "추가할 도형 닫기" }).click();
   const map = editor.getByLabel("OSM map editor");
   await map.click({ position: { x: 700, y: 300 } });
   await map.click({ position: { x: 780, y: 350 } });
   await expect(editor.getByRole("button", { name: "패스 그리기 완료" })).toBeEnabled();
-  await editor.getByRole("button", { name: "행정동 경계" }).click();
-  await editor.getByRole("button", { name: "한국 경계 불러오기", exact: true }).click();
+  await editor.getByRole("button", { name: "경계 데이터" }).click();
   const dialog = editor.getByRole("alertdialog");
   await expect(dialog).toContainText("경계 데이터를 사용하려면 로그인해주세요");
   await dialog.getByRole("button", { name: "취소", exact: true }).click();
@@ -165,7 +162,7 @@ test("팝업 로그인 뒤 같은 에디터와 부모 연결, 편집 내용을 �
   const popup = await startLogin(editor);
   await popup.getByRole("link", { name: "테스트 Google 로그인 완료" }).click();
   await expect(editor.getByRole("button", { name: "Google 로그아웃" })).toBeVisible();
-  await expect(editor.getByRole("button", { name: "행정동 경계" })).toHaveAttribute(
+  await expect(editor.getByRole("button", { name: "경계 데이터" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
@@ -192,8 +189,7 @@ test("팝업 차단에도 편집 내용과 이전 도구를 유지한다", async
   });
   const editor = await openEditor(page);
   await renameFeature(editor, "팝업 차단에도 보존");
-  await editor.getByRole("button", { name: "행정동 경계" }).click();
-  await editor.getByRole("button", { name: "한국 경계 불러오기", exact: true }).click();
+  await editor.getByRole("button", { name: "경계 데이터" }).click();
   await editor
     .getByRole("alertdialog")
     .getByRole("button", { name: "Google로 로그인" })
@@ -284,8 +280,46 @@ test("로그아웃하면 경계 참조만 중단하고 편집 내용은 유지�
   ).toHaveAttribute("aria-pressed", "true");
   await expect(editor.getByText("로그아웃 후에도 보존", { exact: true })).toBeVisible();
   const count = calls.length;
-  await editor.getByRole("button", { name: "행정동 경계" }).click();
-  await editor.getByRole("button", { name: "한국 경계 불러오기", exact: true }).click();
+  await editor.getByRole("button", { name: "경계 데이터" }).click();
   await expect(editor.getByRole("alertdialog")).toBeVisible();
   expect(calls.length).toBe(count);
+});
+
+test("미국에서 한국 선택 시 즉시 로그인하고 성공한 뒤 국가와 경계를 전환한다", async ({
+  page,
+  context,
+}) => {
+  const calls = await mockAuthAndRegions(context);
+  await context.route("**/api/us-boundaries/**", (route) =>
+    route.fulfill({ status: 503, json: { error: "test" } }),
+  );
+  await page.goto("/demo?country=US");
+  const [editor] = await Promise.all([
+    page.waitForEvent("popup"),
+    page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
+  ]);
+  await expect(
+    editor.getByRole("button", { name: "권역 A 선택", exact: true }),
+  ).toBeVisible();
+  await renameFeature(editor, "국가 변경 전 편집");
+  await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
+  await editor.getByRole("combobox", { name: "국가 선택: 미국" }).click();
+  await editor.getByRole("option", { name: /대한민국/ }).click();
+  const dialog = editor.getByRole("alertdialog");
+  await expect(dialog).toContainText("경계 데이터를 사용하려면 로그인해주세요");
+  expect(new URL(editor.url()).searchParams.get("country")).toBe("US");
+  expect(calls).toEqual([]);
+  const [popup] = await Promise.all([
+    editor.waitForEvent("popup"),
+    dialog.getByRole("button", { name: "Google로 로그인" }).click(),
+  ]);
+  await popup.getByRole("link", { name: "테스트 Google 로그인 완료" }).click();
+  await expect(
+    editor.getByRole("combobox", { name: "국가 선택: 대한민국" }),
+  ).toBeVisible();
+  expect(new URL(editor.url()).searchParams.get("country")).toBe("KR");
+  await expect.poll(() => calls.includes("byView")).toBe(true);
+  await expect(
+    editor.getByRole("button", { name: "국가 변경 전 편집 선택", exact: true }),
+  ).toBeVisible();
 });
