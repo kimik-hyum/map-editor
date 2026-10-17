@@ -44,7 +44,7 @@ for (const [viewer, expected] of [
     expect(new URL(editor.url()).searchParams.get("country")).toBe(expected);
     await expect(
       editor.getByRole("button", {
-        name: expected === "KR" ? "행정동 경계" : "카운티 경계",
+        name: "경계 데이터",
         exact: true,
       }),
     ).toBeVisible();
@@ -66,7 +66,7 @@ for (const [viewer, explicit] of [
     expect(new URL(editor.url()).searchParams.get("country")).toBe(explicit);
     await expect(
       editor.getByRole("button", {
-        name: explicit === "KR" ? "행정동 경계" : "카운티 경계",
+        name: "경계 데이터",
         exact: true,
       }),
     ).toBeVisible();
@@ -86,7 +86,7 @@ test("SPA로 Demo에 들어와도 새 편집기에서 접속 국가를 판정한
   const editor = await openEditor(page);
   expect(new URL(editor.url()).searchParams.get("country")).toBe("US");
   await expect(
-    editor.getByRole("button", { name: "카운티 경계", exact: true }),
+    editor.getByRole("button", { name: "경계 데이터", exact: true }),
   ).toBeVisible();
 });
 
@@ -99,6 +99,6 @@ test("상단 Editor 링크도 서버 국가 판정을 거쳐 진입한다", asyn
     .click();
   expect(new URL(page.url()).searchParams.get("country")).toBe("US");
   await expect(
-    page.getByRole("button", { name: "카운티 경계", exact: true }),
+    page.getByRole("button", { name: "경계 데이터", exact: true }),
   ).toBeVisible();
 });

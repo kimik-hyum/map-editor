@@ -125,7 +125,7 @@ test("선택된 마커에서 반경 입력·미리보기·생성을 한 history 
   const before = await readRadiusSnapshot(editorPage);
 
   await editorPage.getByRole("button", { name: "반경", exact: true }).click();
-  const popup = editorPage.getByRole("dialog", { name: "반경 입력" });
+  const popup = editorPage.getByRole("region", { name: "반경 입력" });
   await expect(popup).toBeVisible();
   await expect(popup).toContainText("기준: 반경 기준 마커");
 
@@ -178,7 +178,7 @@ test("반경 도구는 마커 단독 선택에만 활성화되고 선택 해제 
   const radiusButton = editorPage.getByRole("button", { name: "반경", exact: true });
   const markerButton = editorPage.getByRole("button", { name: "반경 기준 마커 선택" });
   const areaButton = editorPage.getByRole("button", { name: "기존 권역 선택" });
-  const popup = editorPage.getByRole("dialog", { name: "반경 입력" });
+  const popup = editorPage.getByRole("region", { name: "반경 입력" });
   await expect(radiusButton).toBeDisabled();
   await expect(radiusButton).toHaveAttribute("title", "마커를 선택해야합니다");
   const radiusWrapper = radiusButton.locator("..");
@@ -269,7 +269,7 @@ test("날짜변경선을 넘는 원은 오류를 안내하고 scene에 추가하
   await editorPage.getByRole("button", { name: "날짜변경선 마커 선택" }).click();
   const before = await readRadiusSnapshot(editorPage);
   await editorPage.getByRole("button", { name: "반경", exact: true }).click();
-  const popup = editorPage.getByRole("dialog", { name: "반경 입력" });
+  const popup = editorPage.getByRole("region", { name: "반경 입력" });
   await popup.getByRole("textbox", { name: "반경" }).fill("1000");
 
   await expect(popup).toContainText("날짜변경선 또는 극점");

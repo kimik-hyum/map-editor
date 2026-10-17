@@ -80,9 +80,8 @@ async function openEditor(page: Page) {
   await expect(
     editor.getByRole("button", { name: "권역 C 선택", exact: true }),
   ).toBeVisible();
-  await editor.getByRole("button", { name: "행정동 경계" }).click();
+  await editor.getByRole("button", { name: "경계 데이터" }).click();
   await expect(editor.getByText("현재 화면:")).toBeVisible();
-  await editor.getByRole("button", { name: "경계 종류 닫기" }).click();
   return editor;
 }
 const card = (page: Page, name = "행정동 테스트") =>
@@ -100,9 +99,8 @@ for (const [kind, label] of [
     const requests = await mockBoundaries(context);
     const editor = await openEditor(page);
     if (kind !== "adminDong") {
-      await editor.getByRole("button", { name: "행정동 경계", exact: true }).click();
+      await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
       await editor.getByRole("button", { name: `${label} z12부터 표시` }).click();
-      await editor.getByRole("button", { name: "경계 종류 닫기" }).click();
     }
     const marker = card(editor, names[kind]);
     const before = await readEditorEdits(editor);
@@ -137,15 +135,12 @@ test("행정동·법정동·우편번호 모두 호버 없이 이름과 작업 �
   await expect(
     card(editor).getByRole("button", { name: "행정동 테스트 겹친 부분 제거" }),
   ).toBeDisabled();
-  for (const [kind, label, previousLabel] of [
-    ["legalDong", "법정동", "행정동"],
-    ["postalCode", "우편번호", "법정동"],
+  for (const [kind, label] of [
+    ["legalDong", "법정동"],
+    ["postalCode", "우편번호"],
   ]) {
-    await editor
-      .getByRole("button", { name: `${previousLabel} 경계`, exact: true })
-      .click();
+    await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
     await editor.getByRole("button", { name: `${label} z12부터 표시` }).click();
-    await editor.getByRole("button", { name: "경계 종류 닫기" }).click();
     await expect(card(editor, names[kind])).toBeVisible();
     await expect(
       card(editor, names[kind]).getByRole("button", { name: `${names[kind]} 추가` }),

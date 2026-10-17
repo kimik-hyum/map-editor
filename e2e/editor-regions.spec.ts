@@ -182,7 +182,7 @@ test("경계 버튼은 팬/줌에서 교집합을 재계산하지 않고 실제 
   await installGeometryOverlapProbe(context);
   await installRegionApiMock(context);
   const editor = await openEditorViaDemo(page);
-  await editor.getByRole("button", { name: "행정동 경계", exact: true }).click();
+  await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
   await editor.getByRole("button", { name: "테스트 경계 추가", exact: true }).click();
   const marker = editor.getByRole("group", {
     name: "테스트 경계 경계 작업",
@@ -249,7 +249,7 @@ test("카탈로그 조회 실패 때 사이드메뉴가 기본 경계 종류를 
   await installRegionApiMock(context, { catalogError: true });
   const editorPage = await openEditorViaDemo(page);
 
-  await editorPage.getByRole("button", { name: "행정동 경계" }).click();
+  await editorPage.getByRole("button", { name: "경계 데이터" }).click();
 
   await expect(
     editorPage.getByText("종류를 불러오지 못해 기본 종류를 표시합니다."),
@@ -275,7 +275,7 @@ test("서버 경계 카탈로그와 조회 상태를 경계 도구에 표시한�
   await installRegionApiMock(context);
   const editorPage = await openEditorViaDemo(page);
 
-  const boundaryTool = editorPage.getByRole("button", { name: "행정동 경계" });
+  const boundaryTool = editorPage.getByRole("button", { name: "경계 데이터" });
   await expect(boundaryTool).toHaveCount(1);
   await boundaryTool.click();
 
@@ -294,7 +294,7 @@ test("경계의 추가 버튼은 호버 없이 표시되고 원본 geometry를 �
   await installRegionApiMock(context, { fullResolutionDelayMs: 300 });
   const editorPage = await openEditorViaDemo(page);
 
-  const boundaryTool = editorPage.getByRole("button", { name: "행정동 경계" });
+  const boundaryTool = editorPage.getByRole("button", { name: "경계 데이터" });
   await expect(boundaryTool).toHaveCount(1);
   await boundaryTool.click();
   await expect(editorPage.getByText("현재 화면:")).toBeVisible();
@@ -332,7 +332,7 @@ test("퇴화 ring을 만드는 경계 병합도 저장·부모 갱신·다시 �
     useEditorStore.getState().updateFeatureGeometry("feature-7", geometry);
   }, UNION_REGRESSION_TARGET);
   await editorPage.getByRole("button", { name: "권역 C 선택", exact: true }).click();
-  await editorPage.getByRole("button", { name: "행정동 경계" }).click();
+  await editorPage.getByRole("button", { name: "경계 데이터" }).click();
   await expect(editorPage.getByText("현재 화면:")).toBeVisible();
   const mergeButton = editorPage.getByRole("button", { name: "테스트 경계 합치기" });
   await expect(mergeButton).toBeVisible();
@@ -392,7 +392,7 @@ test("원본 경계의 반올림으로 무너진 내부 ring을 정리한 뒤 �
   ]);
   await installRegionApiMock(context, { fullGeometry: geometry });
   const editorPage = await openEditorViaDemo(page);
-  await editorPage.getByRole("button", { name: "행정동 경계" }).click();
+  await editorPage.getByRole("button", { name: "경계 데이터" }).click();
   await expect(editorPage.getByText("현재 화면:")).toBeVisible();
   const mergeButton = editorPage.getByRole("button", { name: "테스트 경계 추가" });
   await expect(mergeButton).toBeVisible();
@@ -417,7 +417,7 @@ test("원본 조회 중 새 INIT이 오면 이전 경계 연산 결과를 버린
   await installRegionApiMock(context, { fullResolutionDelayMs: 500 });
   const editorPage = await openEditorViaDemo(page);
 
-  await editorPage.getByRole("button", { name: "행정동 경계" }).click();
+  await editorPage.getByRole("button", { name: "경계 데이터" }).click();
   await expect(editorPage.getByText("현재 화면:")).toBeVisible();
   const mergeButton = editorPage.getByRole("button", { name: "테스트 경계 추가" });
   await expect(mergeButton).toBeVisible();

@@ -146,7 +146,7 @@ async function openNationalEditor(page: Page) {
     await editor.getByTitle("지도 축소", { exact: true }).click();
     await editor.waitForTimeout(350);
   }
-  await editor.getByRole("button", { name: "행정동 경계", exact: true }).click();
+  await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
   return editor;
 }
 const count = (editor: Page, n: number) =>
@@ -235,7 +235,7 @@ test("줌 8로 확대하면 이전 분할을 취소하고 단일 요청으로 �
   await expect.poll(() => mock.calls.filter((call) => call.zoom === 8).length).toBe(1);
   await mock.flush();
   if (!(await editor.getByText(/현재 화면:/).isVisible())) {
-    await editor.getByRole("button", { name: "행정동 경계", exact: true }).click();
+    await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
   }
   await expect(editor.getByText(/경계 불러오는 중/)).toHaveCount(0);
   await count(editor, 2);
@@ -263,8 +263,7 @@ test("부분 로딩 중 로그아웃하면 대기 요청과 늦은 응답을 버
   await expect(editor.locator("[data-map-annotation]")).toHaveCount(0);
   await expect(editor.getByText("권역 A", { exact: true })).toBeVisible();
   expect(mock.calls).toHaveLength(3);
-  await editor.getByRole("button", { name: "행정동 경계", exact: true }).click();
-  await editor.getByRole("button", { name: "한국 경계 불러오기" }).click();
+  await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
   await expect(editor.getByRole("alertdialog")).toBeVisible();
   expect(mock.calls).toHaveLength(3);
 });

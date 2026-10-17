@@ -6,6 +6,9 @@ import { useEditorClipboard } from "./features/clipboard";
 import { DrawFinishButton, DrawPolygonCloseButton, useDrawTool } from "./features/draw";
 import { GeometryOpMarkers } from "./features/geometry-ops";
 import { HoleFillPopup, useHoleFillTool } from "./features/hole-fill";
+import { EditorRightDock } from "./components/EditorRightDock";
+import { useEditorTools } from "./features/modes/hooks/useEditorTools";
+import { EditorToolOptions } from "./features/modes/components/EditorToolOptions";
 import { LayerPanel } from "./features/layers";
 import { useOpenLayersEditorMap } from "./features/map";
 import { EditorModePanel, getToolActivation } from "./features/modes";
@@ -15,7 +18,7 @@ import {
   useRegionBoundaries,
   useRegionBoundaryOps,
   useBoundarySearchPanel,
-  RegionSearchPanel,
+  BoundaryLoginStatus,
 } from "./features/regions";
 import { EditorSessionActions } from "./features/session";
 import { useUsBoundaryPreview } from "./features/us-boundaries";
@@ -82,6 +85,12 @@ export function EditorPage() {
     originalSource: boundaryCountry === "US" ? usPreview.originalSource : null,
   });
 
+  const tools = useEditorTools(
+    drawTool.confirmDiscardSketch,
+    radiusTool,
+    regionOps.busy,
+    boundarySearch.show,
+  );
   const messaging = useEditorMessaging();
   const holeFillTool = useHoleFillTool(
     map,
@@ -108,120 +117,133 @@ export function EditorPage() {
   });
 
   return (
-    <div className="grid h-screen grid-cols-[88px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] overflow-hidden">
+    <div className="grid h-dvh grid-cols-[72px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] overflow-hidden">
       <aside
         className="min-h-0 min-w-0 border-r border-line bg-white"
         aria-label="편집 도구"
       >
         <EditorModePanel
-          key={sessionId}
-          boundaryOperationError={regionOps.error}
-          boundaryStatus={regionStatus}
-          confirmDiscardDraw={drawTool.confirmDiscardSketch}
-          radiusTool={radiusTool}
-          onBoundarySearchOpen={boundarySearch.show}
-          usPreview={usPreview}
-          boundaryBusy={regionOps.busy}
+          tools={tools}
+          radiusAvailable={radiusTool.target !== null}
+          busy={regionOps.busy}
         />
       </aside>
-      <main className="relative min-h-0 min-w-0">
-        {boundarySearch.open && boundaryKind ? (
-          <RegionSearchPanel
-            key={`${sessionId ?? ""}:${boundaryKind}`}
-            kind={boundaryKind}
-            label={boundarySearch.label}
-            search={boundarySearch.search}
-            onClose={boundarySearch.close}
-          />
-        ) : null}
-        <section
-          ref={mapElementRef}
-          className="peer h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
-          aria-label="OSM map editor"
-          aria-describedby={activation.draw ? "draw-keyboard-instructions" : undefined}
-          aria-keyshortcuts={
-            activation.draw
-              ? activeDrawShape === GeometryKind.Point
-                ? "K Space"
-                : "K Space Enter"
-              : undefined
-          }
-          role="application"
-          // biome-ignore lint/a11y/noNoninteractiveTabindex: OpenLayers 지도를 K·방향키·Space로 조작하는 application 위젯입니다.
-          tabIndex={0}
-        />
-        <p className="sr-only" id="draw-keyboard-instructions">
-          K 키로 키보드 조준 모드를 켠 뒤 방향키로 지도 중심을 이동하고 Space 키로 마커
-          또는 정점을 추가합니다. K 키를 다시 누르면 조준 모드가 꺼집니다. 패스와 정점
-          3개 이상의 폴리곤은 Enter 키로 완료할 수 있습니다.
-        </p>
-        {activation.draw && isSceneReady && drawTool.keyboardTargetingActive ? (
-          <div
-            aria-hidden
-            data-testid="draw-keyboard-crosshair"
-            className="pointer-events-none absolute left-1/2 top-1/2 z-30 hidden h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-teal-600/20 shadow-[0_0_0_1px_rgba(15,118,110,0.95)] peer-focus-visible:block"
-          >
-            <span className="absolute left-1/2 top-[-5px] h-8 w-px -translate-x-1/2 bg-teal-800" />
-            <span className="absolute left-[-5px] top-1/2 h-px w-8 -translate-y-1/2 bg-teal-800" />
-          </div>
-        ) : null}
-        <MapCursorTooltip text={cursorHint} containerRef={mapElementRef} />
-        {radiusTool.hint ? (
-          <p
-            aria-live="polite"
-            className="pointer-events-none absolute left-1/2 top-4 z-40 m-0 -translate-x-1/2 rounded-lg border border-teal-200 bg-white/95 px-3 py-2 text-xs font-extrabold text-teal-800 shadow-md"
-            role="status"
-          >
-            {radiusTool.hint}
-          </p>
-        ) : null}
-        <DrawFinishButton
-          enabled={drawTool.canFinish}
-          onFinish={drawTool.finish}
-          vertexCount={drawTool.vertexCount}
-          visible={drawTool.showPathFinish}
-        />
-        <DrawPolygonCloseButton
-          enabled={drawTool.canClosePolygon}
-          onClose={drawTool.closePolygon}
-          vertexCount={drawTool.vertexCount}
-          visible={drawTool.showPolygonFinish}
-        />
-        <GeometryOpMarkers
-          overlays={geometryOp.overlays}
-          onIntersect={geometryOp.onIntersect}
-          onMerge={geometryOp.onMerge}
-          onSubtract={geometryOp.onSubtract}
-        />
-        <GeometryOpMarkers
-          overlays={regionOps.overlays}
-          onMerge={regionOps.onMerge}
-          onSubtract={regionOps.onSubtract}
-        />
-        {isSceneReady ? (
-          <LayerPanel
-            holeFillTool={holeFillTool}
-            blockedReason={
-              drawTool.isDrawing
-                ? "그리기를 먼저 완료하거나 취소하세요"
-                : holeFillTool.isOpen || regionOps.busy
-                  ? "진행 중인 도구를 먼저 완료하거나 취소하세요"
-                  : confirmationOpen
-                    ? "확인 창을 먼저 닫으세요"
-                    : null
+      <div className="relative flex min-h-0 min-w-0">
+        <main className="relative min-h-0 min-w-0 flex-1">
+          <section
+            ref={mapElementRef}
+            className="peer h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
+            aria-label="OSM map editor"
+            aria-describedby={
+              activation.draw ? "draw-keyboard-instructions" : undefined
             }
+            aria-keyshortcuts={
+              activation.draw
+                ? activeDrawShape === GeometryKind.Point
+                  ? "K Space"
+                  : "K Space Enter"
+                : undefined
+            }
+            role="application"
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: OpenLayers 지도를 K·방향키·Space로 조작하는 application 위젯입니다.
+            tabIndex={0}
           />
-        ) : (
-          <div
-            className="pointer-events-none absolute inset-0 flex items-center justify-center"
-            aria-live="polite"
-          >
-            <p className="rounded-lg bg-white/90 px-4 py-2 text-sm font-bold text-ink-soft shadow">
-              호스트(부모 창)에서 데이터를 기다리는 중…
+          <p className="sr-only" id="draw-keyboard-instructions">
+            K 키로 키보드 조준 모드를 켠 뒤 방향키로 지도 중심을 이동하고 Space 키로
+            마커 또는 정점을 추가합니다. K 키를 다시 누르면 조준 모드가 꺼집니다. 패스와
+            정점 3개 이상의 폴리곤은 Enter 키로 완료할 수 있습니다.
+          </p>
+          {activation.draw && isSceneReady && drawTool.keyboardTargetingActive ? (
+            <div
+              aria-hidden
+              data-testid="draw-keyboard-crosshair"
+              className="pointer-events-none absolute left-1/2 top-1/2 z-30 hidden h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-teal-600/20 shadow-[0_0_0_1px_rgba(15,118,110,0.95)] peer-focus-visible:block"
+            >
+              <span className="absolute left-1/2 top-[-5px] h-8 w-px -translate-x-1/2 bg-teal-800" />
+              <span className="absolute left-[-5px] top-1/2 h-px w-8 -translate-y-1/2 bg-teal-800" />
+            </div>
+          ) : null}
+          <MapCursorTooltip text={cursorHint} containerRef={mapElementRef} />
+          {radiusTool.hint ? (
+            <p
+              aria-live="polite"
+              className="pointer-events-none absolute left-1/2 top-4 z-40 m-0 -translate-x-1/2 rounded-lg border border-teal-200 bg-white/95 px-3 py-2 text-xs font-extrabold text-teal-800 shadow-md"
+              role="status"
+            >
+              {radiusTool.hint}
             </p>
-          </div>
-        )}
-      </main>
+          ) : null}
+          <DrawFinishButton
+            enabled={drawTool.canFinish}
+            onFinish={drawTool.finish}
+            vertexCount={drawTool.vertexCount}
+            visible={drawTool.showPathFinish}
+          />
+          <DrawPolygonCloseButton
+            enabled={drawTool.canClosePolygon}
+            onClose={drawTool.closePolygon}
+            vertexCount={drawTool.vertexCount}
+            visible={drawTool.showPolygonFinish}
+          />
+          <GeometryOpMarkers
+            overlays={geometryOp.overlays}
+            onIntersect={geometryOp.onIntersect}
+            onMerge={geometryOp.onMerge}
+            onSubtract={geometryOp.onSubtract}
+          />
+          <GeometryOpMarkers
+            overlays={regionOps.overlays}
+            onMerge={regionOps.onMerge}
+            onSubtract={regionOps.onSubtract}
+          />
+          {!isSceneReady ? (
+            <div
+              className="pointer-events-none absolute inset-0 flex items-center justify-center"
+              aria-live="polite"
+            >
+              <p className="rounded-lg bg-white/90 px-4 py-2 text-sm font-bold text-ink-soft shadow">
+                호스트(부모 창)에서 데이터를 기다리는 중…
+              </p>
+            </div>
+          ) : null}
+        </main>
+        <EditorRightDock
+          open={tools.dockOpen}
+          onOpenChange={tools.setDockOpen}
+          options={
+            <EditorToolOptions
+              tools={tools}
+              radiusTool={radiusTool}
+              confirmDiscardDraw={drawTool.confirmDiscardSketch}
+              boundaryStatus={regionStatus}
+              operationError={regionOps.error}
+              busy={regionOps.busy}
+              usPreview={usPreview}
+              search={boundarySearch}
+              boundaryKind={boundaryKind}
+            />
+          }
+          layers={
+            <LayerPanel
+              holeFillTool={holeFillTool}
+              blockedReason={
+                drawTool.isDrawing
+                  ? "그리기를 먼저 완료하거나 취소하세요"
+                  : holeFillTool.isOpen || regionOps.busy
+                    ? "진행 중인 도구를 먼저 완료하거나 취소하세요"
+                    : confirmationOpen
+                      ? "확인 창을 먼저 닫으세요"
+                      : null
+              }
+            />
+          }
+        />
+      </div>
+      <BoundaryLoginStatus
+        isSigningIn={tools.login.isSigningIn}
+        error={tools.login.error}
+        onCancel={tools.login.cancel}
+      />
       <HoleFillPopup tool={holeFillTool} />
       <EditorSessionActions
         hasPendingToolAction={

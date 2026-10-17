@@ -1,6 +1,5 @@
 import { Search, X, MapPin } from "lucide-react";
 import { useId } from "react";
-import { FloatingPanel } from "@/pages/editor/components/FloatingPanel";
 import type { useRegionSearch } from "../hooks/useRegionSearch";
 import { REGION_SEARCH_MAX_LENGTH } from "../model/regionSearchModel";
 import { RegionSearchResultRow } from "./RegionSearchResultRow";
@@ -15,14 +14,18 @@ export function RegionSearchPanel({ kind, label, search, onClose }: Props) {
   const inputId = useId();
   const postal = kind === "postalCode";
   return (
-    <FloatingPanel
-      title={`${label} 검색`}
-      onClose={onClose}
-      defaultPosition={{ x: Math.max(24, window.innerWidth - 88 - 384), y: 24 }}
-      defaultSize={{ width: 360, height: 520 }}
-      minWidth={280}
-      minHeight={320}
-    >
+    <section aria-label={`${label} 검색`} className="border-t border-line p-3">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-xs font-extrabold text-slate-700">{label} 검색</h3>
+        <button
+          type="button"
+          aria-label={`${label} 검색 닫기`}
+          onClick={onClose}
+          className="rounded p-1 text-slate-400 hover:bg-slate-100"
+        >
+          <X aria-hidden className="h-4 w-4" />
+        </button>
+      </div>
       <div className="flex h-full min-h-0 flex-col gap-3">
         <form
           className="shrink-0"
@@ -89,7 +92,7 @@ export function RegionSearchPanel({ kind, label, search, onClose }: Props) {
         ) : search.items.length ? (
           <ol
             aria-label={`${label} 검색 결과`}
-            className="m-0 grid min-h-0 content-start gap-1.5 overflow-auto p-0"
+            className="m-0 grid max-h-56 min-h-0 content-start gap-1.5 overflow-auto p-0"
           >
             {search.items.map((item) => (
               <RegionSearchResultRow
@@ -125,6 +128,6 @@ export function RegionSearchPanel({ kind, label, search, onClose }: Props) {
             : "목록을 누르면 해당 경계 위치로 이동합니다."}
         </p>
       </div>
-    </FloatingPanel>
+    </section>
   );
 }

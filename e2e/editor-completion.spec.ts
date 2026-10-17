@@ -140,9 +140,8 @@ test("미저장 변경 취소는 확인 뒤 CANCEL만 반환한다", async ({ pa
 test("커밋 전 그리기 작업도 저장과 무경고 이탈을 막는다", async ({ page }) => {
   const editorPage = await openConnectedEditor(page);
   await editorPage.getByRole("button", { name: "폴리곤 그리기" }).click();
-  const shapeDialog = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  const shapeDialog = editorPage.getByRole("region", { name: "추가할 도형" });
   await expect(shapeDialog).toBeVisible();
-  await shapeDialog.getByRole("button", { name: "추가할 도형 닫기" }).click();
 
   const mapBox = await editorPage.getByLabel("OSM map editor").boundingBox();
   if (!mapBox) {

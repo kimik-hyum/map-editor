@@ -30,8 +30,8 @@ export const editorModeOptions: EditorModeOption[] = [
   },
   {
     id: EditorMode.Boundary,
-    label: "경계",
-    description: "행정동 · 법정동 · 우편 경계 선택",
+    label: "경계 데이터",
+    description: "국가별 경계 데이터 선택과 검색",
     icon: MapIcon,
   },
   {

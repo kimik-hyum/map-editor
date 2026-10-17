@@ -1,274 +1,78 @@
 import { Toggle } from "@base-ui/react/toggle";
 import { ToggleGroup } from "@base-ui/react/toggle-group";
-import type { LucideIcon } from "lucide-react";
-import { type RefObject, useEffect, useRef, useState } from "react";
-import { useBoundaryAccess } from "@/features/auth";
 import { MovingHighlight, MovingHighlightItem } from "@/shared/ui/MovingHighlight";
-import { cn } from "@/shared/utils/cn";
-import {
-  type RegionBoundaryStatus,
-  useBoundaryLogin,
-  BoundaryLoginStatus,
-} from "@/pages/editor/features/regions";
-import { RadiusInputPopup } from "@/pages/editor/features/radius/components/RadiusInputPopup";
-import {
-  resolveRadiusTarget,
-  type RadiusToolController,
-} from "@/pages/editor/features/radius";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import { EditorMode } from "@/pages/editor/types/editorTypes";
-import { useBoundaryKindOptions } from "../hooks/useBoundaryKindOptions";
-import type { useUsBoundaryPreview } from "@/pages/editor/features/us-boundaries";
-import type { BoundaryCountryCode } from "@/shared/config/boundaryCountries";
+import type { EditorTools } from "../hooks/useEditorTools";
 import { drawShapeOptions } from "../model/drawShapeModel";
 import { editorModeOptions } from "../model/editorModeModel";
-import { BoundaryKindPopup } from "./BoundaryKindPopup";
-import { DrawShapePopup } from "./DrawShapePopup";
-
-// 좌측 도구 rail입니다. 활성 도구(EditorMode)가 맵 클릭의 의미를 결정합니다(기본: 선택).
-// 그리기·경계 도구는 버튼 옆에 하위 옵션 팝업을 띄우고, 선택된 옵션을 버튼 아이콘·이름에 반영합니다.
-type EditorModePanelProps = {
-  boundaryStatus: RegionBoundaryStatus;
-  boundaryOperationError: string | null;
-  confirmDiscardDraw: () => Promise<boolean>;
-  radiusTool: RadiusToolController;
-  onBoundarySearchOpen: () => void;
-  usPreview: ReturnType<typeof useUsBoundaryPreview>;
-  boundaryBusy: boolean;
-};
 
 export function EditorModePanel({
-  boundaryStatus,
-  boundaryOperationError,
-  confirmDiscardDraw,
-  radiusTool,
-  onBoundarySearchOpen,
-  usPreview,
-  boundaryBusy,
-}: EditorModePanelProps) {
-  const activeMode = useEditorStore((state) => state.activeMode);
-  const setActiveMode = useEditorStore((state) => state.setActiveMode);
-  const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
-  const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
-  const country = useEditorStore((state) => state.activeBoundaryCountry);
-  const { options: boundaryKindOptions } = useBoundaryKindOptions(country);
-
-  const activeBoundaryOption = boundaryKindOptions.find(
-    (option) => option.id === activeBoundaryKind,
-  );
-  const activeDrawOption = drawShapeOptions.find(
-    (option) => option.id === activeDrawShape,
-  );
-
-  const boundaryAnchorRef = useRef<HTMLButtonElement>(null);
-  const drawAnchorRef = useRef<HTMLButtonElement>(null);
-  const radiusAnchorRef = useRef<HTMLButtonElement>(null);
-  const [boundaryPopupOpen, setBoundaryPopupOpen] = useState(false);
-  const [drawPopupOpen, setDrawPopupOpen] = useState(false);
-  const { allowed } = useBoundaryAccess();
-  const previousAllowedRef = useRef(allowed);
-  const login = useBoundaryLogin();
-
-  useEffect(() => {
-    const lostAccess = previousAllowedRef.current && !allowed;
-    previousAllowedRef.current = allowed;
-    // Zustand의 도구 전환이 React 인증 상태보다 먼저 렌더될 수 있습니다.
-    // 초기 비로그인 렌더가 아니라 실제 인증 상실 때만 도구를 되돌립니다.
-    if (
-      lostAccess &&
-      country === "KR" &&
-      useEditorStore.getState().activeMode === EditorMode.Boundary
-    ) {
-      setActiveMode(EditorMode.Select);
-      setBoundaryPopupOpen(false);
-    }
-  }, [allowed, setActiveMode, country]);
-
-  useEffect(() => {
-    if (boundaryOperationError && activeMode === EditorMode.Boundary)
-      setBoundaryPopupOpen(true);
-  }, [boundaryOperationError, activeMode]);
-
-  const activateMode = async (next: EditorMode, kind?: string) => {
-    const context = useEditorStore.getState();
-    if (
-      next === EditorMode.Boundary &&
-      context.activeBoundaryCountry === "KR" &&
-      !(await login.requestBoundaryAccess())
-    )
-      return;
-    if (
-      context.activeMode === EditorMode.Draw &&
-      next !== EditorMode.Draw &&
-      !(await confirmDiscardDraw())
-    )
-      return;
-    const current = useEditorStore.getState();
-    if (
-      current.sessionId !== context.sessionId ||
-      current.scene !== context.scene ||
-      current.activeBoundaryCountry !== context.activeBoundaryCountry
-    )
-      return;
-    if (
-      next === EditorMode.Radius &&
-      resolveRadiusTarget(current.scene, current.selectedFeatureIds).target === null
-    )
-      return;
-    if (kind !== undefined) current.setActiveBoundaryKind(kind);
-    setActiveMode(next);
-    if (next === EditorMode.Boundary && current.activeBoundaryCountry === "KR")
-      onBoundarySearchOpen();
-    setBoundaryPopupOpen(next === EditorMode.Boundary);
-    setDrawPopupOpen(next === EditorMode.Draw);
-  };
-  const changeCountry = (next: BoundaryCountryCode) => {
-    if (boundaryBusy || next === country) return;
-    login.cancel();
-    useEditorStore.getState().setActiveBoundaryCountry(next);
-    const url = new URL(window.location.href);
-    url.searchParams.set("country", next);
-    window.history.replaceState(window.history.state, "", url);
-  };
-
+  tools,
+  radiusAvailable,
+  busy,
+}: {
+  tools: EditorTools;
+  radiusAvailable: boolean;
+  busy: boolean;
+}) {
+  const shape = useEditorStore((s) => s.activeDrawShape);
+  const drawOption = drawShapeOptions.find((option) => option.id === shape);
   return (
-    <>
-      <MovingHighlight
-        activeValue={activeMode}
-        indicatorClassName="rounded-lg bg-teal-50 ring-1 ring-teal-300"
+    <MovingHighlight
+      activeValue={tools.activeMode}
+      indicatorClassName="rounded-lg bg-teal-50 ring-1 ring-teal-300"
+    >
+      <ToggleGroup
+        aria-label="편집 도구"
+        orientation="vertical"
+        className="grid gap-2 p-2"
+        value={[tools.activeMode]}
+        onValueChange={(value) =>
+          void tools.activate((value[0] as EditorMode | undefined) ?? tools.activeMode)
+        }
       >
-        <ToggleGroup
-          aria-label="편집 도구"
-          className="grid gap-1 p-2"
-          orientation="vertical"
-          value={[activeMode]}
-          onValueChange={(value) => {
-            const next = value[0] as EditorMode | undefined;
-
-            if (next) {
-              // 국가 메뉴는 인증 없이 탐색하고, 한국 자료를 실제 선택할 때 로그인합니다.
-              if (next === EditorMode.Boundary && country === "KR" && !allowed) {
-                setBoundaryPopupOpen(true);
-                setDrawPopupOpen(false);
-                return;
-              }
-              void activateMode(next);
-              return;
-            }
-
-            // 이미 활성화된 도구를 다시 누르면 value가 비워집니다. 옵션이 있는 도구면 팝업을 다시 엽니다.
-            if (activeMode === EditorMode.Boundary) {
-              if (country === "KR") onBoundarySearchOpen();
-              setBoundaryPopupOpen(true);
-            } else if (activeMode === EditorMode.Draw) {
-              setDrawPopupOpen(true);
-            } else if (activeMode === EditorMode.Radius) {
-              radiusTool.openInput();
-            }
-          }}
-        >
-          {editorModeOptions.map((tool) => {
-            // 경계/그리기 도구는 선택된 하위 옵션의 아이콘·이름을 버튼에 반영합니다.
-            let subOption: { icon: LucideIcon; label: string } | undefined;
-            let anchorRef: RefObject<HTMLButtonElement> | undefined;
-
-            if (tool.id === EditorMode.Boundary) {
-              subOption = activeBoundaryOption;
-              anchorRef = boundaryAnchorRef;
-            } else if (tool.id === EditorMode.Draw) {
-              subOption = activeDrawOption;
-              anchorRef = drawAnchorRef;
-            } else if (tool.id === EditorMode.Radius) {
-              anchorRef = radiusAnchorRef;
-            }
-
-            const Icon = subOption?.icon ?? tool.icon;
-            // 하위 옵션이 있으면 "폴리곤 + 그리기" / "행정동 + 경계"처럼 도구 의미를 함께 보여줍니다.
-            const primaryLabel = subOption?.label ?? tool.label;
-            const toolWord = subOption ? tool.label : null;
-            const disabled =
-              tool.id === EditorMode.Radius && radiusTool.target === null;
-            const disabledTitle = disabled ? "마커를 선택해야합니다" : undefined;
-
-            return (
-              <MovingHighlightItem
-                className={disabled ? "cursor-not-allowed" : undefined}
-                key={tool.id}
-                title={disabledTitle}
+        {editorModeOptions.map((tool) => {
+          const Icon =
+            tool.id === EditorMode.Draw && drawOption ? drawOption.icon : tool.icon;
+          const label =
+            tool.id === EditorMode.Draw && drawOption
+              ? `${drawOption.label} 그리기`
+              : tool.label;
+          const disabled = busy || (tool.id === EditorMode.Radius && !radiusAvailable);
+          const title =
+            tool.id === EditorMode.Radius && !radiusAvailable
+              ? "마커를 선택해야합니다"
+              : busy
+                ? "경계 데이터를 적용하는 중입니다"
+                : undefined;
+          return (
+            <MovingHighlightItem key={tool.id} value={tool.id} title={title}>
+              <Toggle
                 value={tool.id}
+                aria-label={label}
+                disabled={disabled}
+                title={title ?? tool.description}
+                className="group flex w-full flex-col items-center gap-1.5 rounded-lg px-1 py-3 text-[11px] font-bold text-slate-500 hover:bg-slate-50 data-[pressed]:text-teal-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-40"
               >
-                <Toggle
-                  aria-label={toolWord ? `${primaryLabel} ${toolWord}` : primaryLabel}
-                  className={cn(
-                    "group flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 text-[11px] font-black transition-colors",
-                    "text-slate-500 hover:bg-slate-50/80 data-[pressed]:text-teal-700",
-                    "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
+                <Icon aria-hidden className="h-5 w-5" strokeWidth={1.8} />
+                <span className="leading-tight">
+                  {tool.id === EditorMode.Draw ? (
+                    "그리기"
+                  ) : tool.id === EditorMode.Boundary ? (
+                    <>
+                      <span className="block whitespace-nowrap">경계</span>
+                      <span className="block whitespace-nowrap">데이터</span>
+                    </>
+                  ) : (
+                    tool.label
                   )}
-                  disabled={disabled}
-                  ref={anchorRef}
-                  title={
-                    disabled
-                      ? disabledTitle
-                      : subOption
-                        ? `${tool.label} · ${tool.description}`
-                        : tool.description
-                  }
-                  value={tool.id}
-                >
-                  <Icon aria-hidden className="h-5 w-5" strokeWidth={2} />
-                  <span className="flex flex-col items-center leading-tight">
-                    <span>{primaryLabel}</span>
-                    {toolWord ? (
-                      <span className="mt-0.5 text-[9px] font-semibold text-slate-400 group-data-[pressed]:text-teal-600">
-                        {toolWord}
-                      </span>
-                    ) : null}
-                  </span>
-                </Toggle>
-              </MovingHighlightItem>
-            );
-          })}
-        </ToggleGroup>
-      </MovingHighlight>
-
-      <BoundaryLoginStatus
-        isSigningIn={login.isSigningIn}
-        error={login.error}
-        onCancel={login.cancel}
-      />
-
-      <BoundaryKindPopup
-        anchor={boundaryAnchorRef}
-        boundaryStatus={boundaryStatus}
-        onOpenChange={setBoundaryPopupOpen}
-        operationError={boundaryOperationError}
-        open={boundaryPopupOpen}
-        onSelectKind={(kind) => {
-          if (!boundaryBusy) void activateMode(EditorMode.Boundary, kind);
-        }}
-        onCountryChange={changeCountry}
-        usPreview={usPreview}
-        busy={boundaryBusy}
-        onSearchOpen={onBoundarySearchOpen}
-      />
-      <DrawShapePopup
-        anchor={drawAnchorRef}
-        confirmDiscardDraw={confirmDiscardDraw}
-        onOpenChange={setDrawPopupOpen}
-        open={drawPopupOpen && activeMode === EditorMode.Draw}
-      />
-      <RadiusInputPopup
-        anchor={radiusAnchorRef}
-        canApply={radiusTool.canApply}
-        draft={radiusTool.draft}
-        error={radiusTool.error}
-        markerName={radiusTool.target?.name ?? null}
-        onApply={radiusTool.apply}
-        onCancel={radiusTool.cancel}
-        onDraftChange={radiusTool.setDraft}
-        onOpenChange={radiusTool.onOpenChange}
-        open={radiusTool.popupOpen && activeMode === EditorMode.Radius}
-      />
-    </>
+                </span>
+              </Toggle>
+            </MovingHighlightItem>
+          );
+        })}
+      </ToggleGroup>
+    </MovingHighlight>
   );
 }

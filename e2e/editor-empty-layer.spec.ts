@@ -95,9 +95,8 @@ test("여러 빈 레이어 중 선택한 레이어를 채우고 다음 마커는
   const before = await snapshot(editor);
   await editor.getByRole("button", { name: "새 레이어 1 선택", exact: true }).click();
   await editor.getByRole("button", { name: "폴리곤 그리기", exact: true }).click();
-  const popup = editor.getByRole("dialog", { name: "추가할 도형" });
+  const popup = editor.getByRole("region", { name: "추가할 도형" });
   await popup.getByRole("button", { name: /^마커/ }).click();
-  await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
   await mapClick(editor, 0.7, 0.3);
   await expect(
     editor.getByRole("button", { name: "새 레이어 1에 도형 그리기" }),
