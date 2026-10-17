@@ -9,6 +9,7 @@ import { HoleFillPopup, useHoleFillTool } from "./features/hole-fill";
 import { LayerPanel } from "./features/layers";
 import { useOpenLayersEditorMap } from "./features/map";
 import { EditorModePanel, getToolActivation } from "./features/modes";
+import { useBoundaryCountryView } from "./features/modes/hooks/useBoundaryCountryView";
 import { useRadiusTool } from "./features/radius";
 import {
   useRegionBoundaries,
@@ -17,6 +18,7 @@ import {
   RegionSearchPanel,
 } from "./features/regions";
 import { EditorSessionActions } from "./features/session";
+import { useUsBoundaryPreview } from "./features/us-boundaries";
 import { useEditorMessaging } from "./messaging";
 import { useEditorStore } from "./state/editorStore";
 import { useEditorHistoryShortcuts } from "./state/historyShortcuts";
@@ -37,6 +39,7 @@ export function EditorPage() {
   const sessionId = useEditorStore((state) => state.sessionId);
   const activeMode = useEditorStore((state) => state.activeMode);
   const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
+  const boundaryCountry = useEditorStore((state) => state.activeBoundaryCountry);
   const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
   const renameInProgress = useEditorStore(
     (state) => state.renamingFeatureId !== null || state.renamingEmptyLayerId !== null,
@@ -51,7 +54,17 @@ export function EditorPage() {
   // 좌측 rail의 경계 도구가 활성일 때만, 거기서 고른 종류(행정동/법정동/우편번호)의
   // 경계를 현재 줌·화면으로 받아 그린다. 다른 모드로 바꾸면 비운다.
   const boundaryKind =
-    activation.boundary && boundaryAllowed ? activeBoundaryKind : null;
+    activation.boundary && boundaryAllowed && boundaryCountry === "KR"
+      ? activeBoundaryKind
+      : null;
+  useBoundaryCountryView(map, boundaryCountry, activation.boundary, sessionId);
+  const usPreview = useUsBoundaryPreview(
+    map,
+    activation.boundary && boundaryCountry === "US" && isSceneReady
+      ? activeBoundaryKind
+      : null,
+    sessionId,
+  );
   const { layer: regionLayer, status: regionStatus } = useRegionBoundaries(
     map,
     boundaryKind,
@@ -63,9 +76,10 @@ export function EditorPage() {
   // 현재 화면의 경계에 이름·추가/합치기·빼기 카드를 상시 표시합니다.
   const regionOps = useRegionBoundaryOps({
     map,
-    layer: regionLayer,
-    enabled: boundaryKind !== null && isSceneReady,
-    scopeKey: boundaryKind,
+    layer: boundaryCountry === "US" ? usPreview.layer : regionLayer,
+    enabled: (boundaryKind !== null || usPreview.kind !== null) && isSceneReady,
+    scopeKey: boundaryCountry === "US" ? usPreview.kind : boundaryKind,
+    originalSource: boundaryCountry === "US" ? usPreview.originalSource : null,
   });
 
   const messaging = useEditorMessaging();
@@ -100,11 +114,14 @@ export function EditorPage() {
         aria-label="편집 도구"
       >
         <EditorModePanel
+          key={sessionId}
           boundaryOperationError={regionOps.error}
           boundaryStatus={regionStatus}
           confirmDiscardDraw={drawTool.confirmDiscardSketch}
           radiusTool={radiusTool}
           onBoundarySearchOpen={boundarySearch.show}
+          usPreview={usPreview}
+          boundaryBusy={regionOps.busy}
         />
       </aside>
       <main className="relative min-h-0 min-w-0">

@@ -1,26 +1,29 @@
 import type { RefObject } from "react";
+import { useBoundaryAccess } from "@/features/auth";
+import type { RegionBoundaryStatus } from "@/pages/editor/features/regions";
 import {
-  type RegionBoundaryStatus,
-  useRegionKinds,
-} from "@/pages/editor/features/regions";
+  UsBoundaryMenuStatus,
+  type useUsBoundaryPreview,
+} from "@/pages/editor/features/us-boundaries";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
-import {
-  createBoundaryKindOptions,
-  fallbackBoundaryKindOptions,
-} from "../model/boundaryKindModel";
+import type { BoundaryCountryCode } from "@/shared/config/boundaryCountries";
+import { useBoundaryKindOptions } from "../hooks/useBoundaryKindOptions";
+import { BoundaryCountrySelect } from "./BoundaryCountrySelect";
 import { ToolOptionPopup } from "./ToolOptionPopup";
 
-type BoundaryKindPopupProps = {
+type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   anchor: RefObject<HTMLButtonElement | null>;
   boundaryStatus: RegionBoundaryStatus;
   operationError: string | null;
   onSearchOpen: () => void;
+  onSelectKind: (kind: string) => void;
+  onCountryChange: (country: BoundaryCountryCode) => void;
+  usPreview: ReturnType<typeof useUsBoundaryPreview>;
+  busy: boolean;
 };
 
-// 경계 종류 선택과 현재 화면의 조회·연산 상태를 사이드메뉴 한곳에서 보여줍니다.
-// 병합·더하기·빼기 실행은 지도 위 경계 칩이 담당합니다.
 export function BoundaryKindPopup({
   open,
   onOpenChange,
@@ -28,112 +31,145 @@ export function BoundaryKindPopup({
   boundaryStatus,
   operationError,
   onSearchOpen,
-}: BoundaryKindPopupProps) {
-  const activeBoundaryKind = useEditorStore((state) => state.activeBoundaryKind);
-  const setActiveBoundaryKind = useEditorStore((state) => state.setActiveBoundaryKind);
-  const { data: kinds, isError, isLoading } = useRegionKinds();
-  const usingFallback = !kinds && isError;
-  const options = kinds
-    ? createBoundaryKindOptions(kinds)
-    : usingFallback
-      ? fallbackBoundaryKindOptions
-      : [];
-  const returnedLabel =
+  onSelectKind,
+  onCountryChange,
+  usPreview,
+  busy,
+}: Props) {
+  const country = useEditorStore((state) => state.activeBoundaryCountry);
+  const activeKind = useEditorStore((state) => state.activeBoundaryKind);
+  const hide = useEditorStore((state) => state.setActiveBoundaryKind);
+  const { allowed } = useBoundaryAccess();
+  const { options, data: kinds, isError, isLoading } = useBoundaryKindOptions(country);
+  const label =
     kinds?.find((kind) => kind.kind === boundaryStatus.kind)?.label ??
-    fallbackBoundaryKindOptions.find((option) => option.id === boundaryStatus.kind)
-      ?.label ??
+    options.find((option) => option.id === boundaryStatus.kind)?.label ??
     boundaryStatus.kind ??
     "-";
-  const statusError = boundaryStatus.error ?? operationError;
-
+  const error = boundaryStatus.error;
   return (
     <ToolOptionPopup
-      activeId={activeBoundaryKind ?? ""}
+      activeId={activeKind ?? ""}
       anchor={anchor}
-      onOpenChange={onOpenChange}
-      onSelect={(kind) => {
-        setActiveBoundaryKind(kind);
-        onSearchOpen();
-      }}
       open={open}
+      onOpenChange={onOpenChange}
+      onSelect={onSelectKind}
       options={options}
       title="경계 종류"
+      className="w-64"
+      header={
+        <BoundaryCountrySelect
+          value={country}
+          onChange={onCountryChange}
+          disabled={busy}
+        />
+      }
+      notice={
+        country === "KR" && allowed
+          ? isLoading
+            ? "종류 불러오는 중…"
+            : isError
+              ? kinds
+                ? "종류를 갱신하지 못해 기존 목록을 표시합니다."
+                : "종류를 불러오지 못해 기본 종류를 표시합니다."
+              : undefined
+          : undefined
+      }
       footer={
         <div className="grid gap-2">
-          {activeBoundaryKind ? (
-            <button
-              type="button"
-              className="justify-self-start rounded-md px-2 py-1 text-[11px] font-bold text-teal-700 hover:bg-teal-50"
-              onClick={() => {
-                onSearchOpen();
-                onOpenChange(false);
-              }}
-            >
-              경계 검색 열기
-            </button>
-          ) : null}
-          <div aria-live="polite" className="text-[11px] font-semibold text-slate-500">
-            {activeBoundaryKind === null ? (
-              <span>경계 종류를 선택하면 화면에 표시됩니다.</span>
-            ) : (
-              <span>
-                현재 화면: <b className="text-slate-700">{returnedLabel}</b> ·{" "}
-                {boundaryStatus.count}개
-                {boundaryStatus.kind && boundaryStatus.kind !== activeBoundaryKind ? (
-                  <span className="text-slate-400"> (줌 아웃 → 상위 구역)</span>
-                ) : null}
-                {boundaryStatus.truncated ? (
-                  <span className="text-amber-600">
-                    {" "}
-                    · 일부만 표시됨 — 지도를 확대하세요
+          {country === "US" ? (
+            <UsBoundaryMenuStatus preview={usPreview} onSelectKind={onSelectKind} />
+          ) : !allowed ? (
+            <div className="grid gap-2 py-1">
+              <p className="m-0 text-[11px] leading-5 text-slate-500">
+                한국 경계 데이터는 Google 로그인 후 사용할 수 있습니다.
+              </p>
+              <button
+                type="button"
+                onClick={() => onSelectKind(activeKind ?? "adminDong")}
+                className="rounded-md bg-teal-700 px-3 py-2 text-xs font-bold text-white hover:bg-teal-800"
+              >
+                한국 경계 불러오기
+              </button>
+            </div>
+          ) : (
+            <>
+              {activeKind ? (
+                <button
+                  type="button"
+                  className="justify-self-start rounded-md px-2 py-1 text-[11px] font-bold text-teal-700 hover:bg-teal-50"
+                  onClick={() => {
+                    onSearchOpen();
+                    onOpenChange(false);
+                  }}
+                >
+                  경계 검색 열기
+                </button>
+              ) : null}
+              <div
+                aria-live="polite"
+                className="text-[11px] font-semibold text-slate-500"
+              >
+                {activeKind === null ? (
+                  <span>경계 종류를 선택하면 화면에 표시됩니다.</span>
+                ) : (
+                  <span>
+                    현재 화면: <b className="text-slate-700">{label}</b> ·{" "}
+                    {boundaryStatus.count}개
+                    {boundaryStatus.kind && boundaryStatus.kind !== activeKind ? (
+                      <span className="text-slate-400"> (줌 아웃 → 상위 구역)</span>
+                    ) : null}
+                    {boundaryStatus.truncated ? (
+                      <span className="text-amber-600">
+                        {" "}
+                        · 일부만 표시됨 — 지도를 확대하세요
+                      </span>
+                    ) : null}
+                    {boundaryStatus.loading ? (
+                      <span className="block">
+                        경계 불러오는 중…
+                        {boundaryStatus.totalRequests > 1
+                          ? ` ${boundaryStatus.completedRequests}/${boundaryStatus.totalRequests}개 구역`
+                          : ""}
+                      </span>
+                    ) : null}
+                  </span>
+                )}
+                {activeKind !== null && error ? (
+                  <span className="block text-red-600" role="alert">
+                    {error}
                   </span>
                 ) : null}
-                {boundaryStatus.loading ? (
-                  <span className="block">
-                    경계 불러오는 중…
-                    {boundaryStatus.totalRequests > 1
-                      ? ` ${boundaryStatus.completedRequests}/${boundaryStatus.totalRequests}개 구역`
-                      : ""}
-                  </span>
-                ) : null}
-              </span>
-            )}
-            {activeBoundaryKind !== null && statusError ? (
-              <span className="block text-red-600" role="alert">
-                {statusError}
-              </span>
-            ) : null}
-          </div>
-          {activeBoundaryKind !== null &&
-          boundaryStatus.failedRequests > 0 &&
-          !boundaryStatus.loading ? (
-            <button
-              className="justify-self-start rounded-md px-2 py-1 text-[11px] font-bold text-ink hover:bg-slate-100"
-              onClick={boundaryStatus.retryFailed}
-              type="button"
-            >
-              실패 구역 다시 불러오기
-            </button>
+              </div>
+              {activeKind !== null &&
+              boundaryStatus.failedRequests > 0 &&
+              !boundaryStatus.loading ? (
+                <button
+                  className="justify-self-start rounded-md px-2 py-1 text-[11px] font-bold text-ink hover:bg-slate-100"
+                  onClick={boundaryStatus.retryFailed}
+                  type="button"
+                >
+                  실패 구역 다시 불러오기
+                </button>
+              ) : null}
+            </>
+          )}
+          {activeKind !== null && operationError ? (
+            <p role="alert" className="m-0 text-[11px] text-red-600">
+              {operationError}
+            </p>
           ) : null}
-          {activeBoundaryKind !== null ? (
+          {activeKind !== null ? (
             <button
-              className="justify-self-start rounded-md px-2 py-1 text-[11px] font-bold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-              onClick={() => setActiveBoundaryKind(null)}
+              className="justify-self-start rounded-md px-2 py-1 text-[11px] font-bold text-slate-500 hover:bg-slate-100"
+              disabled={busy}
+              onClick={() => hide(null)}
               type="button"
             >
               경계 숨기기
             </button>
           ) : null}
         </div>
-      }
-      notice={
-        isLoading
-          ? "종류 불러오는 중…"
-          : isError
-            ? usingFallback
-              ? "종류를 불러오지 못해 기본 종류를 표시합니다."
-              : "종류를 갱신하지 못해 기존 목록을 표시합니다."
-            : undefined
       }
     />
   );

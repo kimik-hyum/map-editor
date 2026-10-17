@@ -138,7 +138,7 @@ async function openNationalEditor(page: Page) {
   await page.goto("/demo");
   const [editor] = await Promise.all([
     page.waitForEvent("popup"),
-    page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
+    page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
   await expect(editor.getByText("권역 A", { exact: true })).toBeVisible();
   // 기본 z12에서 z7로 이동한 뒤 경계를 켜서 초기 지도 애니메이션과 요청을 분리합니다.
@@ -264,6 +264,7 @@ test("부분 로딩 중 로그아웃하면 대기 요청과 늦은 응답을 버
   await expect(editor.getByText("권역 A", { exact: true })).toBeVisible();
   expect(mock.calls).toHaveLength(3);
   await editor.getByRole("button", { name: "행정동 경계", exact: true }).click();
+  await editor.getByRole("button", { name: "한국 경계 불러오기" }).click();
   await expect(editor.getByRole("alertdialog")).toBeVisible();
   expect(mock.calls).toHaveLength(3);
 });

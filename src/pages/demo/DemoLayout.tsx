@@ -8,7 +8,7 @@ import { AppSideMenu, type AppSideMenuGroup } from "@/shared/navigation/AppSideM
 const demoMenuGroups: AppSideMenuGroup[] = [
   {
     icon: MonitorUp,
-    label: "새 창 연동 데모",
+    label: "새 탭 연동 데모",
     sections: [
       { href: "#host-overview", label: "편집 흐름" },
       { href: "#launch-editor", label: "데이터 전달·편집" },

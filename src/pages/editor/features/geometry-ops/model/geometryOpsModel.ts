@@ -7,7 +7,7 @@ import {
   type GeoJsonGeometry,
   type PolygonalGeometry,
 } from "@/pages/editor/types/editorTypes";
-import { bboxesOverlap, geometryBbox, hasAreaOverlap } from "./booleanOps";
+import { createGeometryOverlapCache } from "./geometryOverlapCache";
 
 // 선택한 도형(target) 기준으로 병합/제거/교집합 가능한 상대 후보를 도출합니다.
 // - target은 "정확히 1개 선택"이고 편집 가능(보임+편집가능+잠금해제)한 폴리곤일 때만 채워집니다.
@@ -25,6 +25,7 @@ export type GeometryOpTargets = {
   mergeCandidateIds: string[];
   subtractCandidateIds: string[];
   intersectCandidateIds: string[];
+  overlapErrorCandidateIds: string[];
 };
 
 const EMPTY: GeometryOpTargets = {
@@ -32,6 +33,7 @@ const EMPTY: GeometryOpTargets = {
   mergeCandidateIds: [],
   subtractCandidateIds: [],
   intersectCandidateIds: [],
+  overlapErrorCandidateIds: [],
 };
 
 type PolygonEntry = { id: string; geometry: PolygonalGeometry };
@@ -70,15 +72,11 @@ export function findGeometryOpTarget(
   return null;
 }
 
-function checkAreaOverlap(a: PolygonalGeometry, b: PolygonalGeometry): boolean {
-  return bboxesOverlap(geometryBbox(a), geometryBbox(b)) && hasAreaOverlap(a, b);
-}
-
 export function deriveGeometryOpTargets(
   scene: DeepReadonly<EditorScene> | null,
   selectedIds: ReadonlySet<string>,
   visibleFeatureIds?: ReadonlySet<string> | null,
-  checkOverlap = checkAreaOverlap,
+  checkOverlap = createGeometryOverlapCache().checkOverlap,
 ): GeometryOpTargets {
   const target = findGeometryOpTarget(scene, selectedIds, visibleFeatureIds);
   if (!scene || !target) return EMPTY;
@@ -88,6 +86,7 @@ export function deriveGeometryOpTargets(
   const mergeCandidateIds: string[] = [];
   const subtractCandidateIds: string[] = [];
   const intersectCandidateIds: string[] = [];
+  const overlapErrorCandidateIds: string[] = [];
   for (const candidate of editablePolygons(scene)) {
     if (candidate.id === target.id) {
       continue;
@@ -97,7 +96,9 @@ export function deriveGeometryOpTargets(
       continue;
     }
     mergeCandidateIds.push(candidate.id);
-    if (checkOverlap(target.geometry, candidate.geometry)) {
+    const overlap = checkOverlap(target.geometry, candidate.geometry);
+    if (overlap === "error") overlapErrorCandidateIds.push(candidate.id);
+    if (overlap === "overlap") {
       subtractCandidateIds.push(candidate.id);
       intersectCandidateIds.push(candidate.id);
     }
@@ -108,6 +109,7 @@ export function deriveGeometryOpTargets(
     mergeCandidateIds,
     subtractCandidateIds,
     intersectCandidateIds,
+    overlapErrorCandidateIds,
   };
 }
 
@@ -121,6 +123,7 @@ type GeometryOpMarkerInput = {
   name: string;
   canSubtract: boolean;
   canIntersect: boolean;
+  overlapError: boolean;
 };
 
 export function buildGeometryOpMarkerInputs(
@@ -132,6 +135,7 @@ export function buildGeometryOpMarkerInputs(
   }
   const subtractable = new Set(targets.subtractCandidateIds);
   const intersectable = new Set(targets.intersectCandidateIds);
+  const errors = new Set(targets.overlapErrorCandidateIds);
   const nameById = new Map<string, string | undefined>();
   for (const layer of scene.layers) {
     for (const feature of layer.features) {
@@ -144,5 +148,6 @@ export function buildGeometryOpMarkerInputs(
     name: nameById.get(featureId) ?? featureId,
     canSubtract: subtractable.has(featureId),
     canIntersect: intersectable.has(featureId),
+    overlapError: errors.has(featureId),
   }));
 }

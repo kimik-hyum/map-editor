@@ -4,7 +4,7 @@ async function openEditor(page: Page) {
   await page.goto("/demo");
   const [editor] = await Promise.all([
     page.waitForEvent("popup"),
-    page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
+    page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
   await expect(editor.getByText("권역 C", { exact: true })).toBeVisible();
   await editor.evaluate(async () => {

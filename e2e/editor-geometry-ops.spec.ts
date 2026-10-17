@@ -51,7 +51,7 @@ async function openEditorWithOverlappingPolygons(page: Page): Promise<Page> {
   await page.goto("/demo");
   const [editorPage] = await Promise.all([
     page.waitForEvent("popup"),
-    page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
+    page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
   await editorPage.waitForLoadState();
   await expect(editorPage.getByText("권역 A")).toBeVisible();

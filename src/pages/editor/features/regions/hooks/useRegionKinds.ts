@@ -5,13 +5,13 @@ import { REGION_CATALOG_CACHE_MS } from "../model/regionQueryPolicy";
 
 // 사이드 메뉴에 띄울 "선택 가능한 경계 종류"(행정동/법정동/우편번호 등)를 가져옵니다.
 // region_kind 카탈로그가 단일 출처라, 국가별 종류가 데이터로 정의됩니다.
-export function useRegionKinds(country = "KR") {
+export function useRegionKinds(country = "KR", enabled = true) {
   const { allowed, subject } = useBoundaryAccess();
   return useQuery({
     queryKey: ["region-kinds", country, subject],
     queryFn: ({ signal }) => fetchRegionKinds(country, signal),
     staleTime: REGION_CATALOG_CACHE_MS,
     gcTime: REGION_CATALOG_CACHE_MS,
-    enabled: allowed,
+    enabled: allowed && enabled,
   });
 }

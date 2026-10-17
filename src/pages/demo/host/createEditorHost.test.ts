@@ -4,7 +4,7 @@ import { createEditorHost } from "./createEditorHost";
 
 afterEach(() => vi.unstubAllGlobals());
 
-function setup() {
+function setup(search = "") {
   let scene: EditorSceneInput = {
     version: 2,
     features: [
@@ -18,7 +18,7 @@ function setup() {
   const clearInterval = vi.fn();
   const removeEventListener = vi.fn();
   vi.stubGlobal("window", {
-    location: { href: "https://host.example/demo/" },
+    location: { href: `https://host.example/demo/${search}`, search },
     open,
     addEventListener: (_type: string, listener: typeof receive) => {
       receive = listener;
@@ -71,6 +71,19 @@ function setup() {
 }
 
 describe("Demo 부모 편집 회차", () => {
+  it.each([
+    ["?country=us&unrelated=private", "?country=US"],
+    ["?country=unknown", ""],
+    ["", ""],
+  ])("초기 국가만 편집기 URL에 전달한다: %s", (search, expected) => {
+    const s = setup(search);
+    s.host.open();
+    expect(s.open).toHaveBeenCalledWith(
+      `https://host.example/editor/${expected}`,
+      "map-editor-child",
+    );
+  });
+
   it("현재 부모 데이터를 스냅샷으로 전달하고 반복 READY에도 같은 회차를 유지한다", () => {
     const s = setup();
     s.host.open();

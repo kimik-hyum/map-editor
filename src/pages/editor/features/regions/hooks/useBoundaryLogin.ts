@@ -33,7 +33,8 @@ export function useBoundaryLogin() {
       if (
         state.sessionId !== context.sessionId ||
         state.scene !== context.scene ||
-        state.activeMode !== context.activeMode
+        state.activeMode !== context.activeMode ||
+        state.activeBoundaryCountry !== context.activeBoundaryCountry
       ) {
         controller.abort();
       }

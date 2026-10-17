@@ -22,6 +22,8 @@ type ToolOptionPopupProps<T extends string> = {
   anchor: RefObject<HTMLButtonElement | null>;
   notice?: string;
   footer?: ReactNode;
+  header?: ReactNode;
+  className?: string;
 };
 
 // 도구(rail) 옆에 붙는 하위 옵션 선택 팝업입니다. 경계 종류·그리기 도형 등에 공용으로 씁니다.
@@ -36,6 +38,8 @@ export function ToolOptionPopup<T extends string>({
   anchor,
   notice,
   footer,
+  header,
+  className,
 }: ToolOptionPopupProps<T>) {
   return (
     <Popover.Root open={open} onOpenChange={onOpenChange}>
@@ -49,7 +53,10 @@ export function ToolOptionPopup<T extends string>({
         >
           <Popover.Popup
             aria-label={title}
-            className="w-52 rounded-xl border border-line bg-white p-1.5 shadow-xl outline-none"
+            className={cn(
+              "max-h-[var(--available-height)] w-52 max-w-[calc(100vw-110px)] overflow-y-auto rounded-xl border border-line bg-white p-1.5 shadow-xl outline-none",
+              className,
+            )}
           >
             <div className="flex items-center justify-between gap-2 px-2 pb-1.5 pt-1">
               <p className="text-[11px] font-black tracking-wide text-slate-400">
@@ -64,6 +71,7 @@ export function ToolOptionPopup<T extends string>({
                 <X aria-hidden className="h-4 w-4" strokeWidth={2} />
               </button>
             </div>
+            {header}
             <MovingHighlight
               activeValue={activeId}
               className="grid gap-0.5"

@@ -4,7 +4,8 @@ export { createGeometryOverlapCache } from "./model/geometryOverlapCache";
 export {
   bboxesOverlap,
   geometryBbox,
-  hasAreaOverlap,
+  classifyGeometryOverlap,
+  type GeometryOverlap,
   intersectGeometries,
   subtractGeometry,
   unionGeometries,

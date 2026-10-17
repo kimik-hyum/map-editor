@@ -4,7 +4,7 @@ async function openConnectedEditor(parentPage: Page): Promise<Page> {
   await parentPage.goto("/demo");
   const [editorPage] = await Promise.all([
     parentPage.waitForEvent("popup"),
-    parentPage.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
+    parentPage.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
   await editorPage.waitForLoadState();
   await expect(parentPage.getByText("연결됨")).toBeVisible();

@@ -1,10 +1,15 @@
 import type { PolygonalGeometry } from "@/pages/editor/types/editorTypes";
-import { bboxesOverlap, geometryBbox, hasAreaOverlap } from "./booleanOps";
+import {
+  bboxesOverlap,
+  geometryBbox,
+  classifyGeometryOverlap,
+  type GeometryOverlap,
+} from "./booleanOps";
 
-type OverlapCheck = (a: PolygonalGeometry, b: PolygonalGeometry) => boolean;
+type OverlapCheck = (a: PolygonalGeometry, b: PolygonalGeometry) => GeometryOverlap;
 type GeometryEntry = {
   bounds: ReturnType<typeof geometryBbox>;
-  overlaps: WeakMap<GeometryEntry, boolean>;
+  overlaps: WeakMap<GeometryEntry, GeometryOverlap>;
 };
 
 // 타일 재조회/OL 재생성으로 객체만 바뀌어도 같은 좌표의 판정을 재사용합니다.
@@ -13,7 +18,7 @@ type GeometryEntry = {
 const MAX_RECENT_GEOMETRIES = 256;
 
 export function createGeometryOverlapCache(
-  checkOverlap: OverlapCheck = hasAreaOverlap,
+  checkOverlap: OverlapCheck = classifyGeometryOverlap,
 ) {
   const byReference = new WeakMap<PolygonalGeometry, GeometryEntry>();
   const byCoordinates = new Map<string, GeometryEntry>();
@@ -40,13 +45,19 @@ export function createGeometryOverlapCache(
   return {
     // scene/응답 geometry는 불변 값입니다. 편집·undo·새 응답은 새 객체를 전달합니다.
     // 선택, 버튼 순서/위치, 줌, 로딩 상태는 캐시 키에 포함하지 않습니다.
-    hasOverlap(a: PolygonalGeometry, b: PolygonalGeometry): boolean {
+    checkOverlap(a: PolygonalGeometry, b: PolygonalGeometry): GeometryOverlap {
       const left = entryFor(a);
       const right = entryFor(b);
       const known = left.overlaps.get(right);
       if (known !== undefined) return known;
 
-      const result = bboxesOverlap(left.bounds, right.bounds) && checkOverlap(a, b);
+      const validBounds = [...left.bounds, ...right.bounds].every(Number.isFinite);
+      const result = !validBounds
+        ? "error"
+        : bboxesOverlap(left.bounds, right.bounds)
+          ? checkOverlap(a, b)
+          : "disjoint";
+      // 동일한 불변 좌표의 계산 오류도 별도 상태로 저장합니다. 편집/원본 전환은 새 쌍입니다.
       left.overlaps.set(right, result);
       right.overlaps.set(left, result);
       return result;
