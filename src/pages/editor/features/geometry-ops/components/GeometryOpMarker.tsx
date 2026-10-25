@@ -1,5 +1,5 @@
 import { Button } from "@base-ui/react/button";
-import { Blend, Minus, Plus } from "lucide-react";
+import { Blend, Minus, Plus, TriangleAlert } from "lucide-react";
 import {
   getMapAnnotationMetrics,
   getMapAnnotationSize,
@@ -10,6 +10,7 @@ type GeometryOpMarkerProps = {
   name: string;
   // 선택 도형과 실제 면적이 겹쳐 제거·교집합 연산이 가능한 후보인지.
   canSubtract: boolean;
+  overlapError?: boolean;
   canIntersect: boolean;
   onMerge: () => void;
   onSubtract: () => void;
@@ -26,6 +27,7 @@ type GeometryOpMarkerProps = {
 export function GeometryOpMarker({
   name,
   canSubtract,
+  overlapError = false,
   canIntersect,
   onMerge,
   onSubtract,
@@ -37,7 +39,7 @@ export function GeometryOpMarker({
 }: GeometryOpMarkerProps) {
   const metrics = getMapAnnotationMetrics(zoom);
   const primaryLabel = primaryAction === "create" ? "추가" : "합치기";
-  const showSubtractButton = canSubtract || showSubtract;
+  const showSubtractButton = canSubtract || showSubtract || overlapError;
   const size = getMapAnnotationSize(
     name,
     zoom,
@@ -71,6 +73,15 @@ export function GeometryOpMarker({
         {name}
       </span>
       <div className="flex items-center gap-1">
+        {overlapError ? (
+          <span
+            role="img"
+            aria-label={`${name} 겹침 계산 실패`}
+            title="겹침을 계산하지 못했습니다. 도형을 확인해주세요."
+          >
+            <TriangleAlert aria-hidden style={iconStyle} />
+          </span>
+        ) : null}
         <Button
           aria-label={`${name} ${primaryLabel}`}
           className={`${sharedButtonClass} border-map-add bg-map-add text-white focus-visible:outline-map-add`}
@@ -111,9 +122,11 @@ export function GeometryOpMarker({
             title={
               disabled
                 ? "경계 연산이 완료될 때까지 기다려주세요"
-                : !canSubtract
-                  ? "편집 가능한 폴리곤 하나를 선택하고 이 경계와 겹칠 때 사용할 수 있습니다"
-                  : "선택 도형에서 이 경계와 겹친 부분 빼기"
+                : overlapError
+                  ? "겹침 계산에 실패해 제거할 수 없습니다. 도형을 확인해주세요."
+                  : !canSubtract
+                    ? "편집 가능한 폴리곤 하나를 선택하고 이 경계와 겹칠 때 사용할 수 있습니다"
+                    : "선택 도형에서 이 경계와 겹친 부분 빼기"
             }
             type="button"
           >

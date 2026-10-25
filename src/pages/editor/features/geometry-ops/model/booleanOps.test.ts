@@ -3,7 +3,7 @@ import type { PolygonalGeometry } from "@/pages/editor/types/editorTypes";
 import {
   bboxesOverlap,
   geometryBbox,
-  hasAreaOverlap,
+  classifyGeometryOverlap,
   intersectGeometries,
   overlapAreaSquareMeters,
   subtractGeometry,
@@ -84,6 +84,7 @@ describe("subtractGeometry", () => {
     const result = subtractGeometry(A, OVERLAP);
     const remaining = result ? overlapAreaSquareMeters(result, result) : 0;
     expect(remaining).toBeGreaterThan(0);
+    if (before === undefined) throw new Error("area calculation failed");
     expect(remaining).toBeLessThan(before);
   });
 });
@@ -95,6 +96,7 @@ describe("intersectGeometries", () => {
     const resultArea = result ? overlapAreaSquareMeters(result, result) : 0;
     const sourceArea = overlapAreaSquareMeters(A, A);
     expect(resultArea).toBeGreaterThan(0);
+    if (sourceArea === undefined) throw new Error("area calculation failed");
     expect(resultArea).toBeLessThan(sourceArea);
   });
 
@@ -119,20 +121,20 @@ describe("intersectGeometries", () => {
   });
 });
 
-describe("overlapAreaSquareMeters / hasAreaOverlap", () => {
+describe("overlapAreaSquareMeters / classifyGeometryOverlap", () => {
   it("겹치면 면적이 0보다 크다", () => {
     expect(overlapAreaSquareMeters(A, OVERLAP)).toBeGreaterThan(0);
-    expect(hasAreaOverlap(A, OVERLAP)).toBe(true);
+    expect(classifyGeometryOverlap(A, OVERLAP)).toBe("overlap");
   });
 
   it("완전히 떨어지면 0이다", () => {
     expect(overlapAreaSquareMeters(A, DISJOINT)).toBe(0);
-    expect(hasAreaOverlap(A, DISJOINT)).toBe(false);
+    expect(classifyGeometryOverlap(A, DISJOINT)).toBe("disjoint");
   });
 
   it("변끼리 닿기만 하면 겹침으로 보지 않는다(면적 0)", () => {
     expect(overlapAreaSquareMeters(A, EDGE_TOUCH)).toBe(0);
-    expect(hasAreaOverlap(A, EDGE_TOUCH)).toBe(false);
+    expect(classifyGeometryOverlap(A, EDGE_TOUCH)).toBe("disjoint");
   });
 });
 
@@ -147,15 +149,15 @@ describe("geometryBbox / bboxesOverlap (broad-phase 1차 필터)", () => {
   });
 
   it("변만 닿는 경우는 1차 필터에서 통과시킨다(포함 비교) — 정밀 판정은 narrow-phase가 한다", () => {
-    // bbox는 겹침(통과)이지만 실제 면적 겹침은 0 → hasAreaOverlap이 최종적으로 거른다.
+    // bbox는 겹침(통과)이지만 실제 면적 겹침은 0 → classifyGeometryOverlap이 최종적으로 거른다.
     expect(bboxesOverlap(geometryBbox(A), geometryBbox(EDGE_TOUCH))).toBe(true);
-    expect(hasAreaOverlap(A, EDGE_TOUCH)).toBe(false);
+    expect(classifyGeometryOverlap(A, EDGE_TOUCH)).toBe("disjoint");
   });
 
   it("1차 필터에서 버려지는 후보는 실제 면적 겹침도 없다(거짓 컬링 방지 확인)", () => {
     // 박스가 안 겹치면(떨어짐) 실제로도 면적 겹침이 없어야 broad-phase가 안전하다.
     expect(bboxesOverlap(geometryBbox(A), geometryBbox(DISJOINT))).toBe(false);
-    expect(hasAreaOverlap(A, DISJOINT)).toBe(false);
+    expect(classifyGeometryOverlap(A, DISJOINT)).toBe("disjoint");
   });
 });
 
@@ -170,4 +172,10 @@ describe("잘못된 입력 안전성", () => {
     expect(() => overlapAreaSquareMeters(broken, A)).not.toThrow();
     expect(overlapAreaSquareMeters(broken, A)).toBe(0);
   });
+});
+
+it("실제 계산 실패는 겹치지 않음과 구분한다", () => {
+  const broken = square(Number.NaN, 0, 1, 1);
+  expect(overlapAreaSquareMeters(broken, A)).toBeUndefined();
+  expect(classifyGeometryOverlap(broken, A)).toBe("error");
 });

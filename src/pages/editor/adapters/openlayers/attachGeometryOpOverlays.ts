@@ -12,6 +12,7 @@ type GeometryOpOverlayInput = {
   featureId: string;
   name: string;
   canSubtract: boolean;
+  overlapError?: boolean;
   canIntersect: boolean;
 };
 
@@ -21,6 +22,7 @@ export type GeometryOpOverlayHandle = {
   element: HTMLElement;
   name: string;
   canSubtract: boolean;
+  overlapError?: boolean;
   canIntersect: boolean;
   zoom: number;
 };
@@ -117,6 +119,7 @@ export function attachGeometryOpOverlays(map: OpenLayersMap) {
         element: entry.element,
         name: input.name,
         canSubtract: input.canSubtract,
+        overlapError: input.overlapError,
         canIntersect: input.canIntersect,
         zoom: Math.floor(map.getView().getZoom() ?? 12),
       });

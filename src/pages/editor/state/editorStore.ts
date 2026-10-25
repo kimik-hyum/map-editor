@@ -1,3 +1,8 @@
+import {
+  boundaryCountries,
+  resolveBoundaryCountry,
+  type BoundaryCountryCode,
+} from "@/shared/config/boundaryCountries";
 import { create } from "zustand";
 import { addFeaturesToScene } from "../messaging/normalizeSceneInput";
 import {
@@ -34,7 +39,15 @@ import {
 const DEFAULT_EDITOR_MODE = EditorMode.Select;
 
 // 경계 도구의 기본 경계 종류입니다.
-const DEFAULT_BOUNDARY_KIND = "adminDong";
+function initialBoundarySelection() {
+  const country = resolveBoundaryCountry(
+    typeof window === "undefined" ? "" : window.location.search,
+  );
+  return {
+    activeBoundaryCountry: country.code,
+    activeBoundaryKind: country.defaultKind,
+  };
+}
 
 // 그리기 도구의 기본 도형입니다.
 const DEFAULT_DRAW_SHAPE: DrawShape = GeometryKind.Polygon;
@@ -68,6 +81,8 @@ type EditorStoreState = {
   renamingFeatureId: string | null;
   renamingEmptyLayerId: string | null;
   activeMode: EditorMode;
+  activeBoundaryCountry: BoundaryCountryCode;
+  setActiveBoundaryCountry: (country: BoundaryCountryCode) => void;
   activeBoundaryKind: string | null;
   activeDrawShape: DrawShape;
   dirty: boolean;
@@ -697,7 +712,7 @@ export const useEditorStore = create<EditorStore>((set) => {
     renamingFeatureId: null,
     renamingEmptyLayerId: null,
     activeMode: DEFAULT_EDITOR_MODE,
-    activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
+    ...initialBoundarySelection(),
     activeDrawShape: DEFAULT_DRAW_SHAPE,
     dirty: false,
     // 주의: INIT/setScene은 입력 scene의 소유권을 store가 가져갑니다(참조를 그대로 보관).
@@ -717,7 +732,7 @@ export const useEditorStore = create<EditorStore>((set) => {
         renamingFeatureId: null,
         renamingEmptyLayerId: null,
         activeMode: DEFAULT_EDITOR_MODE,
-        activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
+        ...initialBoundarySelection(),
         activeDrawShape: DEFAULT_DRAW_SHAPE,
         dirty: false,
       }),
@@ -749,7 +764,7 @@ export const useEditorStore = create<EditorStore>((set) => {
         renamingFeatureId: null,
         renamingEmptyLayerId: null,
         activeMode: DEFAULT_EDITOR_MODE,
-        activeBoundaryKind: DEFAULT_BOUNDARY_KIND,
+        ...initialBoundarySelection(),
         activeDrawShape: DEFAULT_DRAW_SHAPE,
         dirty: false,
       }),
@@ -861,6 +876,18 @@ export const useEditorStore = create<EditorStore>((set) => {
     endFeatureRename: () =>
       set({ renamingFeatureId: null, renamingEmptyLayerId: null }),
     setActiveMode: (activeMode) => set({ activeMode }),
+    setActiveBoundaryCountry: (code) => {
+      const country = boundaryCountries.find((item) => item.code === code);
+      if (country)
+        set((state) =>
+          state.activeBoundaryCountry === country.code
+            ? {}
+            : {
+                activeBoundaryCountry: country.code,
+                activeBoundaryKind: country.defaultKind,
+              },
+        );
+    },
     setActiveBoundaryKind: (activeBoundaryKind) => set({ activeBoundaryKind }),
     setActiveDrawShape: (activeDrawShape) => set({ activeDrawShape }),
     // 가시성/잠금 등 뷰 변경은 히스토리에 쌓지 않습니다(silent). 실제 변경이 있을 때만 dirty를 갱신합니다.

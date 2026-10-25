@@ -19,7 +19,7 @@ import {
   findGeometryOpTarget,
 } from "./geometryOpsModel";
 import { createGeometryOverlapCache } from "./geometryOverlapCache";
-import { hasAreaOverlap } from "./booleanOps";
+import { classifyGeometryOverlap } from "./booleanOps";
 
 function square(x0: number, y0: number, x1: number, y1: number): PolygonalGeometry {
   return {
@@ -158,7 +158,7 @@ describe("findGeometryOpTarget", () => {
 
 describe("deriveGeometryOpTargets", () => {
   it("viewport 변화는 후보 표시만 갱신하고 이미 본 도형의 판정은 재사용한다", () => {
-    const measure = vi.fn(hasAreaOverlap);
+    const measure = vi.fn(classifyGeometryOverlap);
     const cache = createGeometryOverlapCache(measure);
     const s = scene([
       layer("layer-a", [feature("a", square(0, 0, 2, 2))]),
@@ -166,7 +166,7 @@ describe("deriveGeometryOpTargets", () => {
       layer("layer-c", [feature("c", square(0.5, 0.5, 3, 3))]),
     ]);
     const derive = (ids: string[]) =>
-      deriveGeometryOpTargets(s, new Set(["a"]), new Set(ids), cache.hasOverlap);
+      deriveGeometryOpTargets(s, new Set(["a"]), new Set(ids), cache.checkOverlap);
     expect(derive(["a", "b"]).subtractCandidateIds).toEqual(["b"]);
     expect(measure).toHaveBeenCalledTimes(1);
     expect(derive(["a"]).subtractCandidateIds).toEqual([]);
@@ -237,12 +237,14 @@ describe("deriveGeometryOpTargets", () => {
       mergeCandidateIds: ["b"],
       subtractCandidateIds: ["b"],
       intersectCandidateIds: ["b"],
+      overlapErrorCandidateIds: [],
     });
     expect(deriveGeometryOpTargets(lockedScene, new Set(["a"]))).toEqual({
       targetId: null,
       mergeCandidateIds: [],
       subtractCandidateIds: [],
       intersectCandidateIds: [],
+      overlapErrorCandidateIds: [],
     });
   });
 
@@ -364,4 +366,24 @@ describe("buildGeometryOpMarkerInputs", () => {
     const targets = deriveGeometryOpTargets(s, new Set(["a"]));
     expect(buildGeometryOpMarkerInputs(s, targets)).toEqual([]);
   });
+});
+
+it("계산 실패 후보는 겹치지 않는 후보와 구분해 마커에 전달한다", () => {
+  const s = scene([
+    layer("layer-a", [feature("a", square(0, 0, 2, 2))]),
+    layer("layer-b", [feature("b", square(1, 1, 3, 3))]),
+  ]);
+  const targets = deriveGeometryOpTargets(s, new Set(["a"]), undefined, () => "error");
+  expect(targets.overlapErrorCandidateIds).toEqual(["b"]);
+  expect(targets.subtractCandidateIds).toEqual([]);
+  expect(targets.intersectCandidateIds).toEqual([]);
+  expect(buildGeometryOpMarkerInputs(s, targets)).toEqual([
+    {
+      featureId: "b",
+      name: "b",
+      canSubtract: false,
+      canIntersect: false,
+      overlapError: true,
+    },
+  ]);
 });

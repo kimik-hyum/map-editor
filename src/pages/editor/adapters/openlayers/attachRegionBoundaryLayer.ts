@@ -1,4 +1,4 @@
-import GeoJSON from "ol/format/GeoJSON";
+import { readRegionBoundaryFeature } from "./regionBoundaryGeometry";
 import type OpenLayersMap from "ol/Map";
 import { unByKey } from "ol/Observable";
 import { transformExtent } from "ol/proj";
@@ -25,11 +25,6 @@ type BoundaryCollection = {
   features: readonly { id: string | number; [key: string]: unknown }[];
   [key: string]: unknown;
 };
-
-const geojson = new GeoJSON({
-  dataProjection: "EPSG:4326",
-  featureProjection: "EPSG:3857",
-});
 
 // 화면을 현재 줌의 타일 폭 격자로 맞춰 작은 팬에 의한 재조회와 캐시 키 분산을 막습니다.
 function readSnappedView(map: OpenLayersMap): SnappedRegionView | null {
@@ -101,10 +96,7 @@ export function attachRegionBoundaryLayer(
     );
     if (added.length)
       source.addFeatures(
-        geojson.readFeatures({
-          type: "FeatureCollection",
-          features: added.map(([, feature]) => feature),
-        }),
+        added.map(([, feature]) => readRegionBoundaryFeature(feature)),
       );
     previousById.clear();
     for (const [id, feature] of incoming) previousById.set(id, feature);

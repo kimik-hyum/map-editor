@@ -201,7 +201,7 @@ test("소개와 데모는 서비스 페이지의 데이터 전송과 편집 결�
     }),
   ).toBeVisible();
   await expect(page.getByRole("main")).toContainText(
-    "지도 폴리곤 전달 → 새 창에서 편집 → 결과 수신·지도 갱신",
+    "지도 폴리곤 전달 → 새 탭에서 편집 → 결과 수신·지도 갱신",
   );
   await expect(page.getByRole("main")).not.toContainText("부모");
 });

@@ -5,7 +5,7 @@ test("전역 confirmDialog는 어느 화면에서든 열리고 boolean 결과를
 }) => {
   await page.goto("/demo");
   await expect(
-    page.getByRole("button", { name: "편집기 새 창으로 열기" }),
+    page.getByRole("button", { name: "편집기 새 탭으로 열기" }),
   ).toBeVisible();
 
   const canceled = page.evaluate(async () => {

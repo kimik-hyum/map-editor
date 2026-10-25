@@ -33,7 +33,7 @@ test("데모가 새 창 에디터에 postMessage로 scene을 전달하고 에디
   // 버튼 클릭 → 새 창(에디터)이 열리고 READY/INIT 핸드셰이크가 시작된다.
   const [editorPage] = await Promise.all([
     page.waitForEvent("popup"),
-    page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
+    page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
   await editorPage.waitForLoadState();
 

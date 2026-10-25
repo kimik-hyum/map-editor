@@ -1,4 +1,5 @@
 import Feature from "ol/Feature";
+import { getRegionBoundaryGeometry } from "./regionBoundaryGeometry";
 import Polygon from "ol/geom/Polygon";
 import type OpenLayersMap from "ol/Map";
 import Observable from "ol/Observable";
@@ -61,6 +62,8 @@ describe("region boundary labels", () => {
     const b = { ...a, id: 2 };
     attachment.sync({ features: [a] });
     const first = source.getFeatureById(1);
+    if (!first) throw new Error("missing first feature");
+    expect(getRegionBoundaryGeometry(first)).toBe(a.geometry);
     let clears = 0;
     source.on("clear", () => {
       clears++;
@@ -72,7 +75,21 @@ describe("region boundary labels", () => {
     attachment.sync({ features: [b] });
     expect(source.getFeatureById(1)).toBeNull();
     expect(source.getFeatures()).toHaveLength(1);
-    attachment.sync({ features: [{ ...b, properties: { name: "새 버전" } }] });
+    const nextGeometry = {
+      ...b.geometry,
+      coordinates: b.geometry.coordinates.map((ring) =>
+        ring.map(([x, y]) => [x + 0.123456789123, y + 34.987654321098]),
+      ),
+    };
+    const before = structuredClone(nextGeometry);
+    attachment.sync({
+      features: [{ ...b, geometry: nextGeometry, properties: { name: "새 버전" } }],
+    });
+    const next = source.getFeatureById(2);
+    if (!next) throw new Error("missing replacement feature");
+    expect(getRegionBoundaryGeometry(next)).toBe(nextGeometry);
+    expect(nextGeometry).toEqual(before);
+    expect(getRegionBoundaryGeometry(first)).toBe(a.geometry);
     expect(source.getFeatureById(2)?.get("name")).toBe("새 버전");
     attachment.sync(null);
     expect(source.getFeatures()).toHaveLength(0);

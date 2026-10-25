@@ -7,6 +7,7 @@ type GeometryOpOverlayHandle = {
   element: HTMLElement;
   name: string;
   canSubtract: boolean;
+  overlapError?: boolean;
   canIntersect?: boolean;
   primaryAction?: "create" | "merge";
   showSubtract?: boolean;
@@ -39,6 +40,7 @@ export function GeometryOpMarkers({
             showSubtract={handle.showSubtract}
             disabled={handle.disabled}
             zoom={handle.zoom}
+            overlapError={handle.overlapError}
             canSubtract={handle.canSubtract}
             canIntersect={Boolean(handle.canIntersect && onIntersect)}
             name={handle.name}

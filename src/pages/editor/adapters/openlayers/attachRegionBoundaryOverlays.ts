@@ -1,6 +1,9 @@
 import type { Coordinate } from "ol/coordinate";
+import { wrapX } from "ol/coordinate";
+import { getWidth } from "ol/extent";
+import type Projection from "ol/proj/Projection";
 import type Feature from "ol/Feature";
-import GeoJSON from "ol/format/GeoJSON";
+import { getRegionBoundaryGeometry } from "./regionBoundaryGeometry";
 import type Geometry from "ol/geom/Geometry";
 import MultiPolygon from "ol/geom/MultiPolygon";
 import Polygon from "ol/geom/Polygon";
@@ -27,8 +30,6 @@ export type RegionBoundaryOverlay = {
   zoom: number;
 };
 
-const geojson = new GeoJSON();
-
 function interiorCoordinate(geometry: Polygon | MultiPolygon): Coordinate | null {
   if (geometry instanceof Polygon)
     return geometry.getInteriorPoint().getCoordinates().slice(0, 2);
@@ -51,6 +52,7 @@ function visibleCoordinate(
   size: number[],
   width: number,
   height: number,
+  projection: Projection,
 ) {
   const fits = (point: Coordinate) => {
     const pixel = map.getPixelFromCoordinate(point);
@@ -66,7 +68,11 @@ function visibleCoordinate(
   for (const y of [0.5, 0.25, 0.75]) {
     for (const x of [0.5, 0.25, 0.75]) {
       const candidate = map.getCoordinateFromPixel([size[0] * x, size[1] * y]);
-      if (candidate && fits(candidate) && geometry.intersectsCoordinate(candidate))
+      if (
+        candidate &&
+        fits(candidate) &&
+        geometry.intersectsCoordinate(wrapX(candidate.slice(), projection))
+      )
         return candidate;
     }
   }
@@ -97,7 +103,12 @@ export function attachRegionBoundaryOverlays(
     const zoom = Math.floor(map.getView().getZoom() ?? 12);
     const metrics = getMapAnnotationMetrics(zoom);
     const viewport = map.getView().calculateExtent(size);
-    const candidates = source.getFeaturesInExtent(viewport).flatMap((feature) => {
+    const projection = map.getView().getProjection();
+    const centerX = (viewport[0] + viewport[2]) / 2;
+    const worldWidth = projection.canWrapX() ? getWidth(projection.getExtent()) : 0;
+    const candidates = [
+      ...new Set(source.getFeaturesInExtent(viewport, projection)),
+    ].flatMap((feature) => {
       const boundaryId = feature.getId();
       const geometry = feature.getGeometry();
       if (
@@ -108,14 +119,12 @@ export function attachRegionBoundaryOverlays(
       let cached = cache.get(feature);
       if (!cached || cached.revision !== feature.getRevision()) {
         const coordinate = interiorCoordinate(geometry);
-        if (!coordinate) return [];
+        const displayGeometry = getRegionBoundaryGeometry(feature);
+        if (!coordinate || !displayGeometry) return [];
         cached = {
           revision: feature.getRevision(),
           coordinate,
-          displayGeometry: geojson.writeGeometryObject(geometry, {
-            featureProjection: "EPSG:3857",
-            dataProjection: "EPSG:4326",
-          }) as PolygonalGeometry,
+          displayGeometry,
         };
         cache.set(feature, cached);
       }
@@ -124,13 +133,19 @@ export function attachRegionBoundaryOverlays(
           ? feature.get("name")
           : String(boundaryId);
       const { width, height } = getMapAnnotationSize(name, zoom);
+      // 표시 좌표만 현재 세계로 옮깁니다. 저장·겹침 판정은 받은 원래 경위를 사용합니다.
+      const coordinateInView = cached.coordinate.slice();
+      if (worldWidth)
+        coordinateInView[0] +=
+          Math.round((centerX - coordinateInView[0]) / worldWidth) * worldWidth;
       const coordinate = visibleCoordinate(
         map,
         geometry,
-        cached.coordinate,
+        coordinateInView,
         size,
         width,
         height,
+        projection,
       );
       const pixel = map.getPixelFromCoordinate(coordinate);
       if (!pixel) return [];
@@ -213,7 +228,8 @@ export function attachRegionBoundaryOverlays(
   };
   const moveKey = map.on("pointermove", (event) => {
     if (event.dragging || !source) return;
-    const id = source.getFeaturesAtCoordinate(event.coordinate)[0]?.getId();
+    const coordinate = wrapX(event.coordinate.slice(), map.getView().getProjection());
+    const id = source.getFeaturesAtCoordinate(coordinate)[0]?.getId();
     const next = id === undefined ? null : String(id);
     // 이미 보이는 카드들은 마우스 이동만으로 다시 정렬하지 않습니다.
     if (next !== preferredId && next !== null && !entries.has(next)) {
@@ -222,7 +238,8 @@ export function attachRegionBoundaryOverlays(
     }
   });
   const clickKey = map.on("singleclick", (event) => {
-    const id = source?.getFeaturesAtCoordinate(event.coordinate)[0]?.getId();
+    const coordinate = wrapX(event.coordinate.slice(), map.getView().getProjection());
+    const id = source?.getFeaturesAtCoordinate(coordinate)[0]?.getId();
     preferredId = id === undefined ? null : String(id);
     schedule();
   });

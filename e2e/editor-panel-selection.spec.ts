@@ -6,7 +6,7 @@ async function openEditorViaDemo(page: Page): Promise<Page> {
 
   const [editorPage] = await Promise.all([
     page.waitForEvent("popup"),
-    page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
+    page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
 
   await editorPage.waitForLoadState();

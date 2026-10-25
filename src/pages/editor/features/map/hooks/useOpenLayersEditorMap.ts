@@ -61,6 +61,7 @@ const EMPTY_GEOMETRY_OP_TARGETS: GeometryOpTargets = {
   mergeCandidateIds: [],
   subtractCandidateIds: [],
   intersectCandidateIds: [],
+  overlapErrorCandidateIds: [],
 };
 
 // scene에서 피처의 폴리곤 geometry를 찾습니다(폴리곤이 아니면 null). 불리언 연산 입력 조회용.
@@ -612,7 +613,7 @@ export function useOpenLayersEditorMap() {
       scene,
       new Set(selectedFeatureIds),
       getViewportFeatureIds(map),
-      geometryOverlapCache.hasOverlap,
+      geometryOverlapCache.checkOverlap,
     );
     geometryOpTargetsRef.current = targets;
     applyChips(overlays.sync(buildGeometryOpMarkerInputs(scene, targets)));
