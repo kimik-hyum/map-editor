@@ -12,6 +12,7 @@ async function prepare(
   fail = false,
   country = "US",
   extra = false,
+  bounds = [-74.08, 40.65, -73.86, 40.85],
 ) {
   let shouldFail = fail;
   const files: string[] = [];
@@ -52,7 +53,7 @@ async function prepare(
     const kind = file.startsWith("indexes/")
       ? file.split("/")[1].replace(".json", "")
       : file.split("/")[1];
-    const ny = [-74.08, 40.65, -73.86, 40.85];
+    const ny = bounds;
     const east = [-73, 40.65, -72.95, 40.75];
     const part = file.endsWith("0002.json") ? "0002" : "0001";
     const bbox = part === "0002" ? east : ny;
@@ -593,4 +594,86 @@ test("미국 경계 추가 직후 제거하고 원본에만 있는 부분도 캐
   await minus.click();
   await expect(editor.getByRole("button", { name: "도형 숨기기" })).toHaveCount(8);
   expect(files.filter((file) => file.startsWith("originals/"))).toHaveLength(1);
+});
+
+test("날짜변경선과 반복된 세계에서도 미국 경계 카드를 표시하고 원래 경도로 편집한다", async ({
+  context,
+  page,
+}) => {
+  // 테스트 브라우저에만 map 핸들을 노출해 날짜변경선 양쪽과 반복 세계를 정확히 재현합니다.
+  await context.route(
+    "**/adapters/openlayers/createOpenLayersMap.ts*",
+    async (route) => {
+      const response = await route.fetch();
+      const source = await response.text();
+      const marker = "return new OpenLayersMap({";
+      expect(source).toContain(marker);
+      await route.fulfill({
+        response,
+        body: source.replace(
+          marker,
+          "return globalThis.__wrappedBoundaryMap = new OpenLayersMap({",
+        ),
+      });
+    },
+  );
+  const { editor, files } = await prepare(
+    context,
+    page,
+    false,
+    "US",
+    false,
+    [173, 52.7, 173.4, 53],
+  );
+  await editor.setViewportSize({ width: 1700, height: 1000 });
+  await editor.getByRole("button", { name: /^(카운티 경계|경계 데이터)$/ }).click();
+  const move = async (longitude: number, zoom: number) =>
+    editor.evaluate(
+      async ({ longitude, zoom }) => {
+        const { fromLonLat } = await import("/node_modules/ol/proj.js");
+        const map = (
+          globalThis as typeof globalThis & {
+            __wrappedBoundaryMap: import("ol/Map").default;
+          }
+        ).__wrappedBoundaryMap;
+        map.getView().cancelAnimations();
+        map.getView().setCenter(fromLonLat([longitude, 52.85]));
+        map.getView().setZoom(zoom);
+      },
+      { longitude, zoom },
+    );
+  await move(-180, 6);
+  const add = editor.getByRole("button", { name: "Test boundary 추가", exact: true });
+  await expect(add).toBeVisible();
+  await expect(add).toHaveCount(1);
+  await add.click();
+  await expect
+    .poll(
+      async () =>
+        (await readEditorEdits(editor)).layers?.flatMap((l) => l.features).length,
+    )
+    .toBe(9);
+  const added = (await readEditorEdits(editor)).layers
+    ?.flatMap((l) => l.features)
+    .find((f) => f.name === "Test boundary");
+  expect(added?.feature.geometry.type).toBe("MultiPolygon");
+  expect(JSON.stringify(added?.feature.geometry)).toContain("173.4");
+  expect(JSON.stringify(added?.feature.geometry)).not.toContain("-187");
+  await editor
+    .getByRole("button", { name: "Test boundary 겹친 부분 제거", exact: true })
+    .click();
+  await expect
+    .poll(
+      async () =>
+        (await readEditorEdits(editor)).layers?.flatMap((l) => l.features).length,
+    )
+    .toBe(8);
+  await move(-547, 10);
+  await expect(add).toBeVisible();
+  await expect(add).toHaveCount(1);
+  await expect(editor.getByText("미국 경계 불러오는 중…", { exact: true })).toHaveCount(
+    0,
+  );
+  expect(files.filter((f) => f === "z15-plus/county/0001.json")).toHaveLength(1);
+  expect(files.filter((f) => f.startsWith("originals/"))).toHaveLength(1);
 });

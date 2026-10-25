@@ -1,5 +1,6 @@
 import type OpenLayersMap from "ol/Map";
-import { transformExtent } from "ol/proj";
+import { wrapAndSliceX } from "ol/extent";
+import { get as getProjection, transformExtent } from "ol/proj";
 
 export type UsBoundaryPreset = "new-york" | "san-francisco" | "continental-us";
 const presets: Record<UsBoundaryPreset, [number, number, number, number]> = {
@@ -17,9 +18,9 @@ export function focusUsBoundaryPreset(map: OpenLayersMap, preset: UsBoundaryPres
   });
 }
 
-export function readUsBoundaryViewport(
+export function readUsBoundaryViewports(
   map: OpenLayersMap,
-): [number, number, number, number] | null {
+): [number, number, number, number][] | null {
   const size = map.getSize();
   if (!size) return null;
   const extent = transformExtent(
@@ -27,13 +28,21 @@ export function readUsBoundaryViewport(
     "EPSG:3857",
     "EPSG:4326",
   );
-  const bbox: [number, number, number, number] = [
-    Math.max(-180, extent[0]),
-    Math.max(-85, extent[1]),
-    Math.min(180, extent[2]),
-    Math.min(85, extent[3]),
-  ];
-  return bbox.every(Number.isFinite) && bbox[0] < bbox[2] && bbox[1] < bbox[3]
-    ? bbox
-    : null;
+  extent[1] = Math.max(-85, extent[1]);
+  extent[3] = Math.min(85, extent[3]);
+  if (
+    !extent.every(Number.isFinite) ||
+    extent[0] >= extent[2] ||
+    extent[1] >= extent[3]
+  )
+    return null;
+  // 반복된 세계도 정규 경도로 조회하고, 날짜변경선을 걸치면 양쪽을 함께 요청합니다.
+  const projection = getProjection("EPSG:4326");
+  if (!projection) return null;
+  return wrapAndSliceX(extent, projection).map(([west, south, east, north]) => [
+    west,
+    south,
+    east,
+    north,
+  ]);
 }

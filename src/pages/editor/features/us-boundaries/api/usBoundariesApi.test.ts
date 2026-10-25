@@ -87,17 +87,23 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("미국 경계 R2 조회", () => {
+  it("여러 조회 범위에 걸친 경계와 파일은 한 번만 받는다", async () => {
+    const { client, fetcher, signal } = prepare();
+    const result = await fetchUsBoundaryView(client, "county", [bbox, bbox], signal);
+    expect(result.features.map((f) => f.id)).toEqual([id]);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
   it("필요한 경계를 반환하고 같은 파일은 캐시에서 재사용한다", async () => {
     const { client, fetcher, signal } = prepare();
-    const first = await fetchUsBoundaryView(client, "county", bbox, signal);
+    const first = await fetchUsBoundaryView(client, "county", [bbox], signal);
     expect(first.features.map((f) => f.id)).toEqual([id]);
     expect(first.features[0].properties.code).toBe("001");
-    expect(await fetchUsBoundaryView(client, "county", bbox, signal)).toEqual(first);
+    expect(await fetchUsBoundaryView(client, "county", [bbox], signal)).toEqual(first);
     expect(fetcher).toHaveBeenCalledTimes(2);
     const empty = await fetchUsBoundaryView(
       client,
       "county",
-      [126, 36, 128, 38],
+      [[126, 36, 128, 38]],
       signal,
     );
     expect(empty.features).toEqual([]);
@@ -108,13 +114,13 @@ describe("미국 경계 R2 조회", () => {
     fetcher
       .mockResolvedValueOnce(Response.json(index))
       .mockResolvedValueOnce(new Response("missing", { status: 404 }));
-    await expect(fetchUsBoundaryView(client, "county", bbox, signal)).rejects.toThrow(
+    await expect(fetchUsBoundaryView(client, "county", [bbox], signal)).rejects.toThrow(
       "다시 시도",
     );
     fetcher.mockResolvedValueOnce(
       Response.json({ ...collection, features: [{ ...feature, id: "other" }] }),
     );
-    await expect(fetchUsBoundaryView(client, "county", bbox, signal)).rejects.toThrow(
+    await expect(fetchUsBoundaryView(client, "county", [bbox], signal)).rejects.toThrow(
       "누락",
     );
   });
@@ -131,7 +137,7 @@ describe("미국 경계 R2 조회", () => {
         ),
       );
     });
-    const pending = fetchUsBoundaryView(client, "county", bbox, controller.signal);
+    const pending = fetchUsBoundaryView(client, "county", [bbox], controller.signal);
     await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
     controller.abort();
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
@@ -168,7 +174,7 @@ const original = {
 describe("미국 원본 채택", () => {
   it("표시본을 채택하지 않고 동일 ID의 원본을 별도로 받아 재사용한다", async () => {
     const { client, fetcher, signal } = prepare();
-    await fetchUsBoundaryView(client, "county", bbox, signal);
+    await fetchUsBoundaryView(client, "county", [bbox], signal);
     expect(fetcher).toHaveBeenCalledTimes(2);
     fetcher.mockResolvedValueOnce(Response.json(original));
     const geometry = await fetchUsBoundaryOriginal(client, "county", id, signal);
@@ -209,7 +215,7 @@ describe("미국 원본 채택", () => {
     "다른 버전·표시본·종류·누락·중복 ID를 원본으로 반환하지 않는다",
     async (invalid) => {
       const { client, fetcher, signal } = prepare();
-      await fetchUsBoundaryView(client, "county", bbox, signal);
+      await fetchUsBoundaryView(client, "county", [bbox], signal);
       fetcher.mockResolvedValueOnce(Response.json(invalid));
       await expect(
         fetchUsBoundaryOriginal(client, "county", id, signal),
@@ -231,7 +237,7 @@ describe("미국 원본 채택", () => {
   });
   it("편집 회차 변경 시 진행 중인 원본 다운로드를 취소한다", async () => {
     const { client, fetcher, signal } = prepare();
-    await fetchUsBoundaryView(client, "county", bbox, signal);
+    await fetchUsBoundaryView(client, "county", [bbox], signal);
     const controller = new AbortController();
     fetcher.mockImplementation(
       async (_url: string, init?: RequestInit) =>
