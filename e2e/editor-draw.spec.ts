@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { seedGoogleSession } from "./fixtures/auth";
+import { visibleMapPoint as mapPoint } from "./fixtures/mapNavigation";
 
 type EditorSnapshot = {
   layerCount: number;
@@ -77,20 +78,11 @@ async function readEditorSnapshot(page: Page): Promise<EditorSnapshot> {
 
 async function activateDrawShape(page: Page, shape: "폴리곤" | "패스" | "마커") {
   await page.getByRole("button", { name: "폴리곤 그리기" }).click();
-  const popup = page.getByRole("dialog", { name: "추가할 도형" });
+  const popup = page.getByRole("region", { name: "추가할 도형" });
   await expect(popup).toBeVisible();
   if (shape !== "폴리곤") {
     await popup.getByRole("button", { name: new RegExp(`^${shape}`) }).click();
   }
-  await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
-}
-
-async function mapPoint(page: Page, xRatio: number, yRatio: number) {
-  const box = await page.getByLabel("OSM map editor").boundingBox();
-  if (!box) {
-    throw new Error("지도 영역을 찾을 수 없습니다.");
-  }
-  return { x: box.x + box.width * xRatio, y: box.y + box.height * yRatio };
 }
 
 async function clickMapPoint(page: Page, xRatio: number, yRatio: number) {
@@ -194,13 +186,13 @@ test("Path는 정점 로컬 undo/redo 후 완료 버튼으로 별도 레이어�
   const tooltipPoint = await mapPoint(editorPage, 0.5, 0.8);
   await editorPage.mouse.move(tooltipPoint.x, tooltipPoint.y);
   await expect(cursorTooltip).toBeVisible();
-  await editorPage.locator("aside").hover();
+  await editorPage.getByRole("complementary", { name: "편집 도구" }).hover();
   await expect(cursorTooltip).toBeHidden();
   const mapBounds = await editorPage.getByLabel("OSM map editor").boundingBox();
   if (!mapBounds) {
     throw new Error("지도 영역을 찾을 수 없습니다.");
   }
-  await editorPage.mouse.move(mapBounds.x + mapBounds.width - 2, mapBounds.y + 2);
+  await editorPage.mouse.move(mapBounds.x + 2, mapBounds.y + 2);
   await expect(cursorTooltip).toBeVisible();
   await expect
     .poll(async () => {
@@ -287,10 +279,6 @@ test("첫 정점 undo의 로컬 redo는 Draw 모드나 도형을 벗어나면 �
   await editorPage.getByRole("button", { name: "선택", exact: true }).click();
   await editorPage.keyboard.press(`${modifier}+Shift+z`);
   await editorPage.getByRole("button", { name: "패스 그리기", exact: true }).click();
-  await editorPage
-    .getByRole("dialog", { name: "추가할 도형" })
-    .getByRole("button", { name: "추가할 도형 닫기" })
-    .click();
 
   await expect(finishButton).toBeHidden();
   expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
@@ -299,9 +287,8 @@ test("첫 정점 undo의 로컬 redo는 Draw 모드나 도형을 벗어나면 �
   await clickMapPoint(editorPage, 0.5, 0.25);
   await editorPage.keyboard.press(`${modifier}+z`);
   await editorPage.getByRole("button", { name: "패스 그리기", exact: true }).click();
-  const popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  const popup = editorPage.getByRole("region", { name: "추가할 도형" });
   await popup.getByRole("button", { name: /^폴리곤/ }).click();
-  await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
   await editorPage.keyboard.press(`${modifier}+Shift+z`);
   await expect(finishButton).toBeHidden();
   expect((await readEditorSnapshot(editorPage)).layerCount).toBe(before.layerCount);
@@ -373,9 +360,8 @@ test("전역 undo가 실행되면 로컬 redo 분기를 버리고 전역 redo �
     .toBe(before.layerCount + 1);
 
   await editorPage.getByRole("button", { name: "마커 그리기" }).click();
-  const popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  const popup = editorPage.getByRole("region", { name: "추가할 도형" });
   await popup.getByRole("button", { name: /^패스/ }).click();
-  await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
   const finishButton = editorPage.getByRole("button", { name: "패스 그리기 완료" });
 
   await clickMapPoint(editorPage, 0.5, 0.25);
@@ -409,9 +395,8 @@ test("진행 중 sketch에서는 로컬 redo가 없어도 전역 redo를 실행�
     .toBe(1);
 
   await editorPage.getByRole("button", { name: "마커 그리기" }).click();
-  const popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  const popup = editorPage.getByRole("region", { name: "추가할 도형" });
   await popup.getByRole("button", { name: /^패스/ }).click();
-  await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
   const finishButton = editorPage.getByRole("button", { name: "패스 그리기 완료" });
 
   await clickMapPoint(editorPage, 0.5, 0.25);
@@ -449,7 +434,7 @@ test("진행 중 sketch를 두고 도형이나 모드를 바꾸면 취소 확인
   await clickMapPoint(editorPage, 0.5, 0.25);
   await clickMapPoint(editorPage, 0.6, 0.35);
   await editorPage.getByRole("button", { name: "패스 그리기", exact: true }).click();
-  let popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  let popup = editorPage.getByRole("region", { name: "추가할 도형" });
   await popup.getByRole("button", { name: /^폴리곤/ }).click();
 
   const dialog = editorPage.getByRole("alertdialog", { name: "그리기를 취소할까요?" });
@@ -463,13 +448,13 @@ test("진행 중 sketch를 두고 도형이나 모드를 바꾸면 취소 확인
   await expect(finishButton).toContainText("2점");
 
   await editorPage.getByRole("button", { name: "패스 그리기", exact: true }).click();
-  popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  popup = editorPage.getByRole("region", { name: "추가할 도형" });
   await popup.getByRole("button", { name: /^폴리곤/ }).click();
   await dialog.getByRole("button", { name: "그리기 취소" }).click();
   await expect(dialog).toBeHidden();
   await expect(editorPage.getByRole("button", { name: "폴리곤 그리기" })).toBeVisible();
   await expect(finishButton).toBeHidden();
-  await expect(popup).toBeHidden();
+  await expect(popup).toBeVisible();
   await editorPage.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
 
@@ -502,7 +487,7 @@ test("새 INIT은 이전 session의 draw 확인과 지연된 모드·도형 전�
   await clickMapPoint(editorPage, 0.5, 0.25);
   await clickMapPoint(editorPage, 0.6, 0.35);
 
-  await editorPage.getByRole("button", { name: "행정동 경계" }).click();
+  await editorPage.getByRole("button", { name: "경계 데이터" }).click();
   const dialog = editorPage.getByRole("alertdialog", { name: "그리기를 취소할까요?" });
   await expect(dialog).toBeVisible();
   await replaceEditorSession(page, "mode-replacement", "모드 교체 도형");
@@ -516,7 +501,7 @@ test("새 INIT은 이전 session의 draw 확인과 지연된 모드·도형 전�
   await clickMapPoint(editorPage, 0.5, 0.25);
   await clickMapPoint(editorPage, 0.6, 0.35);
   await editorPage.getByRole("button", { name: "패스 그리기", exact: true }).click();
-  const popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  const popup = editorPage.getByRole("region", { name: "추가할 도형" });
   await popup.getByRole("button", { name: /^마커/ }).click();
   await expect(dialog).toBeVisible();
 
@@ -578,9 +563,8 @@ test("키보드로 지도 중심에 Marker·Path·Polygon을 추가할 수 있�
   await expect(crosshair).toHaveCount(0);
 
   await editorPage.getByRole("button", { name: "마커 그리기" }).click();
-  let popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  let popup = editorPage.getByRole("region", { name: "추가할 도형" });
   await popup.getByRole("button", { name: /^패스/ }).click();
-  await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
   await expect(map).toHaveAttribute("aria-keyshortcuts", "K Space Enter");
   await map.focus();
   await editorPage.keyboard.press("k");
@@ -599,9 +583,8 @@ test("키보드로 지도 중심에 Marker·Path·Polygon을 추가할 수 있�
     .toBe(before.layerCount + 2);
 
   await editorPage.getByRole("button", { name: "패스 그리기" }).click();
-  popup = editorPage.getByRole("dialog", { name: "추가할 도형" });
+  popup = editorPage.getByRole("region", { name: "추가할 도형" });
   await popup.getByRole("button", { name: /^폴리곤/ }).click();
-  await popup.getByRole("button", { name: "추가할 도형 닫기" }).click();
   await expect(map).toHaveAttribute("aria-keyshortcuts", "K Space Enter");
   await map.focus();
   await editorPage.keyboard.press("k");
@@ -684,7 +667,8 @@ test("지도 크기가 바뀌면 커서 툴팁을 새 경계 안으로 다시 �
 
   // 축소 후에도 포인터가 새 하단 완료 바가 아니라 지도 안에 남는 좌표를 사용합니다.
   // 지도 밖으로 나가면 툴팁이 숨는 것이 정상이라 재배치 검증 대상이 아닙니다.
-  await editorPage.mouse.move(760, 500);
+  await editorPage.getByRole("button", { name: "오른쪽 패널 접기" }).click();
+  await editorPage.mouse.move(740, 500);
   await expect(tooltip).toBeVisible();
   await editorPage.setViewportSize({ width: 800, height: 600 });
 
@@ -725,7 +709,7 @@ test("ESC로 계속 그리기를 선택한 뒤 Enter는 Path를 완성한다", a
   await expect
     .poll(async () => (await readEditorSnapshot(editorPage)).layerCount)
     .toBe(before.layerCount + 1);
-  await expect(editorPage.getByRole("dialog", { name: "추가할 도형" })).toHaveCount(0);
+  await expect(editorPage.getByRole("region", { name: "추가할 도형" })).toBeVisible();
 });
 
 test("폴리곤은 마지막 정점이 아닌 시작점 클릭이나 Enter로 완성된다", async ({

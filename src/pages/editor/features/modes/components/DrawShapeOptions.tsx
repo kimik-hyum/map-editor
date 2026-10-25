@@ -1,30 +1,19 @@
-import type { RefObject } from "react";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import { drawShapeOptions } from "../model/drawShapeModel";
-import { ToolOptionPopup } from "./ToolOptionPopup";
+import { ToolOptionsSection } from "./ToolOptionsSection";
 
-type DrawShapePopupProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  anchor: RefObject<HTMLButtonElement | null>;
+type DrawShapeOptionsProps = {
   confirmDiscardDraw: () => Promise<boolean>;
 };
 
-// 그리기(추가) 도구로 만들 도형(폴리곤/패스/마커)을 고르는 팝업입니다. 공용 ToolOptionPopup에 store를 연결합니다.
-export function DrawShapePopup({
-  open,
-  onOpenChange,
-  anchor,
-  confirmDiscardDraw,
-}: DrawShapePopupProps) {
+// 그리기(추가) 도구로 만들 도형(폴리곤/패스/마커)을 고르는 고정 옵션입니다. 공용 ToolOptionsSection에 store를 연결합니다.
+export function DrawShapeOptions({ confirmDiscardDraw }: DrawShapeOptionsProps) {
   const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
   const setActiveDrawShape = useEditorStore((state) => state.setActiveDrawShape);
 
   return (
-    <ToolOptionPopup
+    <ToolOptionsSection
       activeId={activeDrawShape}
-      anchor={anchor}
-      onOpenChange={onOpenChange}
       onSelect={(nextShape) => {
         if (nextShape === activeDrawShape) {
           return;
@@ -44,7 +33,6 @@ export function DrawShapePopup({
           }
         })();
       }}
-      open={open}
       options={drawShapeOptions}
       title="추가할 도형"
     />
