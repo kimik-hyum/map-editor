@@ -16,11 +16,12 @@ export function LocaleSync() {
     );
     if (description) description.content = meta.description;
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
-    if (canonical) canonical.href = `https://maps-editor.pages.dev${pathname}`;
+    if (canonical)
+      canonical.href = `https://maps-editor.pages.dev${pathname.replace(/\/?$/, "/")}`;
     for (const alternate of document.querySelectorAll<HTMLLinkElement>(
       'link[rel="alternate"][hreflang]',
     )) {
-      alternate.href = `https://maps-editor.pages.dev/${alternate.hreflang}${stripLocale(pathname)}`;
+      alternate.href = `https://maps-editor.pages.dev/${alternate.hreflang}${stripLocale(pathname).replace(/\/?$/, "/")}`;
     }
     void i18n.changeLanguage(getLocale(pathname));
   }, [pathname, i18n]);

@@ -47,11 +47,11 @@ for (const locale of ["ko", "en"]) {
         '<div id="root"></div>',
         `<div id="root">${render(urlPath)}</div>`,
       );
-      const canonical = `https://maps-editor.pages.dev${urlPath}`;
+      const canonical = `https://maps-editor.pages.dev${urlPath.replace(/\/?$/, "/")}`;
       const alternates = ["ko", "en"]
         .map(
           (lang) =>
-            `<link rel="alternate" hreflang="${lang}" href="https://maps-editor.pages.dev/${lang}/${path}" />`,
+            `<link rel="alternate" hreflang="${lang}" href="https://maps-editor.pages.dev/${lang}/${path}${path ? "/" : ""}" />`,
         )
         .join("");
       html = html.replace(

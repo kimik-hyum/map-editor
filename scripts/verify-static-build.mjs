@@ -35,7 +35,10 @@ for (const locale of ["ko", "en"]) {
     assert(html.includes(`<html lang="${locale}">`), `${route}: HTML language`);
     if (heading) {
       assert(html.includes(`hreflang="${locale}"`), `${route}: language alternatives`);
-      assert(html.includes('rel="canonical"'), `${route}: canonical URL`);
+      assert(
+        html.includes(`rel="canonical" href="https://maps-editor.pages.dev/${route}/"`),
+        `${route}: canonical URL matches the static host directory`,
+      );
       assert(
         html.includes(heading) && html.includes("<h1"),
         `${route}: prerendered document`,
