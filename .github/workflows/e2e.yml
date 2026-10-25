@@ -12,7 +12,8 @@ permissions:
 jobs:
   playwright-e2e:
     name: playwright-e2e
-    runs-on: ubuntu-latest
+    # Playwright 브라우저·시스템 의존성 설치가 지원되는 OS를 고정합니다.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:

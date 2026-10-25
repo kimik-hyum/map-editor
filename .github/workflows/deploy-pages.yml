@@ -19,7 +19,8 @@ jobs:
   deploy:
     name: deploy-production
     if: github.ref == 'refs/heads/main' && vars.CLOUDFLARE_DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    # E2E와 동일하게 Playwright가 지원하는 OS에서 브라우저를 설치합니다.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
 
     steps:
