@@ -12,8 +12,9 @@ const presets: Record<UsBoundaryPreset, [number, number, number, number]> = {
 export function focusUsBoundaryPreset(map: OpenLayersMap, preset: UsBoundaryPreset) {
   const view = map.getView();
   view.fit(transformExtent(presets[preset], "EPSG:4326", "EPSG:3857"), {
-    // 왼쪽 레이어 패널을 피해 원본 채택 버튼이 있는 경계를 화면에 배치합니다.
-    padding: [40, 40, 40, Math.min(400, (map.getSize()?.[0] ?? 1000) * 0.4)],
+    // 오른쪽 작업 패널을 피해 경계와 원본 채택 버튼을 화면 왼쪽에 배치합니다.
+    // 명시적인 지역 이동에만 적용하므로 패널을 접고 펼칠 때 지도는 움직이지 않습니다.
+    padding: [40, Math.min(400, (map.getSize()?.[0] ?? 1000) * 0.4), 40, 40],
     maxZoom: 13,
   });
 }

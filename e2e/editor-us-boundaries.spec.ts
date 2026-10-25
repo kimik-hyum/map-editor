@@ -594,6 +594,31 @@ test("미국 경계 추가 직후 제거하고 원본에만 있는 부분도 캐
   expect(files.filter((file) => file.startsWith("originals/"))).toHaveLength(1);
 });
 
+test("뉴욕으로 이동하면 경계 추가 버튼이 오른쪽 작업 패널 앞에서 조작 가능하다", async ({
+  context,
+  page,
+}) => {
+  const { editor } = await prepare(context, page);
+  await editor.setViewportSize({ width: 1024, height: 768 });
+  await editor.getByRole("button", { name: "경계 데이터" }).click();
+  const menu = editor.getByRole("region", { name: "경계 데이터", exact: true });
+  await menu.getByRole("button", { name: "뉴욕", exact: true }).click();
+  await expect(menu.getByRole("status")).toHaveText("카운티 1개 표시");
+  const add = editor.getByRole("button", { name: "Test boundary 추가", exact: true });
+  await expect(add).toBeVisible();
+  const dock = editor.getByRole("complementary", { name: "속성과 레이어 패널" });
+  const [buttonBox, dockBox] = await Promise.all([
+    add.boundingBox(),
+    dock.boundingBox(),
+  ]);
+  if (!buttonBox || !dockBox) throw new Error("경계 버튼 또는 패널 위치가 없습니다");
+  expect(buttonBox.x + buttonBox.width).toBeLessThan(dockBox.x);
+  await add.click();
+  await expect(
+    editor.getByRole("region", { name: "레이어", exact: true }),
+  ).toContainText("9개 도형");
+});
+
 test("날짜변경선과 반복된 세계에서도 미국 경계 카드를 표시하고 원래 경도로 편집한다", async ({
   context,
   page,
