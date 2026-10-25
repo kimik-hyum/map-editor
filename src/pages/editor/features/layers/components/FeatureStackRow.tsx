@@ -1,3 +1,4 @@
+import { useT } from "@/shared/i18n/useT";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -56,6 +57,7 @@ export function FeatureStackRow({
   renameBlocked,
   holeFillTool,
 }: FeatureStackRowProps) {
+  const t = useT();
   const [renameDraft, setRenameDraft] = useState<string | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const renameButtonRef = useRef<HTMLButtonElement>(null);
@@ -125,21 +127,25 @@ export function FeatureStackRow({
         isDimmed={row.isDimmed}
         isVisible={row.isVisible}
         onToggle={() => onToggleVisibility(row)}
-        subject={row.isEmpty ? "레이어" : "도형"}
+        subject={row.isEmpty ? t("레이어") : t("도형")}
       />
       {/* 잠금 토글: 잠금 = 읽기 전용·참고용(선택은 가능, 이동·정점편집 불가). */}
       <button
-        aria-label={row.isLocked ? `${row.name} 잠금 해제` : `${row.name} 잠금`}
+        aria-label={
+          row.isLocked
+            ? t("{{v0}} 잠금 해제", { v0: row.name })
+            : t("{{v0}} 잠금", { v0: row.name })
+        }
         aria-pressed={row.isLocked}
         className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-40"
         disabled={isRenaming || blockedReason !== null}
         onClick={() => onToggleLock(row)}
         title={
           isRenaming
-            ? "이름 편집을 먼저 완료하거나 취소하세요"
+            ? t("이름 편집을 먼저 완료하거나 취소하세요")
             : row.isLocked
-              ? "잠금 해제"
-              : "잠금"
+              ? t("잠금 해제")
+              : t("잠금")
         }
         type="button"
       >
@@ -162,7 +168,7 @@ export function FeatureStackRow({
             <input
               aria-describedby={renameHelpId}
               aria-invalid={renameError !== null}
-              aria-label={`${row.name} 새 이름`}
+              aria-label={t("{{v0}} 새 이름", { v0: row.name })}
               className="min-w-0 flex-1 rounded-md border border-teal-500 bg-white px-2 py-1 text-sm font-bold text-slate-950 outline-none ring-2 ring-teal-100"
               onChange={(event) => setRenameDraft(event.target.value)}
               onKeyDown={(event) => {
@@ -175,19 +181,19 @@ export function FeatureStackRow({
               value={renameDraft ?? ""}
             />
             <button
-              aria-label="이름 변경 저장"
+              aria-label={t("이름 변경 저장")}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-teal-700 transition-colors hover:bg-teal-50 disabled:cursor-not-allowed disabled:text-slate-300"
               disabled={!canSaveRename}
-              title="저장"
+              title={t("저장")}
               type="submit"
             >
               <Check aria-hidden className="h-3.5 w-3.5" />
             </button>
             <button
-              aria-label="이름 변경 취소"
+              aria-label={t("이름 변경 취소")}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
               onClick={closeRename}
-              title="취소"
+              title={t("취소")}
               type="button"
             >
               <X aria-hidden className="h-3.5 w-3.5" />
@@ -201,7 +207,8 @@ export function FeatureStackRow({
             id={renameHelpId}
           >
             <span className="truncate">
-              {renameError ?? `1–${MAX_FEATURE_NAME_LENGTH}자 · 앞뒤 공백 제외`}
+              {renameError ??
+                t("1–{{v0}}자 · 앞뒤 공백 제외", { v0: MAX_FEATURE_NAME_LENGTH })}
             </span>
             <span className="shrink-0">
               {renameDraft?.trim().length ?? 0}/{MAX_FEATURE_NAME_LENGTH}
@@ -212,7 +219,7 @@ export function FeatureStackRow({
         <>
           {/* 행 본문 클릭 = 도형 선택(다시 클릭하면 해제). 지도 하이라이트와 같은 선택 상태를 공유한다. */}
           <button
-            aria-label={`${row.name} 선택`}
+            aria-label={t("{{v0}} 선택", { v0: row.name })}
             disabled={blockedReason !== null}
             aria-pressed={row.isSelected}
             className="min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left"
@@ -223,15 +230,15 @@ export function FeatureStackRow({
               {row.name}
             </span>
             <span className="flex gap-1.5 text-[11px] font-bold text-slate-500">
-              <span>{row.geometryKindLabel}</span>
+              <span>{t(row.geometryKindLabel)}</span>
               {row.isSelected ? (
-                <span className="font-extrabold text-indigo-600">선택</span>
+                <span className="font-extrabold text-indigo-600">{t("선택")}</span>
               ) : null}
             </span>
           </button>
           {row.canRename ? (
             <button
-              aria-label={`${row.name} 이름 변경`}
+              aria-label={t("{{v0}} 이름 변경", { v0: row.name })}
               className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-0 text-slate-300 transition-colors hover:bg-teal-50 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-300"
               disabled={renameBlocked || blockedReason !== null}
               onClick={() => {
@@ -241,8 +248,8 @@ export function FeatureStackRow({
               ref={renameButtonRef}
               title={
                 renameBlocked
-                  ? "다른 이름 편집을 먼저 완료하거나 취소하세요"
-                  : "이름 변경"
+                  ? t("다른 이름 편집을 먼저 완료하거나 취소하세요")
+                  : t("이름 변경")
               }
               type="button"
             >
@@ -251,15 +258,15 @@ export function FeatureStackRow({
           ) : null}
           {row.isEmpty ? (
             <button
-              aria-label={`${row.name}에 도형 그리기`}
+              aria-label={t("{{v0}}에 도형 그리기", { v0: row.name })}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-teal-700 hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-40"
               disabled={!row.canDraw || renameBlocked || blockedReason !== null}
               onClick={() => onDraw(row)}
               title={
                 blockedReason ??
                 (row.canDraw
-                  ? "이 레이어에 도형 그리기"
-                  : "레이어를 표시하고 잠금을 해제하세요")
+                  ? t("이 레이어에 도형 그리기")
+                  : t("레이어를 표시하고 잠금을 해제하세요"))
               }
               type="button"
             >
@@ -270,11 +277,11 @@ export function FeatureStackRow({
           )}
           {row.canDelete ? (
             <button
-              aria-label={`${row.name} 삭제`}
+              aria-label={t("{{v0}} 삭제", { v0: row.name })}
               className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-0 text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-600"
               disabled={blockedReason !== null}
               onClick={() => void onDelete(row)}
-              title="레이어 삭제"
+              title={t("레이어 삭제")}
               type="button"
             >
               <Trash2 aria-hidden className="h-3.5 w-3.5" />
@@ -283,11 +290,11 @@ export function FeatureStackRow({
           {/* 끌기 핸들: 여기서만 드래그가 시작된다(터치 스크롤 간섭도 핸들로 한정).
           키보드 이동(스페이스 후 방향키)이 동작하려면 활성자 ref와 속성을 함께 붙여야 한다. */}
           <button
-            aria-label={`${row.name} 끌어서 순서 변경`}
+            aria-label={t("{{v0}} 끌어서 순서 변경", { v0: row.name })}
             className="flex h-7 w-6 shrink-0 cursor-grab touch-none items-center justify-center border-0 bg-transparent p-0 text-slate-300 hover:text-slate-500 active:cursor-grabbing"
             ref={setActivatorNodeRef}
             disabled={blockedReason !== null}
-            title={blockedReason ?? "끌어서 순서 변경"}
+            title={blockedReason ?? t("끌어서 순서 변경")}
             type="button"
             {...attributes}
             {...listeners}

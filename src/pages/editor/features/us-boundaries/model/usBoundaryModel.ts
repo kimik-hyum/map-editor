@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { z } from "zod";
 import {
   US_BOUNDARY_KINDS,
@@ -108,17 +109,20 @@ export function planUsBoundaryView(
   kind: UsManifest["kinds"][number],
   bboxes: readonly UsBbox[],
 ) {
-  if (index.kind !== kind.kind) throw new Error("미국 경계 종류가 일치하지 않습니다.");
+  if (index.kind !== kind.kind)
+    throw new Error(t("미국 경계 종류가 일치하지 않습니다."));
   const items = index.items.filter((item) =>
     bboxes.some((bbox) => intersectsUsBbox(item.bbox, bbox)),
   );
   if (items.length > US_MAX_FEATURES)
-    throw new Error("경계가 너무 많습니다. 지도를 확대하거나 주 경계를 선택해주세요.");
+    throw new Error(
+      t("경계가 너무 많습니다. 지도를 확대하거나 주 경계를 선택해주세요."),
+    );
   const keys = new Set(items.map((item) => item.object));
   const shards = kind.shards.filter((shard) => keys.has(shard.key));
   if (shards.length !== keys.size)
-    throw new Error("미국 경계 파일 목록이 일치하지 않습니다.");
+    throw new Error(t("미국 경계 파일 목록이 일치하지 않습니다."));
   if (shards.reduce((sum, shard) => sum + shard.bytes, 0) > US_MAX_BYTES)
-    throw new Error("조회 범위가 넓습니다. 지도를 확대하고 다시 불러와주세요.");
+    throw new Error(t("조회 범위가 넓습니다. 지도를 확대하고 다시 불러와주세요."));
   return { ids: new Set(items.map((item) => item.id)), shards };
 }

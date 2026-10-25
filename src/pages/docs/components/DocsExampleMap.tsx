@@ -1,9 +1,11 @@
+import { useT } from "@/shared/i18n/useT";
 import { useMemo } from "react";
 import { useDemoMap } from "@/pages/demo/map/useDemoMap";
 import type { EditorSceneInput } from "../content/examples/editor-contract.example";
 import "ol/ol.css";
 
 export function DocsExampleMap({ scene }: { scene: EditorSceneInput }) {
+  const t = useT();
   // 외부 계약의 임의 themeToken 대신 문서 미리보기의 기본 스타일을 사용합니다.
   const previewScene = useMemo(
     () => ({
@@ -20,7 +22,7 @@ export function DocsExampleMap({ scene }: { scene: EditorSceneInput }) {
     <div
       ref={mapRef}
       role="img"
-      aria-label="경복궁 예제 권역·경로·마커의 현재 지도"
+      aria-label={t("경복궁 예제 권역·경로·마커의 현재 지도")}
       className="h-[300px] w-full bg-slate-100"
     />
   );

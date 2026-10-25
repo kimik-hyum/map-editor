@@ -1,3 +1,4 @@
+import { useT } from "@/shared/i18n/useT";
 import { Button } from "@base-ui/react/button";
 import { Eye, EyeOff } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
@@ -19,14 +20,17 @@ export function LayerVisibilityIcon({
   subject,
   disabled = false,
 }: LayerVisibilityIconProps) {
+  const t = useT();
   const statusLabel = disabled
-    ? "현재 상태에서는 표시를 변경할 수 없습니다"
+    ? t("현재 상태에서는 표시를 변경할 수 없습니다")
     : isVisible
       ? isDimmed
-        ? "흐리게 표시"
-        : "표시"
-      : "숨김";
-  const actionLabel = isVisible ? `${subject} 숨기기` : `${subject} 보이기`;
+        ? t("흐리게 표시")
+        : t("표시")
+      : t("숨김");
+  const actionLabel = isVisible
+    ? t("{{v0}} 숨기기", { v0: subject })
+    : t("{{v0}} 보이기", { v0: subject });
 
   return (
     <Button

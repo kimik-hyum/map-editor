@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { Link } from "react-router";
+import { LocalizedLink as Link } from "@/shared/i18n/LocalizedLink";
 import { cn } from "@/shared/utils/cn";
 
 type DocsButtonVariant = "primary" | "secondary";

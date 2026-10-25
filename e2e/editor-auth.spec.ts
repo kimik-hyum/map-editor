@@ -2,7 +2,7 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { createGoogleSession } from "./fixtures/auth";
 
 async function openEditor(page: Page) {
-  await page.goto("/demo");
+  await page.goto("/ko/demo");
   const [editor] = await Promise.all([
     page.waitForEvent("popup"),
     page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
@@ -293,7 +293,7 @@ test("미국에서 한국 선택 시 즉시 로그인하고 성공한 뒤 국가
   await context.route("**/api/us-boundaries/**", (route) =>
     route.fulfill({ status: 503, json: { error: "test" } }),
   );
-  await page.goto("/demo?country=US");
+  await page.goto("/ko/demo?country=US");
   const [editor] = await Promise.all([
     page.waitForEvent("popup"),
     page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),

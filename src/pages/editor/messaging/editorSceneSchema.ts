@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { z } from "zod";
 import { editorDefaultTheme } from "../theme/editorTheme";
 import {
@@ -35,7 +36,7 @@ const linearRingCoordinatesSchema = z
     if (closed && ring.length < 4) {
       context.addIssue({
         code: "custom",
-        message: "닫힌 Polygon ring은 최소 4개 좌표가 필요합니다.",
+        message: t("닫힌 Polygon ring은 최소 4개 좌표가 필요합니다."),
       });
     }
 
@@ -46,7 +47,7 @@ const linearRingCoordinatesSchema = z
     if (distinctVertexCount < 3) {
       context.addIssue({
         code: "custom",
-        message: "Polygon ring은 서로 다른 정점이 최소 3개 필요합니다.",
+        message: t("Polygon ring은 서로 다른 정점이 최소 3개 필요합니다."),
       });
     }
   });
@@ -130,10 +131,10 @@ export function parseInitMessage(data: unknown): ParseInitMessageResult {
     if (duplicates.length > 0) {
       return {
         ok: false,
-        message: "scene에 중복된 id가 있습니다.",
+        message: t("scene에 중복된 id가 있습니다."),
         issues: duplicates.map((id) => ({
           code: ValidationIssueCode.InvalidPayload,
-          message: `중복 id: ${id}`,
+          message: t("중복 id: {{v0}}", { v0: id }),
         })),
       };
     }
@@ -146,5 +147,5 @@ export function parseInitMessage(data: unknown): ParseInitMessageResult {
     message: `${issue.path.join(".") || "(root)"}: ${issue.message}`,
   }));
 
-  return { ok: false, message: "초기화 메시지 검증에 실패했습니다.", issues };
+  return { ok: false, message: t("초기화 메시지 검증에 실패했습니다."), issues };
 }

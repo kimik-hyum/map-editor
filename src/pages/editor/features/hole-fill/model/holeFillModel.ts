@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import area from "@turf/area";
 import { feature as toFeature, featureCollection } from "@turf/helpers";
 import union from "@turf/union";
@@ -75,9 +76,9 @@ export function getHoleFillDisabledReason(
 ): string | null {
   const geometry = feature.feature.geometry;
   if (geometry.type !== "Polygon" && geometry.type !== "MultiPolygon") {
-    return "폴리곤의 내부 빈 공간만 채울 수 있습니다";
+    return t("폴리곤의 내부 빈 공간만 채울 수 있습니다");
   }
-  if (layer.behavior.lock === LockState.Locked) return "잠금을 해제한 뒤 사용하세요";
+  if (layer.behavior.lock === LockState.Locked) return t("잠금을 해제한 뒤 사용하세요");
   if (
     layer.behavior.editability !== EditabilityState.Editable ||
     (feature.behavior?.editability !== undefined &&
@@ -85,20 +86,20 @@ export function getHoleFillDisabledReason(
     feature.behavior?.vertexEditable === false ||
     feature.state.lifecycle === FeatureLifecycle.Deleted
   )
-    return "편집 가능한 폴리곤에서만 사용할 수 있습니다";
+    return t("편집 가능한 폴리곤에서만 사용할 수 있습니다");
   if (
     layer.view.visibility === VisibilityState.Hidden ||
     feature.view?.visibility === VisibilityState.Hidden
   )
-    return "도형을 표시한 뒤 사용하세요";
+    return t("도형을 표시한 뒤 사용하세요");
   if (
     feature.state.validation === ValidationState.Invalid ||
     feature.state.validation === ValidationState.Pending
   )
-    return "도형의 검증 상태를 먼저 확인하세요";
+    return t("도형의 검증 상태를 먼저 확인하세요");
   const holes = inspectPolygonHoles(geometry);
-  if (!holes) return "도형의 좌표와 닫힌 경계를 먼저 확인하세요";
-  return holes.length === 0 ? "완전히 둘러싸인 내부 빈 공간이 없습니다" : null;
+  if (!holes) return t("도형의 좌표와 닫힌 경계를 먼저 확인하세요");
+  return holes.length === 0 ? t("완전히 둘러싸인 내부 빈 공간이 없습니다") : null;
 }
 
 export type HoleFillPreview = {

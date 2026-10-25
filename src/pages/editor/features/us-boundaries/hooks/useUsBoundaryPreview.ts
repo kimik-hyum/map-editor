@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type OpenLayersMap from "ol/Map";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -85,7 +86,7 @@ export function useUsBoundaryPreview(
   const query = useQuery({
     queryKey: ["us-boundary-view", US_BOUNDARY_VERSION, sessionId, kind, bboxes],
     queryFn: ({ signal }) => {
-      if (!kind || !bboxes) throw new Error("미국 경계 조회 범위를 선택해주세요.");
+      if (!kind || !bboxes) throw new Error(t("미국 경계 조회 범위를 선택해주세요."));
       return fetchUsBoundaryView(client, kind, bboxes, signal);
     },
     enabled: !!kind && !!bboxes && !!map && !!sessionId,

@@ -38,7 +38,7 @@ for (const [viewer, expected] of [
     page,
   }) => {
     await viewerCountry(context, viewer);
-    await page.goto("/demo");
+    await page.goto("/ko/demo");
     expect(new URL(page.url()).searchParams.get("country")).toBe(expected);
     const editor = await openEditor(page);
     expect(new URL(editor.url()).searchParams.get("country")).toBe(expected);
@@ -61,7 +61,7 @@ for (const [viewer, explicit] of [
     page,
   }) => {
     await viewerCountry(context, viewer);
-    await page.goto(`/demo?country=${explicit}`);
+    await page.goto(`/ko/demo?country=${explicit}`);
     const editor = await openEditor(page);
     expect(new URL(editor.url()).searchParams.get("country")).toBe(explicit);
     await expect(
@@ -78,7 +78,7 @@ test("SPA로 Demo에 들어와도 새 편집기에서 접속 국가를 판정한
   page,
 }) => {
   await viewerCountry(context, "JP");
-  await page.goto("/");
+  await page.goto("/ko/");
   await page
     .getByRole("navigation", { name: "Primary navigation" })
     .getByRole("link", { name: "Demo", exact: true })
@@ -92,7 +92,7 @@ test("SPA로 Demo에 들어와도 새 편집기에서 접속 국가를 판정한
 
 test("상단 Editor 링크도 서버 국가 판정을 거쳐 진입한다", async ({ context, page }) => {
   await viewerCountry(context, "JP");
-  await page.goto("/");
+  await page.goto("/ko/");
   await page
     .getByRole("navigation", { name: "Primary navigation" })
     .getByRole("link", { name: "Editor", exact: true })

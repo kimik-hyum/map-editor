@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { regionEndpoint } from "./regionEndpoint";
 
@@ -13,7 +14,7 @@ export function getSupabaseBrowserConfig(): SupabaseBrowserConfig {
   const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
   if (!url || !publishableKey) {
-    throw new Error("Supabase 설정(VITE_SUPABASE_URL/PUBLISHABLE_KEY)이 없습니다.");
+    throw new Error(t("Supabase 설정(VITE_SUPABASE_URL/PUBLISHABLE_KEY)이 없습니다."));
   }
 
   return { publishableKey, url: url.replace(/\/$/, "") };
@@ -58,10 +59,10 @@ export async function getAuthenticatedFunctionRequest(): Promise<{
 
   const { data, error } = await getSupabaseClient().auth.getSession();
   if (error) {
-    throw new Error("로그인 세션을 확인하지 못했습니다.");
+    throw new Error(t("로그인 세션을 확인하지 못했습니다."));
   }
   if (!data.session) {
-    throw new Error("Google 로그인이 필요합니다.");
+    throw new Error(t("Google 로그인이 필요합니다."));
   }
 
   return {

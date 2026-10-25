@@ -1,3 +1,4 @@
+import { useT } from "@/shared/i18n/useT";
 import { useEffect, useRef, useState } from "react";
 import type OpenLayersMap from "ol/Map";
 import { unByKey } from "ol/Observable";
@@ -130,6 +131,7 @@ function applyIntersect(targetId: string, otherId: string) {
 }
 
 export function useOpenLayersEditorMap() {
+  const t = useT();
   const mapElementRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<OpenLayersMap | null>(null);
   const cursorRef = useRef<ReturnType<typeof attachMapCursor> | null>(null);
@@ -619,6 +621,14 @@ export function useOpenLayersEditorMap() {
     applyChips(overlays.sync(buildGeometryOpMarkerInputs(scene, targets)));
     // viewportTick: 팬/줌으로 화면이 바뀌면 후보를 다시 도출한다.
   }, [scene, selectedFeatureIds, activeMode, viewportTick, geometryOverlapCache]);
+
+  useEffect(() => {
+    const target = map?.getTargetElement();
+    const zoomIn = target?.querySelector<HTMLButtonElement>(".ol-zoom-in");
+    const zoomOut = target?.querySelector<HTMLButtonElement>(".ol-zoom-out");
+    if (zoomIn) zoomIn.title = t("지도 확대");
+    if (zoomOut) zoomOut.title = t("지도 축소");
+  }, [map, t]);
 
   return {
     mapElementRef,

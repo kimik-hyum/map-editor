@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { isGoogleUser } from "../model/googleIdentity";
 
@@ -35,16 +36,20 @@ export async function signInWithGooglePopup(
   );
   if (!popup) {
     throw new Error(
-      "로그인 팝업이 차단되었습니다. 팝업을 허용한 뒤 다시 시도해주세요.",
+      t("로그인 팝업이 차단되었습니다. 팝업을 허용한 뒤 다시 시도해주세요."),
     );
   }
 
   try {
     popup.sessionStorage.setItem(REQUEST_STORAGE_KEY, requestId);
+    popup.sessionStorage.setItem(
+      "termia-auth-locale",
+      window.location.pathname.split("/")[1] === "en" ? "en" : "ko",
+    );
   } catch {
     popup.close();
     throw new Error(
-      "로그인 창을 준비하지 못했습니다. 브라우저 저장소 설정을 확인해주세요.",
+      t("로그인 창을 준비하지 못했습니다. 브라우저 저장소 설정을 확인해주세요."),
     );
   }
 
@@ -91,7 +96,7 @@ export async function signInWithGooglePopup(
       } catch {
         finish(
           null,
-          new Error("로그인 세션을 확인하지 못했습니다. 다시 시도해주세요."),
+          new Error(t("로그인 세션을 확인하지 못했습니다. 다시 시도해주세요.")),
         );
       } finally {
         checkingSession = false;
@@ -99,7 +104,7 @@ export async function signInWithGooglePopup(
     };
     const timeout = window.setTimeout(
       () =>
-        finish(null, new Error("로그인 대기 시간이 지났습니다. 다시 시도해주세요.")),
+        finish(null, new Error(t("로그인 대기 시간이 지났습니다. 다시 시도해주세요."))),
       LOGIN_TIMEOUT_MS,
     );
     // 토큰은 직접 postMessage하지 않고 Supabase의 동일 origin 세션 저장소에서 읽습니다.
@@ -113,7 +118,7 @@ export async function signInWithGooglePopup(
         return;
       }
       if (event.data.success === false) {
-        finish(null, new Error("Google 로그인이 취소되었거나 완료되지 않았습니다."));
+        finish(null, new Error(t("Google 로그인이 취소되었거나 완료되지 않았습니다.")));
       } else if (event.data.success === true) {
         void checkSession();
       }
@@ -138,11 +143,11 @@ export async function signInWithGooglePopup(
           return;
         }
         if (error || !data.url) {
-          finish(null, new Error("Google 로그인을 시작하지 못했습니다."));
+          finish(null, new Error(t("Google 로그인을 시작하지 못했습니다.")));
           return;
         }
         popup.location.replace(data.url);
       })
-      .catch(() => finish(null, new Error("Google 로그인 창을 열지 못했습니다.")));
+      .catch(() => finish(null, new Error(t("Google 로그인 창을 열지 못했습니다."))));
   });
 }

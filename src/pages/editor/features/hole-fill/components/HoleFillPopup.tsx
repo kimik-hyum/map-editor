@@ -1,9 +1,11 @@
+import { useT } from "@/shared/i18n/useT";
 import { Popover } from "@base-ui/react/popover";
 import { PaintBucket, X } from "lucide-react";
 import { useId } from "react";
 import type { HoleFillTool } from "../hooks/useHoleFillTool";
 
 export function HoleFillPopup({ tool }: { tool: HoleFillTool }) {
+  const t = useT();
   const inputId = useId();
   const helpId = useId();
   const preview = tool.preview;
@@ -24,18 +26,18 @@ export function HoleFillPopup({ tool }: { tool: HoleFillTool }) {
           className="z-50"
         >
           <Popover.Popup
-            aria-label="빈 공간 채우기"
+            aria-label={t("빈 공간 채우기")}
             finalFocus={tool.anchorRef}
             className="w-72 max-w-[calc(100vw-24px)] rounded-xl border border-line bg-white p-4 shadow-xl outline-none"
           >
             <div className="mb-3 flex items-center gap-2">
               <PaintBucket aria-hidden className="h-4 w-4 text-teal-700" />
               <Popover.Title className="flex-1 text-sm font-black text-slate-900">
-                빈 공간 채우기
+                {t("빈 공간 채우기")}
               </Popover.Title>
               <Popover.Close
-                aria-label="빈 공간 채우기 닫기"
-                title="닫기"
+                aria-label={t("빈 공간 채우기 닫기")}
+                title={t("닫기")}
                 className="rounded p-1 text-slate-400 hover:bg-slate-100"
               >
                 <X aria-hidden className="h-4 w-4" />
@@ -45,13 +47,13 @@ export function HoleFillPopup({ tool }: { tool: HoleFillTool }) {
               className="mb-3 truncate text-xs font-bold text-slate-700"
               title={tool.session?.name}
             >
-              대상: {tool.session?.name}
+              {t("대상:")} {tool.session?.name}
             </p>
             <label
               htmlFor={inputId}
               className="mb-1 block text-xs font-bold text-slate-700"
             >
-              채울 구멍의 최대 면적 (㎡)
+              {t("채울 구멍의 최대 면적 (㎡)")}
             </label>
             <input
               id={inputId}
@@ -68,8 +70,9 @@ export function HoleFillPopup({ tool }: { tool: HoleFillTool }) {
               id={helpId}
               className="mt-2 text-[11px] leading-5 text-slate-500"
             >
-              완전히 둘러싸인 구멍만 채웁니다. 바깥으로 열린 틈과 기준보다 큰 구멍은
-              유지됩니다.
+              {t(
+                "완전히 둘러싸인 구멍만 채웁니다. 바깥으로 열린 틈과 기준보다 큰 구멍은 유지됩니다.",
+              )}
             </Popover.Description>
             <div
               className="my-3 rounded-lg bg-teal-50 p-3 text-xs leading-5 text-teal-800"
@@ -77,12 +80,18 @@ export function HoleFillPopup({ tool }: { tool: HoleFillTool }) {
               aria-live="polite"
             >
               <p className="font-bold">
-                전체 {tool.totalHoleCount}개 중 {preview?.filledCount ?? 0}개 채우기
+                {t("전체")} {tool.totalHoleCount}
+                {t("개 중")} {preview?.filledCount ?? 0}
+                {t("개 채우기")}
               </p>
               <p>
                 {preview
-                  ? `추가 면적 약 ${preview.addedAreaSquareMeters.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}㎡ · 지도에 청록색 표시`
-                  : "현재 기준으로 채울 구멍이 없습니다."}
+                  ? t("추가 면적 약 {{v0}}㎡ · 지도에 청록색 표시", {
+                      v0: preview.addedAreaSquareMeters.toLocaleString("ko-KR", {
+                        maximumFractionDigits: 1,
+                      }),
+                    })
+                  : t("현재 기준으로 채울 구멍이 없습니다.")}
               </p>
             </div>
             {tool.error ? (
@@ -92,7 +101,7 @@ export function HoleFillPopup({ tool }: { tool: HoleFillTool }) {
             ) : null}
             <div className="flex justify-end gap-2">
               <Popover.Close className="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
-                취소
+                {t("취소")}
               </Popover.Close>
               <button
                 type="button"
@@ -100,11 +109,11 @@ export function HoleFillPopup({ tool }: { tool: HoleFillTool }) {
                 disabled={!preview || tool.error !== null}
                 className="rounded-md bg-teal-700 px-3 py-2 text-xs font-bold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                채우기 적용
+                {t("채우기 적용")}
               </button>
             </div>
             <p className="mt-2 text-right text-[10px] text-slate-400">
-              적용 후 실행 취소로 복원할 수 있습니다.
+              {t("적용 후 실행 취소로 복원할 수 있습니다.")}
             </p>
           </Popover.Popup>
         </Popover.Positioner>

@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { normalizePolygonalGeometry } from "../../geometry-ops";
 import {
   isPolygonalGeometry,
@@ -23,7 +24,7 @@ export async function fetchBoundaryOperationGeometry(
     ? normalizePolygonalGeometry(geometry)
     : null;
   if (!normalized) {
-    throw new Error("경계 원본의 좌표가 올바르지 않아 적용할 수 없습니다.");
+    throw new Error(t("경계 원본의 좌표가 올바르지 않아 적용할 수 없습니다."));
   }
   return normalized;
 }

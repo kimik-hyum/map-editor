@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import type { QueryClient } from "@tanstack/react-query";
 import {
   isUsBoundaryObject,
@@ -19,10 +20,10 @@ import {
 
 async function readObject(key: string, signal: AbortSignal): Promise<unknown> {
   if (!isUsBoundaryObject(key))
-    throw new Error("미국 경계 파일 경로가 올바르지 않습니다.");
+    throw new Error(t("미국 경계 파일 경로가 올바르지 않습니다."));
   const response = await fetch(usBoundaryObjectUrl(key), { signal });
   if (!response.ok)
-    throw new Error("미국 경계를 불러오지 못했습니다. 다시 시도해주세요.");
+    throw new Error(t("미국 경계를 불러오지 못했습니다. 다시 시도해주세요."));
   return response.json();
 }
 
@@ -46,7 +47,7 @@ export async function fetchUsBoundaryView(
   const manifest = await client.ensureQueryData(usManifestOptions());
   signal.throwIfAborted();
   const catalog = manifest.kinds.find((entry) => entry.kind === kind);
-  if (!catalog) throw new Error("지원하지 않는 미국 경계 종류입니다.");
+  if (!catalog) throw new Error(t("지원하지 않는 미국 경계 종류입니다."));
   const index = await fetchUsBoundaryIndex(client, catalog, signal);
   signal.throwIfAborted();
   const plan = planUsBoundaryView(index, catalog, bboxes);
@@ -70,7 +71,7 @@ export async function fetchUsBoundaryView(
           0,
         );
         if (vertices > US_MAX_VERTICES)
-          throw new Error("상세 경계가 많습니다. 지도를 더 확대하고 불러와주세요.");
+          throw new Error(t("상세 경계가 많습니다. 지도를 더 확대하고 불러와주세요."));
         seen.add(feature.id);
         features.push(feature);
       }
@@ -83,7 +84,7 @@ export async function fetchUsBoundaryView(
     throw error;
   }
   if (seen.size !== plan.ids.size)
-    throw new Error("일부 미국 경계가 누락되었습니다. 다시 시도해주세요.");
+    throw new Error(t("일부 미국 경계가 누락되었습니다. 다시 시도해주세요."));
   return {
     type: "FeatureCollection",
     country: "US",
@@ -107,7 +108,7 @@ export async function fetchUsBoundaryIndex(
   let index = client.getQueryData<ReturnType<typeof usIndexSchema.parse>>(indexKey);
   if (!index) {
     index = usIndexSchema.parse(await readObject(catalog.index, signal));
-    if (index.kind !== kind) throw new Error("미국 경계 종류가 일치하지 않습니다.");
+    if (index.kind !== kind) throw new Error(t("미국 경계 종류가 일치하지 않습니다."));
     client.setQueryData(indexKey, index);
   }
   signal.throwIfAborted();
@@ -129,7 +130,7 @@ export async function fetchUsDisplayShard(
       data.features.length !== shard.features ||
       data.features.some((f) => f.properties.kind !== kind)
     )
-      throw new Error("미국 경계 응답이 파일 목록과 일치하지 않습니다.");
+      throw new Error(t("미국 경계 응답이 파일 목록과 일치하지 않습니다."));
     signal.throwIfAborted();
     client.setQueryData(key, data);
   }

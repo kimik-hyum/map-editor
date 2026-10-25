@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 for (const { path, label } of [
-  { path: "/", label: "편집 흐름 체험하기" },
-  { path: "/integration", label: "문서 안의 실습" },
+  { path: "/ko/", label: "편집 흐름 체험하기" },
+  { path: "/ko/integration", label: "문서 안의 실습" },
 ]) {
   test(`${path}의 실습 링크는 현재 창에서 해당 구역으로 이동한다`, async ({
     page,
@@ -30,7 +30,7 @@ test("전송 예제에는 주석을 표시하고 복사하면 전송 가능한 J
   context,
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.goto("/integration");
+  await page.goto("/ko/integration");
   await page.getByText("편집 창에 보낼 데이터 JSON", { exact: true }).click();
   const example = page.locator("figure").filter({
     has: page.getByText("현재 입력.jsonc · 필드 설명", { exact: true }),
@@ -51,7 +51,7 @@ test("전송 예제에는 주석을 표시하고 복사하면 전송 가능한 J
 test("연결 조건과 메시지 다음에 최소 예제를 보여주고 보조 코드는 접어서 제공한다", async ({
   page,
 }) => {
-  await page.goto("/integration");
+  await page.goto("/ko/integration");
   await expect(
     page.getByRole("heading", { name: "편집 창 연동하기", level: 1 }),
   ).toBeVisible();
@@ -100,7 +100,7 @@ test("경복궁 도형의 실제 편집 결과를 받고 다음 창에 수정본
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/integration");
+  await page.goto("/ko/integration");
   const original = JSON.parse(await page.getByTestId("palace-scene").innerText());
   expect(
     original.features.map(
@@ -174,7 +174,7 @@ test("경복궁 도형의 실제 편집 결과를 받고 다음 창에 수정본
 });
 
 test("소개 문서에서 편집 창 연동 문서로 이동한다", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/ko/");
 
   await page.getByRole("main").getByRole("link", { name: "연동 인터페이스" }).click();
   await expect(page).toHaveURL(/\/integration$/);
@@ -186,7 +186,7 @@ test("소개 문서에서 편집 창 연동 문서로 이동한다", async ({ pa
 test("소개와 데모는 서비스 페이지의 데이터 전송과 편집 결과 반영을 안내한다", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/ko/");
   await expect(page.getByRole("main")).toContainText(
     "서비스 페이지에서 편집 창을 열고 도형 데이터를 보내세요",
   );

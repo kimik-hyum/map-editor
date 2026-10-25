@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 // 데모(호스트)를 통해 에디터를 새 창으로 열고 scene 수신까지 기다립니다.
 async function openEditorViaDemo(page: Page): Promise<Page> {
-  await page.goto("/demo");
+  await page.goto("/ko/demo");
 
   const [editorPage] = await Promise.all([
     page.waitForEvent("popup"),

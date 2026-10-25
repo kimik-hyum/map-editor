@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabaseClient, isE2eAuthBypassed } from "./api/supabaseClient";
@@ -31,12 +32,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
             return;
           }
           setSession(data.session);
-          setError(sessionError ? "로그인 세션을 확인하지 못했습니다." : null);
+          setError(sessionError ? t("로그인 세션을 확인하지 못했습니다.") : null);
           setIsLoading(false);
         })
         .catch(() => {
           if (active) {
-            setError("로그인 세션을 확인하지 못했습니다.");
+            setError(t("로그인 세션을 확인하지 못했습니다."));
             setIsLoading(false);
           }
         });
@@ -53,7 +54,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       unsubscribe = () => subscription.unsubscribe();
     } catch {
       // 인증 설정/서비스 오류가 비로그인 편집기까지 막아서는 안 됩니다.
-      setError("로그인 서비스를 사용할 수 없습니다.");
+      setError(t("로그인 서비스를 사용할 수 없습니다."));
       setIsLoading(false);
     }
 
@@ -83,7 +84,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setError(
               signInError instanceof Error
                 ? signInError.message
-                : "Google 로그인을 시작하지 못했습니다.",
+                : t("Google 로그인을 시작하지 못했습니다."),
             );
           }
           return false;
@@ -93,7 +94,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setError(null);
         const { error: signOutError } = await getSupabaseClient().auth.signOut();
         if (signOutError) {
-          setError("로그아웃하지 못했습니다.");
+          setError(t("로그아웃하지 못했습니다."));
         }
       },
     }),

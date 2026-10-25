@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 async function openEditorViaDemo(page: Page): Promise<Page> {
-  await page.goto("/demo");
+  await page.goto("/ko/demo");
 
   const [editorPage] = await Promise.all([
     page.waitForEvent("popup"),

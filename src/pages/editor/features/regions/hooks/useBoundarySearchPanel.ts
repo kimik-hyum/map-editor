@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import type OpenLayersMap from "ol/Map";
 import { useState } from "react";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
@@ -15,10 +16,10 @@ export function useBoundarySearchPanel(map: OpenLayersMap | null, kind: string |
   const label =
     (kinds ?? fallbackRegionKinds).find((item) => item.kind === kind)?.label ??
     kind ??
-    "경계";
+    t("경계");
   return {
     open: open && kind !== null,
-    label,
+    label: t(label),
     search,
     close: () => setClosedScope(scope),
     show: () => setClosedScope(null),

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 async function openConnectedEditor(parentPage: Page): Promise<Page> {
-  await parentPage.goto("/demo");
+  await parentPage.goto("/ko/demo");
   const [editorPage] = await Promise.all([
     parentPage.waitForEvent("popup"),
     parentPage.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),

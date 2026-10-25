@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import type { QueryClient } from "@tanstack/react-query";
 import type { BoundaryOriginalSource } from "./boundaryOriginalSource";
 import { REGION_BOUNDARY_CACHE_MS } from "../model/regionQueryPolicy";
@@ -22,7 +23,7 @@ export function createRegionOriginalSource(
         gcTime: REGION_BOUNDARY_CACHE_MS,
       });
       signal.throwIfAborted();
-      if (!full) throw new Error("경계 원본 geometry가 없습니다.");
+      if (!full) throw new Error(t("경계 원본 geometry가 없습니다."));
       return full.geometry;
     },
   };

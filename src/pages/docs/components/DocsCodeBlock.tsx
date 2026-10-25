@@ -1,3 +1,7 @@
+import { useContext } from "react";
+import { LocaleContext } from "@/shared/i18n/localeContext";
+import { localizeExample } from "@/shared/i18n/localizeExample";
+import { useT } from "@/shared/i18n/useT";
 import { Check, Copy } from "lucide-react";
 import { Highlight, themes, type Language } from "prism-react-renderer";
 import { useEffect, useRef, useState } from "react";
@@ -6,6 +10,7 @@ import { cn } from "@/shared/utils/cn";
 type DocsCodeBlockProps = {
   className?: string;
   code: string;
+  translateExample?: boolean;
   copyText?: string;
   copyLabel?: string;
   language: Language;
@@ -34,15 +39,20 @@ function withStableContentKeys<T>(
 export function DocsCodeBlock({
   className,
   code,
+  translateExample = false,
   copyText,
   copyLabel,
   language,
   showLineNumbers = true,
   title,
 }: DocsCodeBlockProps) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const copyResetTimerRef = useRef<number | null>(null);
-  const normalizedCode = code.trim();
+  const locale = useContext(LocaleContext) ?? "ko";
+  const normalizedCode = (
+    translateExample ? localizeExample(code, t, locale) : code
+  ).trim();
 
   useEffect(
     () => () => {
@@ -80,7 +90,9 @@ export function DocsCodeBlock({
         <span>{title ?? language.toUpperCase()}</span>
         <button
           aria-label={
-            copied ? `${copyLabel ?? "코드 복사"} 완료` : (copyLabel ?? "코드 복사")
+            copied
+              ? t("{{v0}} 완료", { v0: copyLabel ?? "코드 복사" })
+              : (copyLabel ?? t("코드 복사"))
           }
           className="inline-flex min-h-7 items-center gap-1.5 rounded-md border border-slate-700 bg-slate-900 px-2.5 text-xs font-bold text-slate-300 transition-colors hover:border-slate-500 hover:text-white"
           onClick={() => void copyCode()}
@@ -91,7 +103,7 @@ export function DocsCodeBlock({
           ) : (
             <Copy aria-hidden="true" size={14} strokeWidth={2.4} />
           )}
-          {copied ? "복사됨" : (copyLabel ?? "복사")}
+          {copied ? t("복사됨") : (copyLabel ?? t("복사"))}
         </button>
       </figcaption>
 

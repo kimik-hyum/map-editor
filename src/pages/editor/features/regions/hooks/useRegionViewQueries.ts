@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { useQueries, type UseQueryResult } from "@tanstack/react-query";
 import type { SnappedRegionView } from "@/pages/editor/adapters/openlayers";
 import {
@@ -22,7 +23,8 @@ function combine(results: UseQueryResult<RegionFeatureCollection>[]) {
     );
   } catch (cause) {
     inconsistent = true;
-    error = cause instanceof Error ? cause.message : "경계 응답을 합치지 못했습니다.";
+    error =
+      cause instanceof Error ? cause.message : t("경계 응답을 합치지 못했습니다.");
   }
   const failed = results.filter((result) => result.isError);
   const versionConflict = failed.some(
@@ -32,8 +34,11 @@ function combine(results: UseQueryResult<RegionFeatureCollection>[]) {
   if (failed.length) {
     error =
       results.length > 1
-        ? `일부 경계를 불러오지 못했습니다 (${failed.length}/${results.length}개 구역).`
-        : (failed[0].error?.message ?? "경계 로드 실패");
+        ? t("일부 경계를 불러오지 못했습니다 ({{v0}}/{{v1}}개 구역).", {
+            v0: failed.length,
+            v1: results.length,
+          })
+        : (failed[0].error?.message ?? t("경계 로드 실패"));
   }
   return {
     data,

@@ -1,9 +1,11 @@
+import { useT } from "@/shared/i18n/useT";
 import { useEffect, useRef } from "react";
 import { notifyGoogleSignInPopup } from "../api/googleSignInPopup";
 import { useAuth } from "../hooks/useAuth";
 import { isGoogleUser } from "../model/googleIdentity";
 
 export function AuthCallbackPage() {
+  const t = useT();
   const { error, isLoading, user } = useAuth();
   const notifiedRef = useRef(false);
   const success = !error && isGoogleUser(user);
@@ -24,17 +26,19 @@ export function AuthCallbackPage() {
       <section className="max-w-md rounded-2xl border border-line bg-white p-8 text-center shadow-lg">
         <h1 className="text-xl font-black text-ink">
           {isLoading
-            ? "로그인 확인 중…"
+            ? t("로그인 확인 중…")
             : success
-              ? "로그인 완료"
-              : "로그인하지 못했습니다"}
+              ? t("로그인 완료")
+              : t("로그인하지 못했습니다")}
         </h1>
         <p className="text-sm leading-6 text-ink-soft" role="status">
           {isLoading
-            ? "잠시만 기다려주세요."
+            ? t("잠시만 기다려주세요.")
             : success
-              ? "에디터로 돌아가세요. 기존 편집 내용은 그대로 유지됩니다."
-              : "이 창을 닫고 에디터에서 다시 로그인해주세요. 편집 내용은 유지됩니다."}
+              ? t("에디터로 돌아가세요. 기존 편집 내용은 그대로 유지됩니다.")
+              : t(
+                  "이 창을 닫고 에디터에서 다시 로그인해주세요. 편집 내용은 유지됩니다.",
+                )}
         </p>
         {!isLoading ? (
           <button
@@ -42,7 +46,7 @@ export function AuthCallbackPage() {
             onClick={() => window.close()}
             type="button"
           >
-            창 닫기
+            {t("창 닫기")}
           </button>
         ) : null}
       </section>

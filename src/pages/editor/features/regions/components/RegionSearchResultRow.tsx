@@ -1,3 +1,4 @@
+import { useT } from "@/shared/i18n/useT";
 import { MapPin, ArrowUpRight } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 import type { RegionSearchItem } from "../model/regionSearchModel";
@@ -8,11 +9,15 @@ type Props = {
   onSelect: (item: RegionSearchItem) => void;
 };
 export function RegionSearchResultRow({ item, selected, onSelect }: Props) {
+  const t = useT();
   return (
     <li>
       <button
         type="button"
-        aria-label={`${item.context} ${item.name} 위치로 이동`.trim()}
+        aria-label={t("{{v0}} {{v1}} 위치로 이동", {
+          v0: item.context,
+          v1: item.name,
+        }).trim()}
         aria-pressed={selected}
         title={`${item.context} ${item.name}`.trim()}
         onClick={() => onSelect(item)}
@@ -41,7 +46,9 @@ export function RegionSearchResultRow({ item, selected, onSelect }: Props) {
           ) : null}
           <span className="mt-1 flex items-center gap-2 text-[10px] font-semibold text-slate-400">
             <span>{item.code}</span>
-            {selected ? <span className="text-indigo-600">현재 위치</span> : null}
+            {selected ? (
+              <span className="text-indigo-600">{t("현재 위치")}</span>
+            ) : null}
           </span>
         </span>
         <ArrowUpRight aria-hidden className="h-4 w-4 shrink-0 text-slate-400" />

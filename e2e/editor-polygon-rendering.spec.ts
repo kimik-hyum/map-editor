@@ -39,7 +39,7 @@ function countSimilarPixels(
 // 에디터는 순수 consumer이므로 데모(호스트)를 통해 새 창으로 열고 postMessage로 scene을 받는다.
 // 호스트가 보낸 scene이 렌더링될 때까지(레이어 패널의 레이어 이름) 기다린 뒤 에디터 페이지를 반환한다.
 async function openEditorViaDemo(page: Page): Promise<Page> {
-  await page.goto("/demo");
+  await page.goto("/ko/demo");
 
   const [editorPage] = await Promise.all([
     page.waitForEvent("popup"),

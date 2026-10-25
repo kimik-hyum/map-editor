@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { useQuery } from "@tanstack/react-query";
 import type OpenLayersMap from "ol/Map";
 import { useEffect, useState } from "react";
@@ -48,10 +49,10 @@ export function useRegionSearch(
   });
   let error: string | null = null;
   if (canSearch && result.isError) {
-    error = "검색 결과를 불러오지 못했습니다. 다시 시도해주세요.";
+    error = t("검색 결과를 불러오지 못했습니다. 다시 시도해주세요.");
     if (result.error instanceof RegionApiError) {
       if (result.error.status === 429) {
-        error = "검색 요청이 많습니다. 잠시 후 다시 검색해주세요.";
+        error = t("검색 요청이 많습니다. 잠시 후 다시 검색해주세요.");
       } else if (
         result.error.code === "REGION_COUNTRY_BLOCKED" ||
         result.error.code === "REGION_GATEWAY_REQUIRED"

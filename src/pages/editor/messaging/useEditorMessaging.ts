@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cancelAllConfirmationDialogs } from "@/shared/ui/confirmation-dialog";
 import { useEditorStore } from "../state/editorStore";
@@ -39,7 +40,7 @@ export function useEditorMessaging(): EditorMessagingController {
     setErrorMessage(null);
     if (!parent || !sessionId || !scene || parent.window.closed) {
       setErrorMessage(
-        "부모 창과 연결되어 있지 않아 저장할 수 없습니다. 부모 창을 확인하세요.",
+        t("부모 창과 연결되어 있지 않아 저장할 수 없습니다. 부모 창을 확인하세요."),
       );
       return false;
     }
@@ -49,7 +50,9 @@ export function useEditorMessaging(): EditorMessagingController {
       // 내부 validation 플래그만 믿지 않고 부모가 받는 공개 데이터 전체를 다시 검증합니다.
       if (!parseEditorCompletionMessage(message)) {
         setErrorMessage(
-          "저장할 수 없는 도형 데이터가 있습니다. 최근 편집을 실행 취소한 뒤 다시 시도하세요.",
+          t(
+            "저장할 수 없는 도형 데이터가 있습니다. 최근 편집을 실행 취소한 뒤 다시 시도하세요.",
+          ),
         );
         return false;
       }
@@ -57,7 +60,7 @@ export function useEditorMessaging(): EditorMessagingController {
       return true;
     } catch {
       setErrorMessage(
-        "편집 결과를 전송하지 못했습니다. 부모 창을 확인한 뒤 다시 저장하세요.",
+        t("편집 결과를 전송하지 못했습니다. 부모 창을 확인한 뒤 다시 저장하세요."),
       );
       return false;
     }
@@ -68,7 +71,9 @@ export function useEditorMessaging(): EditorMessagingController {
     const { sessionId } = useEditorStore.getState();
     setErrorMessage(null);
     if (!parent || !sessionId || parent.window.closed) {
-      setErrorMessage("부모 창과 연결되어 있지 않아 취소 결과를 전송할 수 없습니다.");
+      setErrorMessage(
+        t("부모 창과 연결되어 있지 않아 취소 결과를 전송할 수 없습니다."),
+      );
       return false;
     }
 
@@ -77,7 +82,7 @@ export function useEditorMessaging(): EditorMessagingController {
       return true;
     } catch {
       setErrorMessage(
-        "취소 결과를 전송하지 못했습니다. 부모 창을 확인한 뒤 다시 시도하세요.",
+        t("취소 결과를 전송하지 못했습니다. 부모 창을 확인한 뒤 다시 시도하세요."),
       );
       return false;
     }

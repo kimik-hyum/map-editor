@@ -1,3 +1,4 @@
+import { useT } from "@/shared/i18n/useT";
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { Rnd, type Props as RndProps } from "react-rnd";
@@ -37,6 +38,7 @@ export function FloatingPanel({
   minWidth = 260,
   onClose,
 }: FloatingPanelProps) {
+  const t = useT();
   const defaultValue: RndProps["default"] = {
     ...defaultPosition,
     ...defaultSize,
@@ -67,7 +69,7 @@ export function FloatingPanel({
             </h2>
             {onClose ? (
               <button
-                aria-label={`${title} 닫기`}
+                aria-label={t("{{v0}} 닫기", { v0: title })}
                 className="ml-2 flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-slate-200 hover:text-slate-700"
                 onClick={onClose}
                 type="button"

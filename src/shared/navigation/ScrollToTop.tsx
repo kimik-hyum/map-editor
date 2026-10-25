@@ -1,3 +1,4 @@
+import { stripLocale } from "@/shared/i18n/locale";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useLocation } from "react-router";
 
@@ -8,7 +9,8 @@ const useIsomorphicLayoutEffect =
 // 같은 페이지 안 #앵커 이동(해시만 변경)에는 개입하지 않고,
 // 첫 로드는 건너뛰어 #해시로 진입했을 때의 브라우저 기본 스크롤을 살립니다.
 export function ScrollToTop() {
-  const { pathname, hash } = useLocation();
+  const { pathname: localizedPath, hash } = useLocation();
+  const pathname = stripLocale(localizedPath);
   const previousPathname = useRef(pathname);
 
   useIsomorphicLayoutEffect(() => {

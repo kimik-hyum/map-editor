@@ -1,3 +1,4 @@
+import { useT } from "@/shared/i18n/useT";
 import "ol/ol.css";
 import { useBoundaryAccess } from "@/features/auth";
 import { MapCursorTooltip } from "@/shared/ui/MapCursorTooltip";
@@ -35,6 +36,7 @@ const EDIT_HINTS: Record<EditAffordanceKind, string> = {
 
 // 에디터 페이지는 화면 배치만 담당합니다. 지도 수명주기와 편집 인터랙션은 hook/controller가 관리합니다.
 export function EditorPage() {
+  const t = useT();
   const { mapElementRef, map, editAffordance, geometryOp } = useOpenLayersEditorMap();
   const drawTool = useDrawTool(map);
   const radiusTool = useRadiusTool(map);
@@ -95,11 +97,11 @@ export function EditorPage() {
   const holeFillTool = useHoleFillTool(
     map,
     renameInProgress
-      ? "이름 편집을 먼저 완료하거나 취소하세요"
+      ? t("이름 편집을 먼저 완료하거나 취소하세요")
       : regionOps.busy
-        ? "경계 데이터 연산이 완료된 뒤 사용하세요"
+        ? t("경계 데이터 연산이 완료된 뒤 사용하세요")
         : confirmationOpen
-          ? "확인 창을 먼저 닫으세요"
+          ? t("확인 창을 먼저 닫으세요")
           : null,
   );
   // 그리기 중에는 정점 로컬 history를, sketch가 없으면 전역 scene history를 사용합니다.
@@ -120,7 +122,7 @@ export function EditorPage() {
     <div className="grid h-dvh grid-cols-[72px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] overflow-hidden">
       <aside
         className="min-h-0 min-w-0 border-r border-line bg-white"
-        aria-label="편집 도구"
+        aria-label={t("편집 도구")}
       >
         <EditorModePanel
           tools={tools}
@@ -149,9 +151,9 @@ export function EditorPage() {
             tabIndex={0}
           />
           <p className="sr-only" id="draw-keyboard-instructions">
-            K 키로 키보드 조준 모드를 켠 뒤 방향키로 지도 중심을 이동하고 Space 키로
-            마커 또는 정점을 추가합니다. K 키를 다시 누르면 조준 모드가 꺼집니다. 패스와
-            정점 3개 이상의 폴리곤은 Enter 키로 완료할 수 있습니다.
+            {t(
+              "K 키로 키보드 조준 모드를 켠 뒤 방향키로 지도 중심을 이동하고 Space 키로 마커 또는 정점을 추가합니다. K 키를 다시 누르면 조준 모드가 꺼집니다. 패스와 정점 3개 이상의 폴리곤은 Enter 키로 완료할 수 있습니다.",
+            )}
           </p>
           {activation.draw && isSceneReady && drawTool.keyboardTargetingActive ? (
             <div
@@ -163,7 +165,10 @@ export function EditorPage() {
               <span className="absolute left-[-5px] top-1/2 h-px w-8 -translate-y-1/2 bg-teal-800" />
             </div>
           ) : null}
-          <MapCursorTooltip text={cursorHint} containerRef={mapElementRef} />
+          <MapCursorTooltip
+            text={cursorHint ? t(cursorHint) : null}
+            containerRef={mapElementRef}
+          />
           {radiusTool.hint ? (
             <p
               aria-live="polite"
@@ -202,7 +207,7 @@ export function EditorPage() {
               aria-live="polite"
             >
               <p className="rounded-lg bg-white/90 px-4 py-2 text-sm font-bold text-ink-soft shadow">
-                호스트(부모 창)에서 데이터를 기다리는 중…
+                {t("호스트(부모 창)에서 데이터를 기다리는 중…")}
               </p>
             </div>
           ) : null}
@@ -228,11 +233,11 @@ export function EditorPage() {
               holeFillTool={holeFillTool}
               blockedReason={
                 drawTool.isDrawing
-                  ? "그리기를 먼저 완료하거나 취소하세요"
+                  ? t("그리기를 먼저 완료하거나 취소하세요")
                   : holeFillTool.isOpen || regionOps.busy
-                    ? "진행 중인 도구를 먼저 완료하거나 취소하세요"
+                    ? t("진행 중인 도구를 먼저 완료하거나 취소하세요")
                     : confirmationOpen
-                      ? "확인 창을 먼저 닫으세요"
+                      ? t("확인 창을 먼저 닫으세요")
                       : null
               }
             />

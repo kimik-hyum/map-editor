@@ -1,6 +1,9 @@
+import { useT } from "@/shared/i18n/useT";
+import { stripLocale } from "@/shared/i18n/locale";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { NavLink, useLocation } from "react-router";
+import { useLocation } from "react-router";
+import { LocalizedNavLink as NavLink } from "@/shared/i18n/LocalizedNavLink";
 import { cn } from "../utils/cn";
 
 // 소메뉴: 페이지 안 섹션으로 #해시 이동합니다.
@@ -128,9 +131,12 @@ function useActiveAnchor(sections: AppSideMenuSection[]) {
 }
 
 export function AppSideMenu({ ariaLabel, className, groups, title }: AppSideMenuProps) {
+  const t = useT();
   const { pathname } = useLocation();
   const activeGroup =
-    groups.find((group) => normalizePath(pathname) === normalizePath(group.to)) ?? null;
+    groups.find(
+      (group) => normalizePath(stripLocale(pathname)) === normalizePath(group.to),
+    ) ?? null;
   const activeSections = activeGroup?.sections ?? EMPTY_SECTIONS;
   const { activeHref, pinActiveHref } = useActiveAnchor(activeSections);
 
@@ -158,7 +164,7 @@ export function AppSideMenu({ ariaLabel, className, groups, title }: AppSideMenu
                   to={group.to}
                 >
                   <Icon aria-hidden="true" size={16} strokeWidth={2.4} />
-                  <span className="min-w-0 truncate">{group.label}</span>
+                  <span className="min-w-0 truncate">{t(group.label)}</span>
                 </NavLink>
 
                 {isGroupActive && sections.length > 0 ? (
@@ -179,7 +185,7 @@ export function AppSideMenu({ ariaLabel, className, groups, title }: AppSideMenu
                             href={section.href}
                             onClick={() => pinActiveHref(section.href)}
                           >
-                            <span className="min-w-0 truncate">{section.label}</span>
+                            <span className="min-w-0 truncate">{t(section.label)}</span>
                           </a>
                         </li>
                       );

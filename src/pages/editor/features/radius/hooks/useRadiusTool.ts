@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type OpenLayersMap from "ol/Map";
 import { attachRadiusPreview } from "@/pages/editor/adapters/openlayers";
@@ -113,10 +114,10 @@ export function useRadiusTool(map: OpenLayersMap | null) {
     }
     current.addFeatures([
       {
-        name: `반경 ${currentValidation.label} km`,
+        name: t("반경 {{v0}} km", { v0: currentValidation.label }),
         geometry,
         properties: {
-          label: `반경 ${currentValidation.label} km`,
+          label: t("반경 {{v0}} km", { v0: currentValidation.label }),
           radiusKm: currentValidation.valueKm,
           radiusSourceFeatureId: currentTarget.target.featureId,
         },

@@ -18,58 +18,84 @@ const routes = [
   ["auth/callback", null],
 ];
 
-for (const [route, heading] of routes) {
-  const file = resolve(root, "dist", route, "index.html");
-  const html = await readFile(file, "utf8");
-  if (heading) {
-    assert(
-      html.includes(heading) && html.includes("<h1"),
-      `${route}: prerendered document`,
-    );
-    assert(
-      html.includes("<title>") && /<title>[^<]*Termia/.test(html),
-      `${route}: branded document title`,
-    );
-    const footer = html.match(/<footer\b[^>]*>[\s\S]*?<\/footer>/)?.[0];
-    assert(footer?.includes('href="/about"'), `${route}: introduction in footer`);
-    for (const navigation of html.matchAll(
-      /<(?:nav|aside)\b[^>]*aria-label="(?:Primary navigation|사용·연동 안내|직접 운영 안내)"[^>]*>[\s\S]*?<\/(?:nav|aside)>/g,
-    )) {
+const enDocs = JSON.parse(
+  await readFile(resolve(root, "src/shared/i18n/locales/en/docs.json"), "utf8"),
+);
+const enUi = JSON.parse(
+  await readFile(resolve(root, "src/shared/i18n/locales/en/ui.json"), "utf8"),
+);
+for (const locale of ["ko", "en"]) {
+  for (const [page, sourceHeading] of routes) {
+    const route = `${locale}${page ? `/${page}` : ""}`;
+    const translate = (key) =>
+      locale === "ko" ? key : (enDocs[key] ?? enUi[key] ?? key);
+    const heading = sourceHeading ? translate(sourceHeading) : null;
+    const file = resolve(root, "dist", route, "index.html");
+    const html = await readFile(file, "utf8");
+    assert(html.includes(`<html lang="${locale}">`), `${route}: HTML language`);
+    if (heading) {
+      assert(html.includes(`hreflang="${locale}"`), `${route}: language alternatives`);
+      assert(html.includes('rel="canonical"'), `${route}: canonical URL`);
       assert(
-        !navigation[0].includes('href="/about"'),
-        `${route}: introduction stays out of primary and side navigation`,
+        html.includes(heading) && html.includes("<h1"),
+        `${route}: prerendered document`,
       );
-    }
-    if (route !== "about") {
-      const selfHosted = route === "authentication" || route.startsWith("self-hosting");
-      const label = selfHosted ? "직접 운영 안내" : "사용·연동 안내";
-      const nav = html.match(
-        new RegExp(`<nav\\b[^>]*aria-label="${label}"[^>]*>[\\s\\S]*?<\\/nav>`),
-      )?.[0];
-      assert(nav, `${route}: audience-specific contents`);
-      for (const [, anchor] of nav.matchAll(/href="#([^"]+)"/g)) {
-        assert(html.includes(`id="${anchor}"`), `${route}: section ${anchor} exists`);
-      }
-      if (!selfHosted) {
+      assert(
+        html.includes("<title>") && /<title>[^<]*Termia/.test(html),
+        `${route}: branded document title`,
+      );
+      const footer = html.match(/<footer\b[^>]*>[\s\S]*?<\/footer>/)?.[0];
+      assert(
+        footer?.includes(`href="/${locale}/about"`),
+        `${route}: introduction in footer`,
+      );
+      for (const navigation of html.matchAll(
+        /<(?:nav|aside)\b[^>]*aria-label="(?:Primary navigation|사용·연동 안내|직접 운영 안내)"[^>]*>[\s\S]*?<\/(?:nav|aside)>/g,
+      )) {
         assert(
-          !nav.includes('href="/authentication"') &&
-            !nav.includes('href="/self-hosting/boundaries"'),
-          `${route}: usage contents exclude implementation settings`,
+          !navigation[0].includes(`href="/${locale}/about"`),
+          `${route}: introduction stays out of primary and side navigation`,
         );
       }
+      if (page !== "about") {
+        const selfHosted = page === "authentication" || page.startsWith("self-hosting");
+        const label = translate(selfHosted ? "직접 운영 안내" : "사용·연동 안내");
+        const nav = html.match(
+          new RegExp(`<nav\\b[^>]*aria-label="${label}"[^>]*>[\\s\\S]*?<\\/nav>`),
+        )?.[0];
+        assert(nav, `${route}: audience-specific contents`);
+        for (const [, anchor] of nav.matchAll(/href="#([^"]+)"/g)) {
+          assert(html.includes(`id="${anchor}"`), `${route}: section ${anchor} exists`);
+        }
+        if (!selfHosted) {
+          assert(
+            !nav.includes(`href="/${locale}/authentication"`) &&
+              !nav.includes(`href="/${locale}/self-hosting/boundaries"`),
+            `${route}: usage contents exclude implementation settings`,
+          );
+        }
+      }
+    } else {
+      assert(html.includes('<div id="root"></div>'), `${route}: empty SPA shell`);
     }
-  } else {
-    assert(html.includes('<div id="root"></div>'), `${route}: empty SPA shell`);
+    const assets = [...html.matchAll(/(?:src|href)="([^"]*assets\/[^"]+)"/g)];
+    assert(assets.length >= 2, `${route}: JS and CSS references`);
+    for (const [, asset] of assets)
+      await access(
+        asset.startsWith("/")
+          ? resolve(root, "dist", asset.slice(1))
+          : resolve(dirname(file), asset),
+      );
+    for (const [, asset] of html.matchAll(/(?:src|href)="(\/brand\/[^"]+)"/g)) {
+      await access(resolve(root, "dist", asset.slice(1)));
+    }
+    console.log(`/${route}: HTML and relative assets OK`);
   }
-  const assets = [...html.matchAll(/(?:src|href)="([^"]*assets\/[^"]+)"/g)];
-  assert(assets.length >= 2, `${route}: JS and CSS references`);
-  for (const [, asset] of assets) await access(resolve(dirname(file), asset));
-  for (const [, asset] of html.matchAll(/(?:src|href)="(\/brand\/[^"]+)"/g)) {
-    await access(resolve(root, "dist", asset.slice(1)));
-  }
-  console.log(`/${route}: HTML and relative assets OK`);
 }
-
+for (const [page] of routes) {
+  const html = await readFile(resolve(root, "dist", page, "index.html"), "utf8");
+  assert(html.includes('<div id="root"></div>'), `${page}: legacy redirect shell`);
+}
 for (const name of ["termia-logo.png", "termia-symbol.png"]) {
   const png = await readFile(resolve(root, "dist/brand", name));
   assert(

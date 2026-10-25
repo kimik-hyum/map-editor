@@ -1,8 +1,10 @@
+import { useT } from "@/shared/i18n/useT";
 import { CircleDot, X } from "lucide-react";
 import { type FormEvent, useEffect, useRef } from "react";
 import { MAX_RADIUS_KM, MIN_RADIUS_KM } from "../model/radiusToolModel";
 import type { RadiusToolController } from "../hooks/useRadiusTool";
 export function RadiusOptions({ tool }: { tool: RadiusToolController }) {
+  const t = useT();
   const {
     draft,
     error,
@@ -22,7 +24,7 @@ export function RadiusOptions({ tool }: { tool: RadiusToolController }) {
   };
   return (
     <section
-      aria-label="반경 입력"
+      aria-label={t("반경 입력")}
       className="p-3"
       onKeyDown={(event) => {
         if (event.key === "Escape") {
@@ -38,14 +40,14 @@ export function RadiusOptions({ tool }: { tool: RadiusToolController }) {
               <CircleDot aria-hidden className="h-[18px] w-[18px]" strokeWidth={2} />
             </span>
             <div className="min-w-0">
-              <p className="text-[13px] font-black text-slate-900">반경 입력</p>
+              <p className="text-[13px] font-black text-slate-900">{t("반경 입력")}</p>
               <p className="truncate text-[11px] font-semibold text-slate-400">
-                기준: {markerName ?? "선택한 마커"}
+                {t("기준:")} {markerName ?? t("선택한 마커")}
               </p>
             </div>
           </div>
           <button
-            aria-label="반경 입력 취소"
+            aria-label={t("반경 입력 취소")}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
             onClick={onCancel}
             type="button"
@@ -55,7 +57,7 @@ export function RadiusOptions({ tool }: { tool: RadiusToolController }) {
         </div>
 
         <label className="grid gap-1" htmlFor="radius-km-input">
-          <span className="text-[11px] font-extrabold text-slate-600">반경</span>
+          <span className="text-[11px] font-extrabold text-slate-600">{t("반경")}</span>
           <span className="flex items-center overflow-hidden rounded-lg border border-slate-300 bg-white focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
             <input
               aria-describedby="radius-input-help radius-input-error"
@@ -64,7 +66,7 @@ export function RadiusOptions({ tool }: { tool: RadiusToolController }) {
               inputMode="decimal"
               onChange={(event) => onDraftChange(event.target.value)}
               onFocus={(event) => event.currentTarget.select()}
-              placeholder="예: 1.25"
+              placeholder={t("예: 1.25")}
               ref={inputRef}
               type="text"
               value={draft}
@@ -80,8 +82,8 @@ export function RadiusOptions({ tool }: { tool: RadiusToolController }) {
             className="text-[10px] font-semibold text-slate-400"
             id="radius-input-help"
           >
-            {MIN_RADIUS_KM}–{MAX_RADIUS_KM.toLocaleString("ko-KR")}km · 소수점 이하
-            2자리
+            {MIN_RADIUS_KM}–{MAX_RADIUS_KM.toLocaleString("ko-KR")}
+            {t("km · 소수점 이하 2자리")}
           </p>
           <p
             aria-live="polite"
@@ -98,14 +100,14 @@ export function RadiusOptions({ tool }: { tool: RadiusToolController }) {
             onClick={onCancel}
             type="button"
           >
-            취소
+            {t("취소")}
           </button>
           <button
             className="rounded-lg bg-teal-700 px-3 py-2 text-xs font-extrabold text-white transition-colors hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             disabled={!canApply}
             type="submit"
           >
-            원형 폴리곤 추가
+            {t("원형 폴리곤 추가")}
           </button>
         </div>
       </form>

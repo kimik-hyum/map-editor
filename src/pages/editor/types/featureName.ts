@@ -1,13 +1,14 @@
+import { t } from "@/shared/i18n/i18n";
 export const MAX_FEATURE_NAME_LENGTH = 100;
 
 export function getFeatureNameValidationError(value: string): string | null {
   const normalized = value.trim();
 
   if (normalized.length === 0) {
-    return "이름을 입력하세요.";
+    return t("이름을 입력하세요.");
   }
   if (normalized.length > MAX_FEATURE_NAME_LENGTH) {
-    return `이름은 ${MAX_FEATURE_NAME_LENGTH}자 이하로 입력하세요.`;
+    return t("이름은 {{v0}}자 이하로 입력하세요.", { v0: MAX_FEATURE_NAME_LENGTH });
   }
 
   return null;

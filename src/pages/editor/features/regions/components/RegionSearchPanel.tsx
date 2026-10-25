@@ -1,3 +1,4 @@
+import { useT } from "@/shared/i18n/useT";
 import { Search, X, MapPin } from "lucide-react";
 import { useId } from "react";
 import type { useRegionSearch } from "../hooks/useRegionSearch";
@@ -11,15 +12,21 @@ type Props = {
   onClose: () => void;
 };
 export function RegionSearchPanel({ kind, label, search, onClose }: Props) {
+  const t = useT();
   const inputId = useId();
   const postal = kind === "postalCode";
   return (
-    <section aria-label={`${label} 검색`} className="border-t border-line p-3">
+    <section
+      aria-label={t("{{v0}} 검색", { v0: label })}
+      className="border-t border-line p-3"
+    >
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-xs font-extrabold text-slate-700">{label} 검색</h3>
+        <h3 className="text-xs font-extrabold text-slate-700">
+          {label} {t("검색")}
+        </h3>
         <button
           type="button"
-          aria-label={`${label} 검색 닫기`}
+          aria-label={t("{{v0}} 검색 닫기", { v0: label })}
           onClick={onClose}
           className="rounded p-1 text-slate-400 hover:bg-slate-100"
         >
@@ -38,7 +45,7 @@ export function RegionSearchPanel({ kind, label, search, onClose }: Props) {
             htmlFor={inputId}
             className="mb-1.5 block text-[11px] font-extrabold text-slate-600"
           >
-            {postal ? "우편번호 또는 지역명" : "동 이름 또는 지역명"}
+            {postal ? t("우편번호 또는 지역명") : t("동 이름 또는 지역명")}
           </label>
           <div className="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-2.5 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
             <Search aria-hidden className="h-4 w-4 shrink-0 text-slate-400" />
@@ -49,14 +56,14 @@ export function RegionSearchPanel({ kind, label, search, onClose }: Props) {
               onChange={(event) => search.setInput(event.target.value)}
               onCompositionStart={() => search.setComposing(true)}
               onCompositionEnd={() => search.setComposing(false)}
-              placeholder={postal ? "예: 030, 종로" : "예: 청운, 종로"}
+              placeholder={postal ? t("예: 030, 종로") : t("예: 청운, 종로")}
               autoComplete="off"
               className="min-w-0 flex-1 border-0 bg-transparent py-2.5 text-sm font-bold text-slate-900 outline-none placeholder:font-normal placeholder:text-slate-400"
             />
             {search.input ? (
               <button
                 type="button"
-                aria-label="검색어 지우기"
+                aria-label={t("검색어 지우기")}
                 onClick={() => search.setInput("")}
                 className="flex h-6 w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100"
               >
@@ -66,13 +73,16 @@ export function RegionSearchPanel({ kind, label, search, onClose }: Props) {
           </div>
         </form>
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 pb-2">
-          <p className="m-0 text-xs font-black text-teal-700">검색 결과</p>
+          <p className="m-0 text-xs font-black text-teal-700">{t("검색 결과")}</p>
           <span className="text-[11px] font-black text-slate-500" role="status">
             {search.waiting
-              ? "검색 준비 중…"
+              ? t("검색 준비 중…")
               : search.loading
-                ? "검색 중…"
-                : `${search.items.length}${search.hasMore ? "+" : ""}개`}
+                ? t("검색 중…")
+                : t("{{v0}}{{v1}}개", {
+                    v0: search.items.length,
+                    v1: search.hasMore ? "+" : "",
+                  })}
           </span>
         </div>
         {search.error ? (
@@ -86,12 +96,12 @@ export function RegionSearchPanel({ kind, label, search, onClose }: Props) {
               onClick={search.retry}
               className="mt-2 block font-bold underline"
             >
-              다시 시도
+              {t("다시 시도")}
             </button>
           </div>
         ) : search.items.length ? (
           <ol
-            aria-label={`${label} 검색 결과`}
+            aria-label={t("{{v0}} 검색 결과", { v0: label })}
             className="m-0 grid max-h-56 min-h-0 content-start gap-1.5 overflow-auto p-0"
           >
             {search.items.map((item) => (
@@ -108,24 +118,24 @@ export function RegionSearchPanel({ kind, label, search, onClose }: Props) {
             <MapPin aria-hidden className="mb-1 h-6 w-6 text-slate-300" />
             <p className="m-0 text-xs font-bold text-slate-500">
               {search.waiting
-                ? "입력을 멈추면 검색합니다"
+                ? t("입력을 멈추면 검색합니다")
                 : search.loading
-                  ? `${label} 검색 중입니다`
+                  ? t("{{v0}} 검색 중입니다", { v0: label })
                   : search.hasQuery
-                    ? "검색 결과가 없습니다"
-                    : "검색어를 2자 이상 입력하세요"}
+                    ? t("검색 결과가 없습니다")
+                    : t("검색어를 2자 이상 입력하세요")}
             </p>
             <p className="m-0 text-[11px] leading-5 text-slate-400">
               {search.hasQuery && !search.waiting && !search.loading
-                ? "다른 지역명이나 코드를 입력해보세요."
-                : "현재 화면 밖의 경계도 찾을 수 있습니다."}
+                ? t("다른 지역명이나 코드를 입력해보세요.")
+                : t("현재 화면 밖의 경계도 찾을 수 있습니다.")}
             </p>
           </div>
         )}
         <p className="m-0 mt-auto shrink-0 border-t border-slate-200 pt-2 text-[11px] leading-5 text-slate-500">
           {search.hasMore
-            ? "결과가 많습니다. 지역명이나 코드를 더 입력해주세요."
-            : "목록을 누르면 해당 경계 위치로 이동합니다."}
+            ? t("결과가 많습니다. 지역명이나 코드를 더 입력해주세요.")
+            : t("목록을 누르면 해당 경계 위치로 이동합니다.")}
         </p>
       </div>
     </section>

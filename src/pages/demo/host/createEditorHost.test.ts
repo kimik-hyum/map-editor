@@ -18,7 +18,11 @@ function setup(search = "") {
   const clearInterval = vi.fn();
   const removeEventListener = vi.fn();
   vi.stubGlobal("window", {
-    location: { href: `https://host.example/demo/${search}`, search },
+    location: {
+      pathname: "/ko/demo",
+      href: `https://host.example/ko/demo/${search}`,
+      search,
+    },
     open,
     addEventListener: (_type: string, listener: typeof receive) => {
       receive = listener;
@@ -79,7 +83,7 @@ describe("Demo 부모 편집 회차", () => {
     const s = setup(search);
     s.host.open();
     expect(s.open).toHaveBeenCalledWith(
-      `https://host.example/editor/${expected}`,
+      `https://host.example/ko/editor/${expected}`,
       "map-editor-child",
     );
   });

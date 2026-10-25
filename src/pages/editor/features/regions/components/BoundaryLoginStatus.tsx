@@ -1,3 +1,4 @@
+import { useT } from "@/shared/i18n/useT";
 type BoundaryLoginStatusProps = {
   isSigningIn: boolean;
   error: string | null;
@@ -9,6 +10,7 @@ export function BoundaryLoginStatus({
   error,
   onCancel,
 }: BoundaryLoginStatusProps) {
+  const t = useT();
   if (!isSigningIn && !error) {
     return null;
   }
@@ -19,14 +21,16 @@ export function BoundaryLoginStatus({
         role={error ? "alert" : "status"}
       >
         {error ??
-          "로그인 창에서 인증을 완료해주세요. 창을 닫았다면 취소 후 다시 시도할 수 있습니다."}
+          t(
+            "로그인 창에서 인증을 완료해주세요. 창을 닫았다면 취소 후 다시 시도할 수 있습니다.",
+          )}
       </p>
       <button
         className="shrink-0 rounded-lg border border-line px-3 py-2 text-sm font-bold text-ink"
         onClick={onCancel}
         type="button"
       >
-        {isSigningIn ? "로그인 취소" : "닫기"}
+        {isSigningIn ? t("로그인 취소") : t("닫기")}
       </button>
     </div>
   );
