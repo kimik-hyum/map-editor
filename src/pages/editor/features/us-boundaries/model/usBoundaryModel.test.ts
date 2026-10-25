@@ -30,11 +30,36 @@ const index: UsIndex = {
   ],
 };
 describe("미국 경계 화면 조회 계획", () => {
+  it("날짜변경선 양쪽을 합쳐 중복 없이 선택하고 전체 표시 제한을 적용한다", () => {
+    const across: UsIndex = {
+      ...index,
+      items: [
+        { id: "east", bbox: [173, 52, 174, 53], object: key },
+        { id: "west", bbox: [-179, 52, -178, 53], object: key },
+        { id: "both", bbox: [-179, 52, 174, 53], object: key },
+      ],
+    };
+    const bboxes: [number, number, number, number][] = [
+      [170, 50, 180, 55],
+      [-180, 50, -170, 55],
+    ];
+    const plan = planUsBoundaryView(across, catalog, bboxes);
+    expect([...plan.ids]).toEqual(["east", "west", "both"]);
+    expect(plan.shards).toHaveLength(1);
+    const overLimit = {
+      ...across,
+      items: Array.from({ length: US_MAX_FEATURES + 1 }, (_, i) => ({
+        ...across.items[i % 2],
+        id: String(i),
+      })),
+    };
+    expect(() => planUsBoundaryView(overLimit, catalog, bboxes)).toThrow("확대");
+  });
   it("화면의 피처가 든 파일만 선택하고 동일 파일을 중복 요청하지 않는다", () => {
-    const result = planUsBoundaryView(index, catalog, [-75, 40, -73, 42]);
+    const result = planUsBoundaryView(index, catalog, [[-75, 40, -73, 42]]);
     expect([...result.ids]).toEqual(["ny"]);
     expect(result.shards.map((s) => s.key)).toEqual([key]);
-    expect(planUsBoundaryView(index, catalog, [126, 36, 128, 38]).shards).toEqual([]);
+    expect(planUsBoundaryView(index, catalog, [[126, 36, 128, 38]]).shards).toEqual([]);
   });
   it("화면 끝과 맞닿은 경계도 포함한다", () => {
     expect(intersectsUsBbox([-74, 40, -73, 41], [-73, 41, -72, 42])).toBe(true);
@@ -47,23 +72,23 @@ describe("미국 경계 화면 조회 계획", () => {
         id: String(i),
       })),
     };
-    expect(() => planUsBoundaryView(tooMany, catalog, [-75, 40, -73, 42])).toThrow(
+    expect(() => planUsBoundaryView(tooMany, catalog, [[-75, 40, -73, 42]])).toThrow(
       "확대",
     );
     expect(() =>
       planUsBoundaryView(
         index,
         { ...catalog, shards: [{ key, bytes: US_MAX_BYTES + 1, features: 1 }] },
-        [-75, 40, -73, 42],
+        [[-75, 40, -73, 42]],
       ),
     ).toThrow("확대");
   });
   it("누락된 파일과 다른 종류의 인덱스를 조용히 부분 성공으로 처리하지 않는다", () => {
-    expect(() => planUsBoundaryView(index, catalog, [-123, 37, -122, 38])).toThrow(
+    expect(() => planUsBoundaryView(index, catalog, [[-123, 37, -122, 38]])).toThrow(
       "목록",
     );
     expect(() =>
-      planUsBoundaryView({ ...index, kind: "place" }, catalog, [-75, 40, -73, 42]),
+      planUsBoundaryView({ ...index, kind: "place" }, catalog, [[-75, 40, -73, 42]]),
     ).toThrow("종류");
   });
 });

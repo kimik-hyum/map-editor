@@ -106,10 +106,12 @@ export function intersectsUsBbox(a: UsBbox, b: UsBbox): boolean {
 export function planUsBoundaryView(
   index: UsIndex,
   kind: UsManifest["kinds"][number],
-  bbox: UsBbox,
+  bboxes: readonly UsBbox[],
 ) {
   if (index.kind !== kind.kind) throw new Error("미국 경계 종류가 일치하지 않습니다.");
-  const items = index.items.filter((item) => intersectsUsBbox(item.bbox, bbox));
+  const items = index.items.filter((item) =>
+    bboxes.some((bbox) => intersectsUsBbox(item.bbox, bbox)),
+  );
   if (items.length > US_MAX_FEATURES)
     throw new Error("경계가 너무 많습니다. 지도를 확대하거나 주 경계를 선택해주세요.");
   const keys = new Set(items.map((item) => item.object));

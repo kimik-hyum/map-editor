@@ -40,7 +40,7 @@ export function usManifestOptions() {
 export async function fetchUsBoundaryView(
   client: QueryClient,
   kind: UsBoundaryKind,
-  bbox: UsBbox,
+  bboxes: readonly UsBbox[],
   signal: AbortSignal,
 ): Promise<UsCollection> {
   const manifest = await client.ensureQueryData(usManifestOptions());
@@ -49,7 +49,7 @@ export async function fetchUsBoundaryView(
   if (!catalog) throw new Error("지원하지 않는 미국 경계 종류입니다.");
   const index = await fetchUsBoundaryIndex(client, catalog, signal);
   signal.throwIfAborted();
-  const plan = planUsBoundaryView(index, catalog, bbox);
+  const plan = planUsBoundaryView(index, catalog, bboxes);
   const features: UsCollection["features"] = [];
   let next = 0;
   let vertices = 0;

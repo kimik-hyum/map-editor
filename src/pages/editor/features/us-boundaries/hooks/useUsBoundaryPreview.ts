@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { attachRegionBoundaryLayer } from "@/pages/editor/adapters/openlayers/attachRegionBoundaryLayer";
 import {
   focusUsBoundaryPreset,
-  readUsBoundaryViewport,
+  readUsBoundaryViewports,
   type UsBoundaryPreset,
 } from "@/pages/editor/adapters/openlayers/usBoundaryViewport";
 import {
@@ -28,9 +28,10 @@ export function useUsBoundaryPreview(
   const parsedKind = usKindSchema.safeParse(selectedKind);
   const kind = parsedKind.success ? parsedKind.data : null;
   const scope = useMemo(() => ({ map, kind, sessionId }), [map, kind, sessionId]);
-  const [request, setRequest] = useState<{ scope: typeof scope; bbox: UsBbox } | null>(
-    null,
-  );
+  const [request, setRequest] = useState<{
+    scope: typeof scope;
+    bboxes: UsBbox[];
+  } | null>(null);
   const previous = useRef<{ scope: typeof scope; data: UsCollection } | null>(null);
   const [attached, setAttached] = useState<{
     scope: typeof scope;
@@ -65,8 +66,8 @@ export function useUsBoundaryPreview(
         pause();
         // moveend 후에도 연속 휠/키보드 이동이 이어지면 마지막 범위만 조회합니다.
         timer = setTimeout(() => {
-          const bbox = readUsBoundaryViewport(activeMap);
-          if (bbox) setRequest({ scope, bbox });
+          const bboxes = readUsBoundaryViewports(activeMap);
+          if (bboxes) setRequest({ scope, bboxes });
         }, 200);
       },
     });
@@ -80,14 +81,14 @@ export function useUsBoundaryPreview(
   }, [scope]);
 
   // 국가·종류·편집 회차를 바꿀 때 이전 범위로 요청하거나 늦은 결과를 표시하지 않습니다.
-  const bbox = request?.scope === scope ? request.bbox : null;
+  const bboxes = request?.scope === scope ? request.bboxes : null;
   const query = useQuery({
-    queryKey: ["us-boundary-view", US_BOUNDARY_VERSION, sessionId, kind, bbox],
+    queryKey: ["us-boundary-view", US_BOUNDARY_VERSION, sessionId, kind, bboxes],
     queryFn: ({ signal }) => {
-      if (!kind || !bbox) throw new Error("미국 경계 조회 범위를 선택해주세요.");
-      return fetchUsBoundaryView(client, kind, bbox, signal);
+      if (!kind || !bboxes) throw new Error("미국 경계 조회 범위를 선택해주세요.");
+      return fetchUsBoundaryView(client, kind, bboxes, signal);
     },
-    enabled: !!kind && !!bbox && !!map && !!sessionId,
+    enabled: !!kind && !!bboxes && !!map && !!sessionId,
     staleTime: Infinity,
     gcTime: 5 * 60_000,
     retry: false,
@@ -105,7 +106,7 @@ export function useUsBoundaryPreview(
     layer: attached?.scope === scope ? attached.handle.layer : null,
     originalSource,
     kind,
-    loading: !!kind && !!map && !!sessionId && (!bbox || query.isFetching),
+    loading: !!kind && !!map && !!sessionId && (!bboxes || query.isFetching),
     count: kind && data ? data.features.length : 0,
     hasResult: !!kind && !!data,
     error: kind && query.error ? query.error.message : null,
@@ -113,7 +114,7 @@ export function useUsBoundaryPreview(
       if (map) focusUsBoundaryPreset(map, preset);
     },
     retry: () => {
-      if (bbox) void query.refetch();
+      if (bboxes) void query.refetch();
     },
   };
 }
