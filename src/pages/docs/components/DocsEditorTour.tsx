@@ -25,13 +25,13 @@ export function DocsEditorTour() {
           {t("원본 크기로 보기 ↗")}
         </a>
       </div>
-      <div className="grid min-w-0 @min-[720px]:grid-cols-[176px_minmax(0,1fr)]">
+      <div className="grid min-w-0 @min-[720px]:grid-cols-[200px_minmax(0,1fr)]">
         <div className="min-w-0 border-b border-line bg-slate-50 @min-[720px]:border-b-0 @min-[720px]:border-r">
           <p className="m-0 px-4 pt-4 text-xs font-bold text-ink-soft">
             {t("도구 선택")}
           </p>
           <fieldset
-            className="m-0 flex min-w-0 gap-2 overflow-x-auto border-0 p-3 @min-[720px]:flex-col"
+            className="m-0 flex min-w-0 flex-wrap gap-2 border-0 p-3 @min-[720px]:flex-col @min-[720px]:flex-nowrap"
             aria-label={t("강조할 도구 선택")}
           >
             {editorTourSteps.map((item, index) => (
@@ -42,7 +42,7 @@ export function DocsEditorTour() {
                 aria-controls="editor-tour-preview editor-tour-explanation"
                 onClick={() => setActiveIndex(index)}
                 className={cn(
-                  "shrink-0 whitespace-nowrap rounded-lg border px-3 py-2.5 text-left text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                  "rounded-lg border px-3 py-2.5 text-left text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                   index === activeIndex
                     ? "border-teal-600 bg-teal-700 text-white"
                     : "border-transparent text-ink-soft hover:border-brand-line hover:bg-teal-50",

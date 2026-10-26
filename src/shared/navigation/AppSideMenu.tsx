@@ -36,7 +36,7 @@ const sideMenuInnerClassName =
   "flex flex-col gap-3 px-4 py-6 min-[901px]:sticky min-[901px]:top-16 min-[901px]:max-h-[calc(100vh-4rem)] min-[901px]:overflow-y-auto max-[900px]:py-4";
 
 const sideMenuGroupLinkClassName =
-  "flex h-9 items-center gap-2 rounded-md px-2.5 text-sm font-extrabold text-ink-soft no-underline transition-colors hover:bg-brand-soft hover:text-brand";
+  "flex min-h-9 items-center gap-2 rounded-md px-2.5 py-2 text-sm font-extrabold text-ink-soft no-underline transition-colors hover:bg-brand-soft hover:text-brand";
 
 const sideMenuGroupActiveClassName = "bg-brand-soft text-brand";
 
@@ -45,7 +45,7 @@ const sideMenuSectionListClassName =
   "m-0 mt-1 ml-[1.125rem] list-none border-l border-line p-0";
 
 const sideMenuSectionLinkClassName =
-  "-ml-px flex min-h-7 items-center border-l-2 border-transparent py-0.5 pl-3 pr-2 text-[13px] font-bold text-ink-muted no-underline transition-colors hover:border-brand-line hover:text-brand";
+  "-ml-px flex min-h-7 items-center border-l-2 border-transparent py-1 pl-3 pr-2 text-[13px] font-bold leading-snug text-ink-muted no-underline transition-colors hover:border-brand-line hover:text-brand";
 
 const sideMenuSectionActiveClassName = "border-brand text-brand";
 
@@ -147,7 +147,10 @@ export function AppSideMenu({ ariaLabel, className, groups, title }: AppSideMenu
           {title}
         </strong>
 
-        <nav className="grid gap-1 max-[900px]:grid-cols-2" aria-label={ariaLabel}>
+        <nav
+          className="grid grid-cols-1 gap-1 max-[900px]:grid-cols-2"
+          aria-label={ariaLabel}
+        >
           {groups.map((group) => {
             const Icon = group.icon;
             const isGroupActive = group === activeGroup;
@@ -163,8 +166,13 @@ export function AppSideMenu({ ariaLabel, className, groups, title }: AppSideMenu
                   end
                   to={group.to}
                 >
-                  <Icon aria-hidden="true" size={16} strokeWidth={2.4} />
-                  <span className="min-w-0 truncate">{t(group.label)}</span>
+                  <Icon
+                    aria-hidden="true"
+                    className="shrink-0"
+                    size={16}
+                    strokeWidth={2.4}
+                  />
+                  <span className="min-w-0 break-words">{t(group.label)}</span>
                 </NavLink>
 
                 {isGroupActive && sections.length > 0 ? (
@@ -185,7 +193,9 @@ export function AppSideMenu({ ariaLabel, className, groups, title }: AppSideMenu
                             href={section.href}
                             onClick={() => pinActiveHref(section.href)}
                           >
-                            <span className="min-w-0 truncate">{t(section.label)}</span>
+                            <span className="min-w-0 break-words">
+                              {t(section.label)}
+                            </span>
                           </a>
                         </li>
                       );
