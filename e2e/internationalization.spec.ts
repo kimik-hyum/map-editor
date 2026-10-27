@@ -26,9 +26,13 @@ test("영어 문서는 직접 진입하고 모든 메뉴가 언어를 보존한�
   await expect(
     page.getByRole("button", { name: "Edit the Gyeongbokgung example in a new tab" }),
   ).toBeVisible();
-  await page.getByLabel("Language").selectOption("ko");
+  await page.getByRole("button", { name: "Select language: English" }).click();
+  await page.getByRole("menuitemradio", { name: "한국어" }).click();
   await expect(page).toHaveURL(/\/ko\/integration\?country=KR#addresses$/);
   await expect(page.locator("html")).toHaveAttribute("lang", "ko");
+  await expect(page.getByRole("button", { name: "언어 선택: 한국어" })).toHaveText(
+    "KR",
+  );
   await expect(
     page.getByRole("heading", { name: "편집 창 연동하기", level: 1 }),
   ).toBeVisible();
@@ -56,7 +60,8 @@ test("언어 전환은 지도·scene·편집 이력·국가·호스트 연결을
   await editor
     .locator(".ol-viewport")
     .evaluate((node) => node.setAttribute("data-retained-map", "yes"));
-  await editor.getByLabel("Language").selectOption("ko");
+  await editor.getByRole("button", { name: "Select language: English" }).click();
+  await editor.getByRole("menuitemradio", { name: "한국어" }).click();
   await expect(editor).toHaveURL(/\/ko\/editor\/\?country=US$/);
   await expect(
     editor.getByRole("button", { name: "New layer 1 선택", exact: true }),
@@ -77,7 +82,8 @@ test("데모에서 언어를 바꾼 뒤 열어도 현재 언어를 새 탭에 �
   page,
 }) => {
   await page.goto("/ko/demo?country=US");
-  await page.getByLabel("언어").selectOption("en");
+  await page.getByRole("button", { name: "언어 선택: 한국어" }).click();
+  await page.getByRole("menuitemradio", { name: "English" }).click();
   const [editor] = await Promise.all([
     page.waitForEvent("popup"),
     page.getByRole("button", { name: "Open editor in a new tab" }).click(),

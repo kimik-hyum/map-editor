@@ -7,7 +7,7 @@ export function EditorLayout() {
     <div className="min-h-screen bg-surface">
       <AuthSessionButton />
       <div className="fixed right-12 top-1.5 z-50">
-        <LanguageSwitcher />
+        <LanguageSwitcher className="border border-line bg-white shadow-sm" />
       </div>
       <Outlet />
     </div>
