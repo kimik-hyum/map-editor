@@ -55,10 +55,32 @@ test("실제 화면 안내에서 선택한 도구 위치와 설명이 바뀐다"
   expect(
     await tour.getByTestId("editor-tour-highlight").getAttribute("style"),
   ).not.toBe(original);
-  await tour.getByRole("button", { name: "7. 편집 완료", exact: true }).focus();
+  const highlight = tour.getByTestId("editor-tour-highlight");
+  const highlightLeft = () =>
+    highlight.evaluate((element) =>
+      Number.parseFloat((element as HTMLElement).style.left),
+    );
+  expect(await highlightLeft()).toBeGreaterThan(70);
+  await expect(tour.getByRole("img")).toHaveAttribute("alt", /오른쪽 도구 옵션/);
+  await tour.getByRole("button", { name: "5. 반경", exact: true }).click();
+  await expect(tour.getByRole("img")).toHaveAttribute("src", "/docs/editor-radius.jpg");
+  await expect(tour.locator("#editor-tour-explanation")).toContainText(
+    "원형 폴리곤 추가",
+  );
+  expect(await highlightLeft()).toBeGreaterThan(70);
+  await tour.getByRole("button", { name: "6. 레이어", exact: true }).click();
+  expect(await highlightLeft()).toBeGreaterThan(70);
+  await tour.getByRole("button", { name: "7. 작업 패널", exact: true }).click();
+  await expect(tour.getByRole("img")).toHaveAttribute(
+    "src",
+    "/docs/editor-panel-collapsed.jpg",
+  );
+  expect(await highlightLeft()).toBeGreaterThan(95);
+  await expect(tour.locator("#editor-tour-explanation")).toContainText("펼치기 버튼");
+  await tour.getByRole("button", { name: "8. 편집 완료", exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(
-    tour.getByRole("button", { name: "7. 편집 완료", exact: true }),
+    tour.getByRole("button", { name: "8. 편집 완료", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(
     tour.getByRole("heading", { name: "완료하면 서비스 페이지로 결과를 돌려줍니다" }),

@@ -120,4 +120,18 @@ test("영문 편집 안내는 센트럴파크 화면과 해당 도구 위치를 
     .getByTestId("editor-tour-highlight")
     .evaluate((element) => Number.parseFloat((element as HTMLElement).style.left));
   expect(left).toBeGreaterThan(70);
+  const buttons = page.locator(
+    'button[aria-controls="editor-tour-preview editor-tour-explanation"]',
+  );
+  await buttons.nth(4).click();
+  await expect(image).toHaveAttribute("src", "/docs/editor-radius-en.jpg");
+  await expect(image).toHaveAttribute("alt", /radius input on the right/);
+  await buttons.nth(6).click();
+  await expect(image).toHaveAttribute("src", "/docs/editor-panel-collapsed-en.jpg");
+  await expect(page.locator("#editor-tour-explanation")).toContainText("expand button");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(image).toBeVisible();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(390);
 });

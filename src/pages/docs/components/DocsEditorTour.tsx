@@ -63,15 +63,7 @@ export function DocsEditorTour() {
           >
             <img
               src={source}
-              alt={
-                step.id === "draw"
-                  ? t(
-                      "경복궁 사각형을 표시한 편집 창에서 폴리곤·패스·마커 선택 팝업을 연 모습",
-                    )
-                  : t(
-                      "경복궁 사각형을 선택하고 수동으로 확대한 편집 창. 왼쪽 도구와 레이어 목록, 하단 완료 버튼",
-                    )
-              }
+              alt={t(step.alt)}
               width={1440}
               height={900}
               className="block h-auto w-full"
@@ -123,7 +115,7 @@ export function DocsEditorTour() {
         >
           OpenStreetMap contributors
         </a>
-        {t(". 경복궁 예제를 수동으로 확대한 화면입니다.")}
+        {t(". 현재 UI에서 경복궁 예제를 확대한 화면입니다.")}
       </figcaption>
     </figure>
   );
