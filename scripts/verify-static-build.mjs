@@ -33,6 +33,59 @@ for (const locale of ["ko", "en"]) {
     const file = resolve(root, "dist", route, "index.html");
     const html = await readFile(file, "utf8");
     assert(html.includes(`<html lang="${locale}">`), `${route}: HTML language`);
+    const head = html.match(/<head>[\s\S]*?<\/head>/)?.[0];
+    const content = (attribute, key) => {
+      const matches = [
+        ...head.matchAll(
+          new RegExp(`<meta ${attribute}="${key}" content="([^"]+)"`, "g"),
+        ),
+      ];
+      assert.equal(matches.length, 1, `${route}: exactly one ${key}`);
+      return matches[0][1];
+    };
+    const title = head.match(/<title>([^<]+)<\/title>/)?.[1];
+    assert(title?.includes("Termia"), `${route}: branded title`);
+    assert.equal(content("property", "og:title"), title, `${route}: social title`);
+    assert.equal(content("name", "twitter:title"), title, `${route}: Twitter title`);
+    const description = content("name", "description");
+    assert.equal(
+      /[가-힣]/.test(description),
+      locale === "ko",
+      `${route}: translated description`,
+    );
+    assert.equal(content("property", "og:description"), description);
+    assert.equal(content("name", "twitter:description"), description);
+    assert.equal(content("property", "og:locale"), locale === "ko" ? "ko_KR" : "en_US");
+    assert.equal(
+      content("property", "og:locale:alternate"),
+      locale === "ko" ? "en_US" : "ko_KR",
+    );
+    const image = `https://maps-editor.pages.dev/brand/social-${locale}.png`;
+    assert.equal(content("property", "og:image"), image);
+    assert.equal(content("name", "twitter:image"), image);
+    assert.equal(content("name", "twitter:card"), "summary_large_image");
+    const canonicalPage = page === "screen" ? "editing" : page;
+    assert.equal(
+      content("property", "og:url"),
+      `https://maps-editor.pages.dev/${locale}/${canonicalPage}${canonicalPage ? "/" : ""}`,
+    );
+    for (const language of ["ko", "en", "x-default"]) {
+      const targetLanguage = language === "x-default" ? "ko" : language;
+      assert(
+        head.includes(
+          `hreflang="${language}" href="https://maps-editor.pages.dev/${targetLanguage}/${canonicalPage}${canonicalPage ? "/" : ""}"`,
+        ),
+        `${route}: ${language} alternate`,
+      );
+    }
+    for (const asset of ["/favicon.svg", "/favicon.ico", "/apple-touch-icon.png"]) {
+      assert(head.includes(`href="${asset}"`), `${route}: ${asset}`);
+      await access(resolve(root, "dist", asset.slice(1)));
+    }
+    assert.equal(
+      content("name", "robots"),
+      page === "auth/callback" ? "noindex, nofollow" : "index, follow",
+    );
     if (heading) {
       assert(html.includes(`hreflang="${locale}"`), `${route}: language alternatives`);
       assert(
@@ -107,3 +160,15 @@ for (const name of ["termia-logo.png", "termia-symbol.png"]) {
   );
   assert.equal(png[25], 6, `${name}: RGBA image`);
 }
+for (const locale of ["ko", "en"]) {
+  const png = await readFile(resolve(root, `dist/brand/social-${locale}.png`));
+  assert(png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])));
+  assert.equal(png.readUInt32BE(16), 1200, `${locale}: social image width`);
+  assert.equal(png.readUInt32BE(20), 630, `${locale}: social image height`);
+}
+const touchIcon = await readFile(resolve(root, "dist/apple-touch-icon.png"));
+assert.equal(touchIcon.readUInt32BE(16), 180);
+assert.equal(touchIcon.readUInt32BE(20), 180);
+const favicon = await readFile(resolve(root, "dist/favicon.ico"));
+assert.equal(favicon.readUInt16LE(2), 1, "favicon: ICO format");
+assert.equal(favicon.readUInt16LE(4), 2, "favicon: two sizes");

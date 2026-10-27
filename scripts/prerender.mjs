@@ -25,38 +25,35 @@ async function writeRoute(route, html) {
   await mkdir(dir, { recursive: true });
   await writeFile(resolve(dir, "index.html"), html);
 }
-function shell() {
+function shell(route) {
   // Root-relative Vite assets also work when the host serves the SPA fallback
   // for a deep language URL without a trailing slash.
-  return template;
+  const meta = getPageMetadata(`/${route}`);
+  const head = meta.elements
+    .map(({ tag, attributes }) => {
+      const serialized = Object.entries(attributes)
+        .map(([name, value]) => `${name}="${escapeHtml(value)}"`)
+        .join(" ");
+      return `<${tag} ${serialized} data-page-metadata />`;
+    })
+    .join("\n");
+  return template
+    .replace('<html lang="ko">', `<html lang="${meta.locale}">`)
+    .replace(
+      /<!--page-metadata:start-->[\s\S]*?<!--page-metadata:end-->/,
+      `<title>${escapeHtml(meta.title)}</title>\n${head}`,
+    );
 }
 
 for (const locale of ["ko", "en"]) {
   for (const path of [...documents, ...shells]) {
     const route = `${locale}${path ? `/${path}` : ""}`;
     const urlPath = `/${route}${path ? "" : "/"}`;
-    const meta = getPageMetadata(urlPath);
-    let html = shell(route)
-      .replace('<html lang="ko">', `<html lang="${locale}">`)
-      .replace(
-        "<title>Maps Editor</title>",
-        `<title>${escapeHtml(meta.title)}</title>`,
-      );
+    let html = shell(route);
     if (documents.includes(path)) {
       html = html.replace(
         '<div id="root"></div>',
         `<div id="root">${render(urlPath)}</div>`,
-      );
-      const canonical = `https://maps-editor.pages.dev${urlPath.replace(/\/?$/, "/")}`;
-      const alternates = ["ko", "en"]
-        .map(
-          (lang) =>
-            `<link rel="alternate" hreflang="${lang}" href="https://maps-editor.pages.dev/${lang}/${path}${path ? "/" : ""}" />`,
-        )
-        .join("");
-      html = html.replace(
-        "</head>",
-        `<meta name="description" content="${escapeHtml(meta.description)}" /><link rel="canonical" href="${canonical}" />${alternates}</head>`,
       );
     }
     await writeRoute(route, html);

@@ -66,4 +66,8 @@ HTTPS 사이트는 편집기와 도메인이 달라도 연결할 수 있습니�
 
 빌드는 언어별 문서 HTML·`html[lang]`·제목·설명·canonical·hreflang을 생성하고, 요청마다 독립적인 i18n 인스턴스를 사용해 서버 렌더링과 hydration의 언어를 맞춥니다. Vite 자산 경로는 루트(`/assets/...`)를 기준으로 하므로 중첩 경로의 SPA fallback에서도 로드됩니다. 하위 경로에 직접 운영하려면 Vite `base`와 라우터·정적 배포 경로를 함께 조정해야 합니다.
 
+페이지별 메타데이터는 `src/shared/i18n/pageMetadata.ts`에서 관리하고 문구는 기존 `ui.json`·`docs.json`으로 번역합니다. 문서와 데모·편집기 모두 최초 HTML에 description, Open Graph, Twitter 카드, canonical 및 한국어·영어·기본 언어(`x-default`) 링크를 포함합니다. 언어·페이지를 바꾸면 같은 정의로 태그를 교체합니다. 로그인 복귀 화면은 검색에서 제외합니다. 언어는 URL이 결정하므로 `/ko/` 링크 공유에는 한국어, `/en/` 링크 공유에는 영어 미리보기가 사용됩니다. 직접 운영할 때는 `pageMetadata.ts`의 `siteOrigin`도 실제 공개 도메인으로 변경하세요.
+
+모든 언어가 `public/favicon.svg`의 민트·파랑 T 파비콘을 공유합니다. `favicon.ico`는 16·32px, `apple-touch-icon.png`는 흰 배경의 180px 버전입니다. 공유 이미지는 `public/brand/social-{ko,en}.png`(1200×630)이며 같은 이름의 SVG가 편집 가능한 원본입니다. 원본을 수정하면 PNG도 동일 크기로 다시 내보내야 합니다. 공유 서비스가 예전 미리보기를 캐시하면 해당 서비스의 미리보기 갱신이 필요할 수 있습니다.
+
 `npm run test:unit`은 두 언어의 번역 키·보간 값 일치와 인스턴스 격리를, `npm run build`는 두 언어의 정적 HTML·링크·자산을 검증합니다. `e2e/internationalization.spec.ts`는 기존 주소 호환, 영어 직접 접속, 언어 변경 후 편집 상태와 새 탭 연결을 확인합니다. 저장소의 운영 문서와 코드 주석은 한국어로 유지하며, 웹에 표시하는 안내와 예제 설명을 번역합니다.
