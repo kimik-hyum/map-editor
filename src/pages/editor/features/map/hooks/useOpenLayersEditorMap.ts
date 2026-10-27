@@ -1,3 +1,5 @@
+import { createInitialViewportSync } from "@/pages/editor/adapters/openlayers/createInitialViewportSync";
+import { useT } from "@/shared/i18n/useT";
 import { useEffect, useRef, useState } from "react";
 import type OpenLayersMap from "ol/Map";
 import { unByKey } from "ol/Observable";
@@ -130,6 +132,7 @@ function applyIntersect(targetId: string, otherId: string) {
 }
 
 export function useOpenLayersEditorMap() {
+  const t = useT();
   const mapElementRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<OpenLayersMap | null>(null);
   const cursorRef = useRef<ReturnType<typeof attachMapCursor> | null>(null);
@@ -168,6 +171,10 @@ export function useOpenLayersEditorMap() {
   // 후보 도형 위 ol/Overlay 마커 핸들. OL이 팬/줌 위치 추적을 맡는다.
   const geometryOpOverlaysRef = useRef<ReturnType<
     typeof attachGeometryOpOverlays
+  > | null>(null);
+
+  const initialViewportRef = useRef<ReturnType<
+    typeof createInitialViewportSync
   > | null>(null);
 
   // 생성된 OL Map 인스턴스를 외부(예: 경계 레이어)에서 쓸 수 있게 노출한다.
@@ -215,6 +222,7 @@ export function useOpenLayersEditorMap() {
     }
 
     const map = createOpenLayersMap({ target: mapElementRef.current });
+    initialViewportRef.current = createInitialViewportSync(map);
     const annotationNavigation = attachMapAnnotationNavigation(map);
     const cursor = attachMapCursor(map);
     cursorRef.current = cursor;
@@ -368,6 +376,7 @@ export function useOpenLayersEditorMap() {
       unByKey(viewportMoveEndKey);
       map.setTarget(undefined);
       mapRef.current = null;
+      initialViewportRef.current = null;
       setMap(null);
       vertexLayerRef.current = null;
       detailLayerRef.current = null;
@@ -395,6 +404,8 @@ export function useOpenLayersEditorMap() {
     if (!map) {
       return;
     }
+
+    initialViewportRef.current?.sync(scene as EditorScene | null);
 
     // 씬(콘텐츠 레이어) 렌더는 모드와 무관하게 항상 동기화한다.
     syncOpenLayersMapScene(map, scene as EditorScene | null, renderStateRef.current);
@@ -619,6 +630,14 @@ export function useOpenLayersEditorMap() {
     applyChips(overlays.sync(buildGeometryOpMarkerInputs(scene, targets)));
     // viewportTick: 팬/줌으로 화면이 바뀌면 후보를 다시 도출한다.
   }, [scene, selectedFeatureIds, activeMode, viewportTick, geometryOverlapCache]);
+
+  useEffect(() => {
+    const target = map?.getTargetElement();
+    const zoomIn = target?.querySelector<HTMLButtonElement>(".ol-zoom-in");
+    const zoomOut = target?.querySelector<HTMLButtonElement>(".ol-zoom-out");
+    if (zoomIn) zoomIn.title = t("지도 확대");
+    if (zoomOut) zoomOut.title = t("지도 축소");
+  }, [map, t]);
 
   return {
     mapElementRef,

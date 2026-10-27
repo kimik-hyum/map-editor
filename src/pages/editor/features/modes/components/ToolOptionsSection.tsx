@@ -1,3 +1,4 @@
+import { useT } from "@/shared/i18n/useT";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { MovingHighlight, MovingHighlightItem } from "@/shared/ui/MovingHighlight";
@@ -25,6 +26,7 @@ export function ToolOptionsSection<T extends string>({
   footer?: ReactNode;
   notice?: string;
 }) {
+  const t = useT();
   return (
     <section aria-label={title} className="p-3">
       <h3 className="mb-3 text-sm font-extrabold text-slate-800">{title}</h3>
@@ -58,10 +60,10 @@ export function ToolOptionsSection<T extends string>({
                 </span>
                 <span className="min-w-0">
                   <span className="block text-[13px] font-extrabold text-slate-900">
-                    {option.label}
+                    {t(option.label)}
                   </span>
                   <span className="block text-[11px] font-semibold text-slate-400">
-                    {option.description}
+                    {t(option.description)}
                   </span>
                 </span>
               </button>

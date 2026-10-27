@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { addFeaturesToScene } from "../messaging/normalizeSceneInput";
 import {
   canDrawInEmptyLayer,
@@ -16,12 +17,15 @@ export function addEmptyLayerToScene(scene: EditorScene) {
   const usedIds = new Set(scene.layers.map((layer) => layer.id));
   const usedNames = new Set(scene.layers.map((layer) => layer.name));
   let index = 1;
-  while (usedIds.has(`layer-empty-${index}`) || usedNames.has(`새 레이어 ${index}`)) {
+  while (
+    usedIds.has(`layer-empty-${index}`) ||
+    usedNames.has(t("새 레이어 {{v0}}", { v0: index }))
+  ) {
     index += 1;
   }
   const layer: EditorLayer = {
     id: `layer-empty-${index}`,
-    name: `새 레이어 ${index}`,
+    name: t("새 레이어 {{v0}}", { v0: index }),
     roles: [LayerRole.Editable],
     geometryKinds: [],
     view: {

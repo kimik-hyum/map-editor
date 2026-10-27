@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { EditorMessagingController } from "@/pages/editor/messaging";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
@@ -103,11 +104,12 @@ export function useEditorSessionActions({
 
     if (contextAtRequest.dirty) {
       const confirmed = await confirmDialog({
-        title: "편집을 취소할까요?",
-        description:
+        title: t("편집을 취소할까요?"),
+        description: t(
           "저장하지 않은 변경사항은 부모 창으로 전달되지 않고 모두 사라집니다.",
-        confirmLabel: "저장하지 않고 닫기",
-        cancelLabel: "계속 편집",
+        ),
+        confirmLabel: t("저장하지 않고 닫기"),
+        cancelLabel: t("계속 편집"),
         tone: "danger",
         initialFocus: "cancel",
       });
@@ -131,9 +133,11 @@ export function useEditorSessionActions({
 
   const isReady = scene !== null && sessionId !== null;
   const submitBlockedReason = hasPendingToolAction
-    ? "진행 중인 편집을 먼저 완료하거나 취소하세요."
+    ? t("진행 중인 편집을 먼저 완료하거나 취소하세요.")
     : invalidFeatureCount > 0
-      ? `오류가 있는 도형 ${invalidFeatureCount}개를 수정해야 완료할 수 있습니다.`
+      ? t("오류가 있는 도형 {{v0}}개를 수정해야 완료할 수 있습니다.", {
+          v0: invalidFeatureCount,
+        })
       : null;
 
   return {

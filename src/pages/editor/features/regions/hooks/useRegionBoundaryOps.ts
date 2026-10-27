@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { useQueryClient } from "@tanstack/react-query";
 import { useBoundaryAccess } from "@/features/auth";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -242,17 +243,17 @@ export function useRegionBoundaryOps({
         }
         const store = useEditorStore.getState();
         if (!store.scene) {
-          throw new Error("호스트 scene이 준비되지 않았습니다.");
+          throw new Error(t("호스트 scene이 준비되지 않았습니다."));
         }
 
         if (context.targetId) {
           const targetGeom = polygonGeomFromScene(store.scene, context.targetId);
           if (!targetGeom) {
-            throw new Error("선택한 편집 도형을 찾을 수 없습니다.");
+            throw new Error(t("선택한 편집 도형을 찾을 수 없습니다."));
           }
           const result = unionGeometries(targetGeom, boundaryGeom);
           if (!result) {
-            throw new Error("경계 병합 결과를 만들 수 없습니다.");
+            throw new Error(t("경계 병합 결과를 만들 수 없습니다."));
           }
           store.updateFeatureGeometry(context.targetId, result);
           return;
@@ -264,7 +265,7 @@ export function useRegionBoundaryOps({
           operationGeneration === operationGenerationRef.current &&
           isOperationContextCurrent(context)
         ) {
-          setError("경계 원본을 가져오거나 병합하지 못했습니다. 다시 시도해주세요.");
+          setError(t("경계 원본을 가져오거나 병합하지 못했습니다. 다시 시도해주세요."));
         }
       } finally {
         if (operationGeneration === operationGenerationRef.current) {
@@ -308,15 +309,15 @@ export function useRegionBoundaryOps({
         }
         const store = useEditorStore.getState();
         if (!store.scene) {
-          throw new Error("호스트 scene이 준비되지 않았습니다.");
+          throw new Error(t("호스트 scene이 준비되지 않았습니다."));
         }
         const targetGeom = polygonGeomFromScene(store.scene, context.targetId);
         if (!targetGeom) {
-          throw new Error("선택한 편집 도형을 찾을 수 없습니다.");
+          throw new Error(t("선택한 편집 도형을 찾을 수 없습니다."));
         }
         const result = subtractGeometry(targetGeom, boundaryGeom);
         if (result === undefined) {
-          throw new Error("경계 제거 결과를 만들 수 없습니다.");
+          throw new Error(t("경계 제거 결과를 만들 수 없습니다."));
         }
         store.subtractFeature(context.targetId, result);
       } catch {
@@ -324,7 +325,7 @@ export function useRegionBoundaryOps({
           operationGeneration === operationGenerationRef.current &&
           isOperationContextCurrent(context)
         ) {
-          setError("경계 원본을 가져오거나 제거하지 못했습니다. 다시 시도해주세요.");
+          setError(t("경계 원본을 가져오거나 제거하지 못했습니다. 다시 시도해주세요."));
         }
       } finally {
         if (operationGeneration === operationGenerationRef.current) {

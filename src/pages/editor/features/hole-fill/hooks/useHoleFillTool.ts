@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import type OpenLayersMap from "ol/Map";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { attachHoleFillPreview } from "@/pages/editor/adapters/openlayers/attachHoleFillPreview";
@@ -38,7 +39,7 @@ export function useHoleFillTool(map: OpenLayersMap | null, busyReason: string | 
   const anchorRef = useRef<HTMLButtonElement | null>(null);
   const modeReason =
     activeMode === EditorMode.Draw || activeMode === EditorMode.Radius
-      ? "선택 또는 경계 도구에서 사용할 수 있습니다"
+      ? t("선택 또는 경계 도구에서 사용할 수 있습니다")
       : null;
   const blockedReason = busyReason ?? modeReason;
   const availability = useMemo(
@@ -97,10 +98,10 @@ export function useHoleFillTool(map: OpenLayersMap | null, busyReason: string | 
   const getDisabledReason = (featureId: string) =>
     blockedReason ??
     (session && session.featureId !== featureId
-      ? "빈 공간 채우기를 먼저 완료하거나 취소하세요"
+      ? t("빈 공간 채우기를 먼저 완료하거나 취소하세요")
       : null) ??
     availability.get(featureId) ??
-    (availability.has(featureId) ? null : "도형을 불러오는 중입니다");
+    (availability.has(featureId) ? null : t("도형을 불러오는 중입니다"));
 
   const open = (featureId: string, name: string, anchor: HTMLButtonElement) => {
     if (getDisabledReason(featureId) !== null || session) return;
@@ -143,9 +144,9 @@ export function useHoleFillTool(map: OpenLayersMap | null, busyReason: string | 
     preview,
     totalHoleCount: holes.length,
     error: !validArea
-      ? "0보다 큰 유한한 면적을 입력하세요."
+      ? t("0보다 큰 유한한 면적을 입력하세요.")
       : candidateCount > 0 && !preview
-        ? "안전하게 채울 수 없는 도형입니다. 경계를 확인하세요."
+        ? t("안전하게 채울 수 없는 도형입니다. 경계를 확인하세요.")
         : null,
     getDisabledReason,
     open,

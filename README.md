@@ -43,3 +43,35 @@ HTTPS 사이트는 편집기와 도메인이 달라도 연결할 수 있습니�
 - [Google·Supabase 구성 (선택)](docs/supabase-region-api.md)
 - [미국 경계 미리보기와 R2 연결](docs/us-boundary-preview.md)
 - [아키텍처](src/pages/editor/ARCHITECTURE.md) · [도구·상태 모델](docs/editor-tool-model.md)
+
+## 한국어·영어와 언어별 URL
+
+웹 문서와 편집기는 `i18next`·`react-i18next`를 사용합니다. 언어는 경로의 첫 구간으로 명시하며 접속 국가와 별개입니다.
+
+| 화면      | 한국어                  | 영어                    |
+| --------- | ----------------------- | ----------------------- |
+| 문서      | `/ko/`                  | `/en/`                  |
+| 연동 안내 | `/ko/integration`       | `/en/integration`       |
+| 데모      | `/ko/demo?country=KR`   | `/en/demo?country=US`   |
+| 편집기    | `/ko/editor?country=US` | `/en/editor?country=KR` |
+
+- 기존 `/demo`, `/editor`, `/integration` 등은 쿼리·해시를 유지해 한국어 경로로 이동합니다. 언어를 지정하지 않은 URL의 기본값은 한국어입니다.
+- `country=KR|US`는 경계 데이터 선택입니다. 편집기 안에서 언어를 바꾸면 경로만 변경하며 국가·scene·지도 인스턴스·undo/redo와 부모 창 연결을 유지합니다. 국가를 생략하거나 지원하지 않는 값을 지정하면 한국어(`/ko`)는 대한민국 행정동, 영어(`/en`)는 미국 카운티를 기본값으로 사용합니다. 로컬과 배포 환경 모두 같으며 접속 IP와 무관합니다. 명시한 유효 국가는 언어 기본값보다 우선합니다.
+- 문서·데모의 상단 메뉴와 편집기의 오른쪽 상단에서 언어를 바꿀 수 있습니다. 새 편집기 탭에도 현재 언어를 전달합니다.
+- Supabase에 등록한 `/auth/callback`은 유지합니다. 복귀한 로그인 창은 원래 편집기의 언어 경로로 이동하며 PKCE 쿼리·해시를 보존합니다. OAuth 제공자의 허용 목록을 바꿀 필요가 없습니다.
+
+번역은 `src/shared/i18n/locales/{ko,en}/`의 `ui.json`(화면·오류), `docs.json`(웹 문서), `examples.json`(복사용 예제 주석)에 둡니다. 한국어 원문을 번역 키로 쓰며 `keySeparator`·`nsSeparator`를 끄기 때문에 문장 속 마침표와 콜론을 그대로 사용할 수 있습니다. 문구를 추가할 때 두 언어에 같은 키를 추가하고, 동적 값은 `{{v0}}`처럼 보간합니다.
+
+컴포넌트에서는 `useT()`, React 밖의 사용자 동작·오류 생성에서는 `t()`를 사용합니다. 모듈 상수에 번역 결과를 저장하지 않고 렌더링할 때 번역합니다. 내부 링크는 `LocalizedLink`·`LocalizedNavLink`, URL 생성은 `localizePath`를 사용합니다. GeoJSON 필드·행정구역 코드·사용자가 입력한 이름은 번역하지 않으며, 새 레이어의 기본 이름은 생성 시점의 언어로 저장합니다.
+
+빌드는 언어별 문서 HTML·`html[lang]`·제목·설명·canonical·hreflang을 생성하고, 요청마다 독립적인 i18n 인스턴스를 사용해 서버 렌더링과 hydration의 언어를 맞춥니다. Vite 자산 경로는 루트(`/assets/...`)를 기준으로 하므로 중첩 경로의 SPA fallback에서도 로드됩니다. 하위 경로에 직접 운영하려면 Vite `base`와 라우터·정적 배포 경로를 함께 조정해야 합니다.
+
+페이지별 메타데이터는 `src/shared/i18n/pageMetadata.ts`에서 관리하고 문구는 기존 `ui.json`·`docs.json`으로 번역합니다. 문서와 데모·편집기 모두 최초 HTML에 description, Open Graph, Twitter 카드, canonical 및 한국어·영어·기본 언어(`x-default`) 링크를 포함합니다. 언어·페이지를 바꾸면 같은 정의로 태그를 교체합니다. 로그인 복귀 화면은 검색에서 제외합니다. 언어는 URL이 결정하므로 `/ko/` 링크 공유에는 한국어, `/en/` 링크 공유에는 영어 미리보기가 사용됩니다. 직접 운영할 때는 `pageMetadata.ts`의 `siteOrigin`도 실제 공개 도메인으로 변경하세요.
+
+모든 언어가 `public/favicon.svg`의 민트·파랑 T 파비콘을 공유합니다. `favicon.ico`는 16·32px, `apple-touch-icon.png`는 흰 배경의 180px 버전입니다. 공유 이미지는 `public/brand/social-{ko,en}.png`(1200×630)이며 같은 이름의 SVG가 편집 가능한 원본입니다. 원본을 수정하면 PNG도 동일 크기로 다시 내보내야 합니다. 공유 서비스가 예전 미리보기를 캐시하면 해당 서비스의 미리보기 갱신이 필요할 수 있습니다.
+
+`npm run test:unit`은 두 언어의 번역 키·보간 값 일치와 인스턴스 격리를, `npm run build`는 두 언어의 정적 HTML·링크·자산을 검증합니다. `e2e/internationalization.spec.ts`는 기존 주소 호환, 영어 직접 접속, 언어 변경 후 편집 상태와 새 탭 연결을 확인합니다. 저장소의 운영 문서와 코드 주석은 한국어로 유지하며, 웹에 표시하는 안내와 예제 설명을 번역합니다.
+
+데모와 Docs의 기본 예제는 화면 언어를 따릅니다. 한국어는 기존 서울·경복궁, 영어는 뉴욕·센트럴파크의 연습용 도형을 표시합니다. 같은 화면에서 언어를 왕복하면 각 언어의 편집 결과를 별도로 유지하며, 편집 창이 열린 동안 서비스 페이지의 언어를 바꿔도 결과는 편집을 시작한 언어에 반영됩니다. 이미 열린 편집기 안에서 언어만 바꿀 때에는 전달받은 도형을 그대로 유지합니다. 명시적인 `country` 쿼리는 참고 경계 데이터 선택용으로 계속 보존됩니다. Docs의 입력 JSON·복사용 코드·입출력 비교와 영어 편집 화면 캡처도 같은 미국 예제를 사용합니다.
+
+편집 도구 안내의 실제 화면은 개발 서버와 Ego Lite를 켠 뒤 `DOCS_BASE_URL=http://127.0.0.1:4177 node scripts/capture-editor-docs.mjs`로 갱신합니다(`ego-browser` CLI 필요). 두 언어의 선택·그리기·반경·패널 접기 화면 8개와 강조 위치 JSON을 함께 저장합니다. 캡처 후 한국어·영어 `/editing`에서 이미지와 강조 위치를 확인하세요.

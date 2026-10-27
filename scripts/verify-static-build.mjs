@@ -18,58 +18,140 @@ const routes = [
   ["auth/callback", null],
 ];
 
-for (const [route, heading] of routes) {
-  const file = resolve(root, "dist", route, "index.html");
-  const html = await readFile(file, "utf8");
-  if (heading) {
-    assert(
-      html.includes(heading) && html.includes("<h1"),
-      `${route}: prerendered document`,
+const enDocs = JSON.parse(
+  await readFile(resolve(root, "src/shared/i18n/locales/en/docs.json"), "utf8"),
+);
+const enUi = JSON.parse(
+  await readFile(resolve(root, "src/shared/i18n/locales/en/ui.json"), "utf8"),
+);
+for (const locale of ["ko", "en"]) {
+  for (const [page, sourceHeading] of routes) {
+    const route = `${locale}${page ? `/${page}` : ""}`;
+    const translate = (key) =>
+      locale === "ko" ? key : (enDocs[key] ?? enUi[key] ?? key);
+    const heading = sourceHeading ? translate(sourceHeading) : null;
+    const file = resolve(root, "dist", route, "index.html");
+    const html = await readFile(file, "utf8");
+    assert(html.includes(`<html lang="${locale}">`), `${route}: HTML language`);
+    const head = html.match(/<head>[\s\S]*?<\/head>/)?.[0];
+    const content = (attribute, key) => {
+      const matches = [
+        ...head.matchAll(
+          new RegExp(`<meta ${attribute}="${key}" content="([^"]+)"`, "g"),
+        ),
+      ];
+      assert.equal(matches.length, 1, `${route}: exactly one ${key}`);
+      return matches[0][1];
+    };
+    const title = head.match(/<title>([^<]+)<\/title>/)?.[1];
+    assert(title?.includes("Termia"), `${route}: branded title`);
+    assert.equal(content("property", "og:title"), title, `${route}: social title`);
+    assert.equal(content("name", "twitter:title"), title, `${route}: Twitter title`);
+    const description = content("name", "description");
+    assert.equal(
+      /[가-힣]/.test(description),
+      locale === "ko",
+      `${route}: translated description`,
     );
-    assert(
-      html.includes("<title>") && /<title>[^<]*Termia/.test(html),
-      `${route}: branded document title`,
+    assert.equal(content("property", "og:description"), description);
+    assert.equal(content("name", "twitter:description"), description);
+    assert.equal(content("property", "og:locale"), locale === "ko" ? "ko_KR" : "en_US");
+    assert.equal(
+      content("property", "og:locale:alternate"),
+      locale === "ko" ? "en_US" : "ko_KR",
     );
-    const footer = html.match(/<footer\b[^>]*>[\s\S]*?<\/footer>/)?.[0];
-    assert(footer?.includes('href="/about"'), `${route}: introduction in footer`);
-    for (const navigation of html.matchAll(
-      /<(?:nav|aside)\b[^>]*aria-label="(?:Primary navigation|사용·연동 안내|직접 운영 안내)"[^>]*>[\s\S]*?<\/(?:nav|aside)>/g,
-    )) {
+    const image = `https://maps-editor.pages.dev/brand/social-${locale}.png`;
+    assert.equal(content("property", "og:image"), image);
+    assert.equal(content("name", "twitter:image"), image);
+    assert.equal(content("name", "twitter:card"), "summary_large_image");
+    const canonicalPage = page === "screen" ? "editing" : page;
+    assert.equal(
+      content("property", "og:url"),
+      `https://maps-editor.pages.dev/${locale}/${canonicalPage}${canonicalPage ? "/" : ""}`,
+    );
+    for (const language of ["ko", "en", "x-default"]) {
+      const targetLanguage = language === "x-default" ? "ko" : language;
       assert(
-        !navigation[0].includes('href="/about"'),
-        `${route}: introduction stays out of primary and side navigation`,
+        head.includes(
+          `hreflang="${language}" href="https://maps-editor.pages.dev/${targetLanguage}/${canonicalPage}${canonicalPage ? "/" : ""}"`,
+        ),
+        `${route}: ${language} alternate`,
       );
     }
-    if (route !== "about") {
-      const selfHosted = route === "authentication" || route.startsWith("self-hosting");
-      const label = selfHosted ? "직접 운영 안내" : "사용·연동 안내";
-      const nav = html.match(
-        new RegExp(`<nav\\b[^>]*aria-label="${label}"[^>]*>[\\s\\S]*?<\\/nav>`),
-      )?.[0];
-      assert(nav, `${route}: audience-specific contents`);
-      for (const [, anchor] of nav.matchAll(/href="#([^"]+)"/g)) {
-        assert(html.includes(`id="${anchor}"`), `${route}: section ${anchor} exists`);
-      }
-      if (!selfHosted) {
+    for (const asset of ["/favicon.svg", "/favicon.ico", "/apple-touch-icon.png"]) {
+      assert(head.includes(`href="${asset}"`), `${route}: ${asset}`);
+      await access(resolve(root, "dist", asset.slice(1)));
+    }
+    assert.equal(
+      content("name", "robots"),
+      page === "auth/callback" ? "noindex, nofollow" : "index, follow",
+    );
+    if (heading) {
+      assert(html.includes(`hreflang="${locale}"`), `${route}: language alternatives`);
+      assert(
+        html.includes(`rel="canonical" href="https://maps-editor.pages.dev/${route}/"`),
+        `${route}: canonical URL matches the static host directory`,
+      );
+      assert(
+        html.includes(heading) && html.includes("<h1"),
+        `${route}: prerendered document`,
+      );
+      assert(
+        html.includes("<title>") && /<title>[^<]*Termia/.test(html),
+        `${route}: branded document title`,
+      );
+      const footer = html.match(/<footer\b[^>]*>[\s\S]*?<\/footer>/)?.[0];
+      assert(
+        footer?.includes(`href="/${locale}/about"`),
+        `${route}: introduction in footer`,
+      );
+      for (const navigation of html.matchAll(
+        /<(?:nav|aside)\b[^>]*aria-label="(?:Primary navigation|사용·연동 안내|직접 운영 안내)"[^>]*>[\s\S]*?<\/(?:nav|aside)>/g,
+      )) {
         assert(
-          !nav.includes('href="/authentication"') &&
-            !nav.includes('href="/self-hosting/boundaries"'),
-          `${route}: usage contents exclude implementation settings`,
+          !navigation[0].includes(`href="/${locale}/about"`),
+          `${route}: introduction stays out of primary and side navigation`,
         );
       }
+      if (page !== "about") {
+        const selfHosted = page === "authentication" || page.startsWith("self-hosting");
+        const label = translate(selfHosted ? "직접 운영 안내" : "사용·연동 안내");
+        const nav = html.match(
+          new RegExp(`<nav\\b[^>]*aria-label="${label}"[^>]*>[\\s\\S]*?<\\/nav>`),
+        )?.[0];
+        assert(nav, `${route}: audience-specific contents`);
+        for (const [, anchor] of nav.matchAll(/href="#([^"]+)"/g)) {
+          assert(html.includes(`id="${anchor}"`), `${route}: section ${anchor} exists`);
+        }
+        if (!selfHosted) {
+          assert(
+            !nav.includes(`href="/${locale}/authentication"`) &&
+              !nav.includes(`href="/${locale}/self-hosting/boundaries"`),
+            `${route}: usage contents exclude implementation settings`,
+          );
+        }
+      }
+    } else {
+      assert(html.includes('<div id="root"></div>'), `${route}: empty SPA shell`);
     }
-  } else {
-    assert(html.includes('<div id="root"></div>'), `${route}: empty SPA shell`);
+    const assets = [...html.matchAll(/(?:src|href)="([^"]*assets\/[^"]+)"/g)];
+    assert(assets.length >= 2, `${route}: JS and CSS references`);
+    for (const [, asset] of assets)
+      await access(
+        asset.startsWith("/")
+          ? resolve(root, "dist", asset.slice(1))
+          : resolve(dirname(file), asset),
+      );
+    for (const [, asset] of html.matchAll(/(?:src|href)="(\/brand\/[^"]+)"/g)) {
+      await access(resolve(root, "dist", asset.slice(1)));
+    }
+    console.log(`/${route}: HTML and relative assets OK`);
   }
-  const assets = [...html.matchAll(/(?:src|href)="([^"]*assets\/[^"]+)"/g)];
-  assert(assets.length >= 2, `${route}: JS and CSS references`);
-  for (const [, asset] of assets) await access(resolve(dirname(file), asset));
-  for (const [, asset] of html.matchAll(/(?:src|href)="(\/brand\/[^"]+)"/g)) {
-    await access(resolve(root, "dist", asset.slice(1)));
-  }
-  console.log(`/${route}: HTML and relative assets OK`);
 }
-
+for (const [page] of routes) {
+  const html = await readFile(resolve(root, "dist", page, "index.html"), "utf8");
+  assert(html.includes('<div id="root"></div>'), `${page}: legacy redirect shell`);
+}
 for (const name of ["termia-logo.png", "termia-symbol.png"]) {
   const png = await readFile(resolve(root, "dist/brand", name));
   assert(
@@ -78,3 +160,15 @@ for (const name of ["termia-logo.png", "termia-symbol.png"]) {
   );
   assert.equal(png[25], 6, `${name}: RGBA image`);
 }
+for (const locale of ["ko", "en"]) {
+  const png = await readFile(resolve(root, `dist/brand/social-${locale}.png`));
+  assert(png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])));
+  assert.equal(png.readUInt32BE(16), 1200, `${locale}: social image width`);
+  assert.equal(png.readUInt32BE(20), 630, `${locale}: social image height`);
+}
+const touchIcon = await readFile(resolve(root, "dist/apple-touch-icon.png"));
+assert.equal(touchIcon.readUInt32BE(16), 180);
+assert.equal(touchIcon.readUInt32BE(20), 180);
+const favicon = await readFile(resolve(root, "dist/favicon.ico"));
+assert.equal(favicon.readUInt16LE(2), 1, "favicon: ICO format");
+assert.equal(favicon.readUInt16LE(4), 2, "favicon: two sizes");

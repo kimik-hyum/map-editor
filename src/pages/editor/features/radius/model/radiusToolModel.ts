@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import circle from "@turf/circle";
 import type {
   DeepReadonly,
@@ -41,7 +42,7 @@ function getFeatureName(
   }
   return typeof propertyLabel === "string" && propertyLabel.trim().length > 0
     ? propertyLabel
-    : "선택한 마커";
+    : t("선택한 마커");
 }
 
 // 반경 도구의 기준점은 전체 선택이 정확히 하나이고 그 geometry가 Point일 때만 확정됩니다.
@@ -50,10 +51,10 @@ export function resolveRadiusTarget(
   selectedFeatureIds: readonly string[],
 ): RadiusTargetResult {
   if (!scene || selectedFeatureIds.length === 0) {
-    return { target: null, error: "지도 또는 레이어에서 마커 한 개를 선택하세요." };
+    return { target: null, error: t("지도 또는 레이어에서 마커 한 개를 선택하세요.") };
   }
   if (selectedFeatureIds.length !== 1) {
-    return { target: null, error: "반경의 기준이 될 마커 한 개만 선택하세요." };
+    return { target: null, error: t("반경의 기준이 될 마커 한 개만 선택하세요.") };
   }
 
   const selectedId = selectedFeatureIds[0];
@@ -64,11 +65,11 @@ export function resolveRadiusTarget(
     }
     const geometry = feature.feature.geometry;
     if (geometry.type !== "Point") {
-      return { target: null, error: "선택한 도형은 마커가 아닙니다." };
+      return { target: null, error: t("선택한 도형은 마커가 아닙니다.") };
     }
     const [longitude, latitude] = geometry.coordinates;
     if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
-      return { target: null, error: "선택한 마커의 좌표가 올바르지 않습니다." };
+      return { target: null, error: t("선택한 마커의 좌표가 올바르지 않습니다.") };
     }
     return {
       target: {
@@ -80,7 +81,7 @@ export function resolveRadiusTarget(
     };
   }
 
-  return { target: null, error: "선택한 마커를 현재 씬에서 찾을 수 없습니다." };
+  return { target: null, error: t("선택한 마커를 현재 씬에서 찾을 수 없습니다.") };
 }
 
 // 지도 히트테스트가 위에 덮인 폴리곤을 건너뛰고 Point만 찾을 수 있도록 쓰는 판정입니다.
@@ -95,12 +96,12 @@ export function canUseAsRadiusTarget(
 export function validateRadiusInput(draft: string): RadiusValidationResult {
   const value = draft.trim();
   if (value.length === 0) {
-    return { valid: false, valueKm: null, label: null, error: "반경을 입력하세요." };
+    return { valid: false, valueKm: null, label: null, error: t("반경을 입력하세요.") };
   }
   if (!/^\d+(?:\.\d{0,2})?$/.test(value)) {
     const error = /^\d+\.\d+$/.test(value)
-      ? "소수점 이하 두 자리까지만 입력할 수 있습니다."
-      : "반경을 숫자로 입력하세요.";
+      ? t("소수점 이하 두 자리까지만 입력할 수 있습니다.")
+      : t("반경을 숫자로 입력하세요.");
     return { valid: false, valueKm: null, label: null, error };
   }
 
@@ -110,7 +111,7 @@ export function validateRadiusInput(draft: string): RadiusValidationResult {
       valid: false,
       valueKm: null,
       label: null,
-      error: `반경은 ${MIN_RADIUS_KM}km 이상이어야 합니다.`,
+      error: t("반경은 {{v0}}km 이상이어야 합니다.", { v0: MIN_RADIUS_KM }),
     };
   }
   if (valueKm > MAX_RADIUS_KM) {
@@ -118,7 +119,9 @@ export function validateRadiusInput(draft: string): RadiusValidationResult {
       valid: false,
       valueKm: null,
       label: null,
-      error: `반경은 ${MAX_RADIUS_KM.toLocaleString("ko-KR")}km 이하여야 합니다.`,
+      error: t("반경은 {{v0}}km 이하여야 합니다.", {
+        v0: MAX_RADIUS_KM.toLocaleString("ko-KR"),
+      }),
     };
   }
 

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("도형 편집 문서가 선택부터 완료까지 현재 기능을 안내한다", async ({ page }) => {
-  await page.goto("/editing");
+  await page.goto("/ko/editing");
 
   await expect(
     page.getByRole("heading", { name: "편집 도구 안내", level: 1 }),
@@ -28,7 +28,7 @@ test("도형 편집 문서가 선택부터 완료까지 현재 기능을 안내�
 });
 
 test("시작 문서와 화면 구성에서 도형 편집 문서로 이동한다", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/ko/");
   await page.getByRole("main").getByRole("link", { name: "편집 도구 안내" }).click();
   await expect(page).toHaveURL(/\/editing$/);
 
@@ -38,7 +38,7 @@ test("시작 문서와 화면 구성에서 도형 편집 문서로 이동한다"
 });
 
 test("실제 화면 안내에서 선택한 도구 위치와 설명이 바뀐다", async ({ page }) => {
-  await page.goto("/editing");
+  await page.goto("/ko/editing");
   const tour = page.getByRole("figure", { name: "실제 편집 화면 도구 안내" });
   await expect(tour.getByRole("img")).toHaveAttribute("src", "/docs/editor-palace.jpg");
   const original = await tour
@@ -55,10 +55,32 @@ test("실제 화면 안내에서 선택한 도구 위치와 설명이 바뀐다"
   expect(
     await tour.getByTestId("editor-tour-highlight").getAttribute("style"),
   ).not.toBe(original);
-  await tour.getByRole("button", { name: "7. 편집 완료", exact: true }).focus();
+  const highlight = tour.getByTestId("editor-tour-highlight");
+  const highlightLeft = () =>
+    highlight.evaluate((element) =>
+      Number.parseFloat((element as HTMLElement).style.left),
+    );
+  expect(await highlightLeft()).toBeGreaterThan(70);
+  await expect(tour.getByRole("img")).toHaveAttribute("alt", /오른쪽 도구 옵션/);
+  await tour.getByRole("button", { name: "5. 반경", exact: true }).click();
+  await expect(tour.getByRole("img")).toHaveAttribute("src", "/docs/editor-radius.jpg");
+  await expect(tour.locator("#editor-tour-explanation")).toContainText(
+    "원형 폴리곤 추가",
+  );
+  expect(await highlightLeft()).toBeGreaterThan(70);
+  await tour.getByRole("button", { name: "6. 레이어", exact: true }).click();
+  expect(await highlightLeft()).toBeGreaterThan(70);
+  await tour.getByRole("button", { name: "7. 작업 패널", exact: true }).click();
+  await expect(tour.getByRole("img")).toHaveAttribute(
+    "src",
+    "/docs/editor-panel-collapsed.jpg",
+  );
+  expect(await highlightLeft()).toBeGreaterThan(95);
+  await expect(tour.locator("#editor-tour-explanation")).toContainText("펼치기 버튼");
+  await tour.getByRole("button", { name: "8. 편집 완료", exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(
-    tour.getByRole("button", { name: "7. 편집 완료", exact: true }),
+    tour.getByRole("button", { name: "8. 편집 완료", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(
     tour.getByRole("heading", { name: "완료하면 서비스 페이지로 결과를 돌려줍니다" }),
@@ -69,7 +91,7 @@ test("실제 화면 안내에서 선택한 도구 위치와 설명이 바뀐다"
 test("직접 연 에디터는 여전히 입력을 기다리고 완료를 허용하지 않는다", async ({
   page,
 }) => {
-  await page.goto("/editor/");
+  await page.goto("/ko/editor/");
   await expect(
     page.getByText("호스트(부모 창)에서 데이터를 기다리는 중…", { exact: true }),
   ).toBeVisible();

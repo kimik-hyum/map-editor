@@ -1,3 +1,4 @@
+import { useT } from "@/shared/i18n/useT";
 import type { EditorSceneInput } from "@/pages/editor/types/editorTypes";
 import { useDemoMap } from "./map/useDemoMap";
 import "ol/ol.css";
@@ -5,25 +6,28 @@ import "ol/ol.css";
 type DemoSceneMapProps = { scene: EditorSceneInput };
 
 export function DemoSceneMap({ scene }: DemoSceneMapProps) {
+  const t = useT();
   const mapRef = useDemoMap(scene);
   const visibleCount = scene.features.filter(
     (feature) => feature.visible !== false,
   ).length;
   return (
     <section
-      aria-label="서비스 데이터 미리보기"
+      aria-label={t("서비스 데이터 미리보기")}
       className="overflow-hidden rounded-xl border border-line bg-white"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3 text-sm">
-        <h2 className="m-0 font-bold text-ink">샘플 데이터 미리보기</h2>
+        <h2 className="m-0 font-bold text-ink">{t("샘플 데이터 미리보기")}</h2>
         <span aria-live="polite" className="text-ink-soft">
-          전체 {scene.features.length}개 · 표시 {visibleCount}개 · 숨김{" "}
-          {scene.features.length - visibleCount}개
+          {t("전체")} {scene.features.length}
+          {t("개 · 표시")} {visibleCount}
+          {t("개 · 숨김")} {scene.features.length - visibleCount}
+          {t("개")}
         </span>
       </div>
       <div className="relative">
         <div
-          aria-label="샘플 지도"
+          aria-label={t("샘플 지도")}
           role="application"
           // biome-ignore lint/a11y/noNoninteractiveTabindex: OpenLayers의 키보드 이동·확대 입력을 받는 지도입니다.
           tabIndex={0}
@@ -32,7 +36,9 @@ export function DemoSceneMap({ scene }: DemoSceneMapProps) {
         />
         {visibleCount === 0 ? (
           <p className="pointer-events-none absolute inset-x-4 top-4 m-0 rounded-lg bg-white/95 p-3 text-center text-sm text-ink-soft">
-            표시할 도형이 없습니다. 편집기에서 도형을 추가하거나 표시 상태를 바꾸세요.
+            {t(
+              "표시할 도형이 없습니다. 편집기에서 도형을 추가하거나 표시 상태를 바꾸세요.",
+            )}
           </p>
         ) : null}
       </div>

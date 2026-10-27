@@ -1,4 +1,5 @@
-import { Link } from "react-router";
+import { useT } from "@/shared/i18n/useT";
+import { LocalizedLink as Link } from "@/shared/i18n/LocalizedLink";
 import type { DocsAudience } from "../content/docsNavigation";
 import { cn } from "@/shared/utils/cn";
 
@@ -18,9 +19,10 @@ const audiences = [
 ] as const;
 
 export function DocsAudienceSwitch({ audience }: { audience: DocsAudience }) {
+  const t = useT();
   return (
     <nav
-      aria-label="문서 대상 선택"
+      aria-label={t("문서 대상 선택")}
       className="border-b border-line bg-white px-6 max-[560px]:px-4"
     >
       <div className="mx-auto grid w-full max-w-[1392px] grid-cols-2 gap-3 py-4">
@@ -36,8 +38,8 @@ export function DocsAudienceSwitch({ audience }: { audience: DocsAudience }) {
             key={item.id}
             to={item.to}
           >
-            <strong className="block text-sm font-extrabold">{item.label}</strong>
-            <span className="mt-1 block text-sm leading-5">{item.description}</span>
+            <strong className="block text-sm font-extrabold">{t(item.label)}</strong>
+            <span className="mt-1 block text-sm leading-5">{t(item.description)}</span>
           </Link>
         ))}
       </div>

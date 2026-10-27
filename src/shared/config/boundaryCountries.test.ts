@@ -15,6 +15,20 @@ describe("경계 국가 URL과 검색", () => {
   ])("%s의 제공 가능한 초기 국가를 결정한다", (search, code) => {
     expect(resolveBoundaryCountry(search).code).toBe(code);
   });
+  it.each([
+    ["/ko/editor", "", "KR", "adminDong"],
+    ["/en/editor/", "", "US", "county"],
+    ["/en/demo", "?country=JP", "US", "county"],
+    ["/en/integration", "?country=", "US", "county"],
+    ["/en/demo", "?country=%20kr%20", "KR", "adminDong"],
+    ["/ko/demo", "?country=us", "US", "county"],
+    ["/demo", "", "KR", "adminDong"],
+  ])("%s%s는 국가와 경계 종류를 함께 결정한다", (path, search, code, kind) => {
+    expect(resolveBoundaryCountry(search, path)).toMatchObject({
+      code,
+      defaultKind: kind,
+    });
+  });
   it.each(["한국", "대한민국", "south korea", "KOR", "ｋｒ"])(
     "한국 이름/코드 %s로 찾는다",
     (query) => {

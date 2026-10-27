@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { readEditorEdits } from "./fixtures/mapNavigation";
 
 async function openEditor(page: Page) {
-  await page.goto("/demo?country=US");
+  await page.goto("/ko/demo?country=US");
   const [editor] = await Promise.all([
     page.waitForEvent("popup"),
     page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),

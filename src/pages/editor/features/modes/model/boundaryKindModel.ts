@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { Building2, Layers, MapPinned, type LucideIcon, Mail } from "lucide-react";
 import type { RegionKind } from "@/pages/editor/features/regions/api/regionsApi";
 import {
@@ -32,7 +33,7 @@ export function createBoundaryKindOptions(
   return selectSelectableRegionKinds(kinds).map((kind) => ({
     id: kind.kind,
     label: kind.label,
-    description: `z${kind.min_zoom}부터 표시`,
+    description: t("z{{v0}}부터 표시", { v0: kind.min_zoom }),
     icon: iconForKind(kind.kind),
   }));
 }

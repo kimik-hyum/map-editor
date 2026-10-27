@@ -4,7 +4,7 @@ import { createEditorHost } from "./createEditorHost";
 
 afterEach(() => vi.unstubAllGlobals());
 
-function setup(search = "") {
+function setup(search = "", pathname = "/ko/demo") {
   let scene: EditorSceneInput = {
     version: 2,
     features: [
@@ -18,7 +18,11 @@ function setup(search = "") {
   const clearInterval = vi.fn();
   const removeEventListener = vi.fn();
   vi.stubGlobal("window", {
-    location: { href: `https://host.example/demo/${search}`, search },
+    location: {
+      pathname,
+      href: `https://host.example${pathname}${search}`,
+      search,
+    },
     open,
     addEventListener: (_type: string, listener: typeof receive) => {
       receive = listener;
@@ -72,14 +76,17 @@ function setup(search = "") {
 
 describe("Demo 부모 편집 회차", () => {
   it.each([
-    ["?country=us&unrelated=private", "?country=US"],
-    ["?country=unknown", ""],
-    ["", ""],
-  ])("초기 국가만 편집기 URL에 전달한다: %s", (search, expected) => {
-    const s = setup(search);
+    ["/ko/demo", "?country=us&unrelated=private", "/ko/editor/?country=US"],
+    ["/ko/demo", "?country=unknown", "/ko/editor/?country=KR"],
+    ["/ko/demo", "", "/ko/editor/?country=KR"],
+    ["/en/demo", "", "/en/editor/?country=US"],
+    ["/en/integration", "?country=unknown", "/en/editor/?country=US"],
+    ["/en/integration", "?country=kr", "/en/editor/?country=KR"],
+  ])("%s%s의 초기 국가만 편집기 URL에 전달한다", (pathname, search, expected) => {
+    const s = setup(search, pathname);
     s.host.open();
     expect(s.open).toHaveBeenCalledWith(
-      `https://host.example/editor/${expected}`,
+      `https://host.example${expected}`,
       "map-editor-child",
     );
   });

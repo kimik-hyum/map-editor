@@ -1,3 +1,4 @@
+import { useT } from "@/shared/i18n/useT";
 import { PaintBucket } from "lucide-react";
 import type { HoleFillTool } from "../hooks/useHoleFillTool";
 
@@ -8,14 +9,15 @@ type HoleFillButtonProps = {
 };
 
 export function HoleFillButton({ featureId, name, tool }: HoleFillButtonProps) {
+  const t = useT();
   const reason = tool.getDisabledReason(featureId);
   const title =
-    reason ?? "빈 공간 채우기 · 지정 면적 이하의 내부 구멍을 미리 보고 채웁니다";
+    reason ?? t("빈 공간 채우기 · 지정 면적 이하의 내부 구멍을 미리 보고 채웁니다");
   return (
     // disabled 버튼이 마우스 이벤트를 받지 않는 브라우저에서도 native title을 노출합니다.
     <span className="inline-flex shrink-0" title={title}>
       <button
-        aria-label={`${name} 빈 공간 채우기`}
+        aria-label={t("{{v0}} 빈 공간 채우기", { v0: name })}
         aria-description={title}
         aria-haspopup="dialog"
         aria-expanded={tool.session?.featureId === featureId}

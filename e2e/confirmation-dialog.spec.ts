@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("전역 confirmDialog는 어느 화면에서든 열리고 boolean 결과를 반환한다", async ({
   page,
 }) => {
-  await page.goto("/demo");
+  await page.goto("/ko/demo");
   await expect(
     page.getByRole("button", { name: "편집기 새 탭으로 열기" }),
   ).toBeVisible();

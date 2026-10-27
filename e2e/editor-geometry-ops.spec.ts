@@ -48,7 +48,7 @@ const OTHER_GEOMETRY: PolygonGeometry = {
 };
 
 async function openEditorWithOverlappingPolygons(page: Page): Promise<Page> {
-  await page.goto("/demo");
+  await page.goto("/ko/demo");
   const [editorPage] = await Promise.all([
     page.waitForEvent("popup"),
     page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),

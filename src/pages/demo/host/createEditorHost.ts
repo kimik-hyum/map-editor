@@ -1,3 +1,5 @@
+import { getLocale, localizePath } from "@/shared/i18n/locale";
+import { t } from "@/shared/i18n/i18n";
 import {
   createInitMessage,
   getMessageType,
@@ -7,7 +9,7 @@ import {
   EditorMessageType,
   type EditorSceneInput,
 } from "@/pages/editor/types/editorTypes";
-import { readBoundaryCountry } from "@/shared/config/boundaryCountries";
+import { resolveBoundaryCountry } from "@/shared/config/boundaryCountries";
 
 export type EditorHostStatus =
   | "idle"
@@ -29,8 +31,16 @@ type EditorHostOptions = {
 // 부모 상태와 별개로 팝업 한 회차의 입력·origin·session을 고정합니다.
 export function createEditorHost(options: EditorHostOptions) {
   const editorUrl = new URL("/editor/", window.location.href);
-  const country = readBoundaryCountry(window.location.search);
-  if (country) editorUrl.searchParams.set("country", country.code);
+  const updateEditorUrl = () => {
+    editorUrl.pathname = localizePath("/editor/", getLocale(window.location.pathname));
+    const country = resolveBoundaryCountry(
+      window.location.search,
+      window.location.pathname,
+    );
+    editorUrl.search = "";
+    // 팝업에서 표시 언어만 바꾸어도 이번 편집 회차의 경계 선택은 유지합니다.
+    editorUrl.searchParams.set("country", country.code);
+  };
   let child: Window | null = null;
   let sessionId: string | null = null;
   let inputSnapshot: EditorSceneInput | null = null;
@@ -60,7 +70,7 @@ export function createEditorHost(options: EditorHostOptions) {
       options.onError(
         typeof data.message === "string"
           ? data.message
-          : "에디터에서 오류를 반환했습니다.",
+          : t("에디터에서 오류를 반환했습니다."),
       );
       options.onStatus("error");
       return;
@@ -73,7 +83,9 @@ export function createEditorHost(options: EditorHostOptions) {
     if (!message) {
       // 신뢰한 창의 현재 회차만 오류로 표시합니다. 원본과 팝업을 유지해 재시도를 허용합니다.
       options.onError(
-        "편집 결과의 데이터 형식이 올바르지 않아 저장하지 못했습니다. 편집창에서 수정 후 다시 저장하세요.",
+        t(
+          "편집 결과의 데이터 형식이 올바르지 않아 저장하지 못했습니다. 편집창에서 수정 후 다시 저장하세요.",
+        ),
       );
       options.onStatus("error");
       return;
@@ -95,6 +107,7 @@ export function createEditorHost(options: EditorHostOptions) {
 
   return {
     open() {
+      updateEditorUrl();
       if (child && !child.closed) {
         child.focus();
         return;
@@ -106,7 +119,7 @@ export function createEditorHost(options: EditorHostOptions) {
       const opened = window.open(editorUrl.href, "map-editor-child");
       if (!opened) {
         options.onError(
-          "팝업이 차단되었습니다. 브라우저 팝업 허용 후 다시 시도하세요.",
+          t("팝업이 차단되었습니다. 브라우저 팝업 허용 후 다시 시도하세요."),
         );
         options.onStatus("error");
         return;

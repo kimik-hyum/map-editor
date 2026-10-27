@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { z } from "zod";
 import { getAuthenticatedFunctionRequest } from "@/features/auth/api/supabaseClient";
 import {
@@ -81,10 +82,10 @@ export class RegionApiError extends Error {
   ) {
     super(
       code === "REGION_COUNTRY_BLOCKED"
-        ? "경계 데이터는 한국에서만 이용할 수 있습니다."
+        ? t("경계 데이터는 한국에서만 이용할 수 있습니다.")
         : code === "REGION_GATEWAY_REQUIRED"
-          ? "한국 접속 확인을 위해 에디터를 새로고침해주세요."
-          : `${label} 호출 실패: ${status}`,
+          ? t("한국 접속 확인을 위해 에디터를 새로고침해주세요.")
+          : t("{{v0}} 호출 실패: {{v1}}", { v0: label, v1: status }),
     );
     this.name = "RegionApiError";
   }
@@ -98,7 +99,7 @@ async function parseResponse<T>(
   const payload: unknown = await response.json();
   const result = schema.safeParse(payload);
   if (!result.success) {
-    throw new Error(`${label} 응답 형식이 올바르지 않습니다.`);
+    throw new Error(t("{{v0}} 응답 형식이 올바르지 않습니다.", { v0: label }));
   }
   return result.data;
 }
@@ -145,7 +146,7 @@ export async function searchRegions(
     normalized.length < REGION_SEARCH_MIN_LENGTH ||
     normalized.length > REGION_SEARCH_MAX_LENGTH
   )
-    throw new Error("검색어를 2–100자로 입력해주세요.");
+    throw new Error(t("검색어를 2–100자로 입력해주세요."));
   const result = await callRegionFunction(
     "search",
     { country, kind, query: normalized, limit: REGION_SEARCH_LIMIT },
@@ -158,7 +159,7 @@ export async function searchRegions(
     result.country !== country ||
     result.items.some((item) => item.kind !== kind)
   )
-    throw new Error("검색 결과의 경계 종류가 일치하지 않습니다.");
+    throw new Error(t("검색 결과의 경계 종류가 일치하지 않습니다."));
   return result;
 }
 
@@ -213,7 +214,7 @@ export async function fetchRegionsByTile(
     data.kind !== manifest.kind ||
     data.truncated
   )
-    throw new Error("경계 타일 버전 또는 응답 범위가 일치하지 않습니다.");
+    throw new Error(t("경계 타일 버전 또는 응답 범위가 일치하지 않습니다."));
   return data;
 }
 

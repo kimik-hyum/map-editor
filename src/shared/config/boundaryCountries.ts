@@ -1,3 +1,5 @@
+import { getLocale, type Locale } from "../i18n/locale";
+
 // 실제 경계 공급자가 연결된 국가만 등록합니다. 국가별 명칭/검색어는 UI와 URL이 공유합니다.
 export const boundaryCountries = [
   {
@@ -23,8 +25,16 @@ export function readBoundaryCountry(search: string): BoundaryCountry | undefined
   return boundaryCountries.find((country) => country.code === code);
 }
 
-export function resolveBoundaryCountry(search: string): BoundaryCountry {
-  return readBoundaryCountry(search) ?? boundaryCountries[0];
+const defaultBoundaryCountries: Record<Locale, BoundaryCountry> = {
+  ko: boundaryCountries[0],
+  en: boundaryCountries[1],
+};
+
+export function resolveBoundaryCountry(
+  search: string,
+  pathname = "/",
+): BoundaryCountry {
+  return readBoundaryCountry(search) ?? defaultBoundaryCountries[getLocale(pathname)];
 }
 
 export function matchesBoundaryCountry(country: BoundaryCountry, query: string) {

@@ -35,7 +35,7 @@ async function rename(editor: Page, before: string, after: string) {
 test("샘플 지도에서 시작해 이름·표시를 저장하고 수정본으로 다시 편집한다", async ({
   page,
 }) => {
-  await page.goto("/demo");
+  await page.goto("/ko/demo");
   await expect(
     page.getByRole("application", { name: "샘플 지도", exact: true }),
   ).toBeVisible();
@@ -81,7 +81,7 @@ test("샘플 지도에서 시작해 이름·표시를 저장하고 수정본으�
 test("새 도형 geometry를 부모에게 돌려주고 취소하면 마지막 저장 상태를 유지한다", async ({
   page,
 }) => {
-  await page.goto("/demo");
+  await page.goto("/ko/demo");
   const editor = await openEditor(page);
   await editor.getByRole("button", { name: "폴리곤 그리기" }).click();
   const shapePicker = editor.getByRole("region", { name: "추가할 도형" });
@@ -114,7 +114,7 @@ test("중복 열기와 팝업 수동 종료로 부모 데이터가 초기화되�
   page,
   context,
 }) => {
-  await page.goto("/demo");
+  await page.goto("/ko/demo");
   const before = await readParentScene(page);
   const editor = await openEditor(page);
   await rename(editor, "권역 A", "진행 중 이름");
@@ -132,7 +132,7 @@ test("모바일에서도 지도·현재 데이터와 편집 버튼이 화면 폭
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/demo");
+  await page.goto("/ko/demo");
   await expect(
     page.getByRole("button", { name: "편집기 새 탭으로 열기" }),
   ).toBeVisible();
@@ -150,7 +150,7 @@ test("모바일에서도 지도·현재 데이터와 편집 버튼이 화면 폭
 test("기존 폴리곤 좌표 수정이 샘플 지도 데이터와 다음 편집에도 유지된다", async ({
   page,
 }) => {
-  await page.goto("/demo");
+  await page.goto("/ko/demo");
   const before = (await readParentScene(page)).features.find(
     (f) => f.name === "권역 A",
   )?.geometry;

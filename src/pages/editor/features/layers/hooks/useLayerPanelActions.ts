@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { useCallback } from "react";
 import { EditorMode, canDrawInEmptyLayer } from "@/pages/editor/types/editorTypes";
 import { toggleFeatureSelection } from "@/pages/editor/features/selection";
@@ -94,12 +95,12 @@ export function useLayerPanelActions() {
       }
       const contextAtRequest = useEditorStore.getState();
       const confirmed = await confirmDialog({
-        title: `“${row.name}” 레이어를 삭제할까요?`,
+        title: t("“{{v0}}” 레이어를 삭제할까요?", { v0: row.name }),
         description: row.isEmpty
-          ? "빈 레이어를 삭제합니다. 실행 취소로 복원할 수 있습니다."
-          : "생성한 도형이 함께 삭제됩니다. 실행 취소로 복원할 수 있습니다.",
-        confirmLabel: "삭제",
-        cancelLabel: "취소",
+          ? t("빈 레이어를 삭제합니다. 실행 취소로 복원할 수 있습니다.")
+          : t("생성한 도형이 함께 삭제됩니다. 실행 취소로 복원할 수 있습니다."),
+        confirmLabel: t("삭제"),
+        cancelLabel: t("취소"),
         tone: "danger",
         initialFocus: "cancel",
       });

@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth, useBoundaryAccess } from "@/features/auth";
 import { confirmDialog } from "@/shared/ui/confirmation-dialog";
@@ -42,11 +43,12 @@ export function useBoundaryLogin() {
 
     try {
       const confirmed = await confirmDialog({
-        title: "경계 데이터를 사용하려면 로그인해주세요",
-        description:
+        title: t("경계 데이터를 사용하려면 로그인해주세요"),
+        description: t(
           "일반 편집은 로그인 없이 사용할 수 있습니다. Google 로그인은 별도 창에서 진행되며, 부모 창에서 받은 데이터와 편집 내용은 그대로 유지됩니다.",
-        confirmLabel: "Google로 로그인",
-        cancelLabel: "취소",
+        ),
+        confirmLabel: t("Google로 로그인"),
+        cancelLabel: t("취소"),
         initialFocus: "cancel",
       });
       if (!confirmed || controller.signal.aborted) {

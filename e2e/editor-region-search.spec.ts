@@ -77,7 +77,7 @@ async function prepare(context: BrowserContext, page: Page, fail = false) {
       },
     });
   });
-  await page.goto("/demo");
+  await page.goto("/ko/demo");
   const [editor] = await Promise.all([
     page.waitForEvent("popup"),
     page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),

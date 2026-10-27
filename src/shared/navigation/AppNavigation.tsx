@@ -1,4 +1,9 @@
-import { Link, NavLink, useLocation } from "react-router";
+import { LanguageSwitcher } from "@/shared/i18n/LanguageSwitcher";
+import { stripLocale } from "@/shared/i18n/locale";
+import { useT } from "@/shared/i18n/useT";
+import { useLocation } from "react-router";
+import { LocalizedNavLink as NavLink } from "@/shared/i18n/LocalizedNavLink";
+import { LocalizedLink as Link } from "@/shared/i18n/LocalizedLink";
 import { TermiaLogo } from "@/shared/branding/TermiaLogo";
 import { cn } from "../utils/cn";
 
@@ -25,8 +30,9 @@ const navLinkBaseClassName =
 const navLinkActiveClassName = "bg-brand-soft text-brand";
 
 export function AppNavigation({ className }: AppNavigationProps) {
+  const t = useT();
   const { pathname } = useLocation();
-  const normalizedPath = pathname.replace(/\/$/, "") || "/";
+  const normalizedPath = stripLocale(pathname).replace(/\/$/, "") || "/";
   const isDocsPath =
     ["/", "/screen", "/editing", "/integration", "/authentication"].includes(
       normalizedPath,
@@ -41,13 +47,14 @@ export function AppNavigation({ className }: AppNavigationProps) {
     >
       <div className={navigationInnerClassName}>
         <Link
-          aria-label="Termia 홈"
+          aria-label={t("Termia 홈")}
           className="rounded-md no-underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
           to="/"
         >
           <TermiaLogo />
         </Link>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher />
           {links.map((link) => (
             <NavLink
               className={({ isActive }) =>
@@ -60,7 +67,7 @@ export function AppNavigation({ className }: AppNavigationProps) {
               }
               end={link.to === "/"}
               key={link.to}
-              // 편집기 진입은 Cloudflare의 접속 국가 기본값 판정을 거칩니다.
+              // 새 편집 회차는 현재 언어의 기본 국가로 초기화합니다.
               reloadDocument={link.to === "/editor"}
               to={link.to}
             >

@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type OpenLayersMap from "ol/Map";
 import {
@@ -141,10 +142,12 @@ export function useDrawTool(map: OpenLayersMap | null) {
     const sessionIdAtRequest = confirmationContext.sessionId;
 
     const confirmed = await confirmDialog({
-      title: "그리기를 취소할까요?",
-      description: `지금까지 찍은 점 ${currentSketch.vertexCount}개는 저장되지 않습니다.`,
-      confirmLabel: "그리기 취소",
-      cancelLabel: "계속 그리기",
+      title: t("그리기를 취소할까요?"),
+      description: t("지금까지 찍은 점 {{v0}}개는 저장되지 않습니다.", {
+        v0: currentSketch.vertexCount,
+      }),
+      confirmLabel: t("그리기 취소"),
+      cancelLabel: t("계속 그리기"),
       tone: "danger",
       initialFocus: "cancel",
     });
@@ -285,7 +288,7 @@ export function useDrawTool(map: OpenLayersMap | null) {
     hint: getToolActivation(activeMode).draw
       ? drawTargetAvailable
         ? resolveDrawHint(activeDrawShape, sketch.isDrawing)
-        : "이름 편집을 마치고, 선택한 빈 레이어를 표시·잠금 해제하세요"
+        : t("이름 편집을 마치고, 선택한 빈 레이어를 표시·잠금 해제하세요")
       : null,
     showPathFinish:
       getToolActivation(activeMode).draw &&

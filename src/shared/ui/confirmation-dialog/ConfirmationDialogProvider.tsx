@@ -1,3 +1,4 @@
+import { useT } from "@/shared/i18n/useT";
 import { type ReactNode, useEffect, useSyncExternalStore } from "react";
 import { ConfirmationDialog } from "./ConfirmationDialog";
 import {
@@ -12,6 +13,7 @@ type ConfirmationDialogProviderProps = {
 export function ConfirmationDialogProvider({
   children,
 }: ConfirmationDialogProviderProps) {
+  const t = useT();
   const snapshot = useSyncExternalStore(
     confirmationDialogStore.subscribe,
     confirmationDialogStore.getSnapshot,
@@ -33,8 +35,8 @@ export function ConfirmationDialogProvider({
         <ConfirmationDialog
           key={request.id}
           open
-          cancelLabel={request.options.cancelLabel ?? "취소"}
-          confirmLabel={request.options.confirmLabel ?? "확인"}
+          cancelLabel={request.options.cancelLabel ?? t("취소")}
+          confirmLabel={request.options.confirmLabel ?? t("확인")}
           description={request.options.description}
           initialFocus={request.options.initialFocus ?? "cancel"}
           onCancel={() => confirmationDialogStore.respond(request.id, false)}

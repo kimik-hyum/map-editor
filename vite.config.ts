@@ -5,7 +5,7 @@ import { defineConfig, loadEnv } from "vite";
 import { regionPreviewProxy } from "./scripts/regionPreviewProxy";
 
 export default defineConfig(({ command, mode }) => ({
-  base: "./",
+  base: "/",
   plugins: [tailwindcss(), react()],
   resolve: {
     alias: {

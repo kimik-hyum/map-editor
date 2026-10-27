@@ -28,7 +28,7 @@ test("데모가 새 창 에디터에 postMessage로 scene을 전달하고 에디
     });
   });
 
-  await page.goto("/demo");
+  await page.goto("/ko/demo");
 
   // 버튼 클릭 → 새 창(에디터)이 열리고 READY/INIT 핸드셰이크가 시작된다.
   const [editorPage] = await Promise.all([

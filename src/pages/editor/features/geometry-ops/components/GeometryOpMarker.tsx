@@ -1,3 +1,4 @@
+import { useT } from "@/shared/i18n/useT";
 import { Button } from "@base-ui/react/button";
 import { Blend, Minus, Plus, TriangleAlert } from "lucide-react";
 import {
@@ -37,8 +38,9 @@ export function GeometryOpMarker({
   disabled = false,
   zoom = 12,
 }: GeometryOpMarkerProps) {
+  const t = useT();
   const metrics = getMapAnnotationMetrics(zoom);
-  const primaryLabel = primaryAction === "create" ? "추가" : "합치기";
+  const primaryLabel = primaryAction === "create" ? t("추가") : t("합치기");
   const showSubtractButton = canSubtract || showSubtract || overlapError;
   const size = getMapAnnotationSize(
     name,
@@ -54,7 +56,7 @@ export function GeometryOpMarker({
     "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border p-0 transition-colors enabled:hover:ring-2 enabled:hover:ring-white/70 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-35";
   return (
     <fieldset
-      aria-label={`${name} 경계 작업`}
+      aria-label={t("{{v0}} 경계 작업", { v0: name })}
       data-map-annotation
       data-map-zoom={zoom}
       className="m-0 flex min-w-0 flex-col items-center gap-0.5 border-0 p-0"
@@ -76,8 +78,8 @@ export function GeometryOpMarker({
         {overlapError ? (
           <span
             role="img"
-            aria-label={`${name} 겹침 계산 실패`}
-            title="겹침을 계산하지 못했습니다. 도형을 확인해주세요."
+            aria-label={t("{{v0}} 겹침 계산 실패", { v0: name })}
+            title={t("겹침을 계산하지 못했습니다. 도형을 확인해주세요.")}
           >
             <TriangleAlert aria-hidden style={iconStyle} />
           </span>
@@ -90,10 +92,10 @@ export function GeometryOpMarker({
           onClick={onMerge}
           title={
             disabled
-              ? "경계 연산이 완료될 때까지 기다려주세요"
+              ? t("경계 연산이 완료될 때까지 기다려주세요")
               : primaryAction === "create"
-                ? "이 경계를 새 도형으로 추가"
-                : "이 경계를 선택 도형과 합치기"
+                ? t("이 경계를 새 도형으로 추가")
+                : t("이 경계를 선택 도형과 합치기")
           }
           type="button"
         >
@@ -101,12 +103,12 @@ export function GeometryOpMarker({
         </Button>
         {canIntersect ? (
           <Button
-            aria-label={`${name} 교집합`}
+            aria-label={t("{{v0}} 교집합", { v0: name })}
             className={`${sharedButtonClass} border-map-intersect bg-map-intersect text-white focus-visible:outline-map-intersect`}
             style={buttonStyle}
             disabled={disabled}
             onClick={onIntersect}
-            title="교집합 (선택 도형과 겹치는 부분만 남기기)"
+            title={t("교집합 (선택 도형과 겹치는 부분만 남기기)")}
             type="button"
           >
             <Blend aria-hidden style={iconStyle} strokeWidth={2} />
@@ -114,19 +116,21 @@ export function GeometryOpMarker({
         ) : null}
         {showSubtractButton ? (
           <Button
-            aria-label={`${name} 겹친 부분 제거`}
+            aria-label={t("{{v0}} 겹친 부분 제거", { v0: name })}
             className={`${sharedButtonClass} border-map-subtract bg-map-subtract text-white focus-visible:outline-map-subtract`}
             style={buttonStyle}
             disabled={disabled || !canSubtract}
             onClick={onSubtract}
             title={
               disabled
-                ? "경계 연산이 완료될 때까지 기다려주세요"
+                ? t("경계 연산이 완료될 때까지 기다려주세요")
                 : overlapError
-                  ? "겹침 계산에 실패해 제거할 수 없습니다. 도형을 확인해주세요."
+                  ? t("겹침 계산에 실패해 제거할 수 없습니다. 도형을 확인해주세요.")
                   : !canSubtract
-                    ? "편집 가능한 폴리곤 하나를 선택하고 이 경계와 겹칠 때 사용할 수 있습니다"
-                    : "선택 도형에서 이 경계와 겹친 부분 빼기"
+                    ? t(
+                        "편집 가능한 폴리곤 하나를 선택하고 이 경계와 겹칠 때 사용할 수 있습니다",
+                      )
+                    : t("선택 도형에서 이 경계와 겹친 부분 빼기")
             }
             type="button"
           >

@@ -1,14 +1,14 @@
 import { expect, test } from "@playwright/test";
 
 const integrationDocuments = [
-  ["/", "도형을 보내고, 편집 결과를 돌려받으세요"],
-  ["/integration", "편집 창 연동하기"],
-  ["/editing", "편집 도구 안내"],
+  ["/ko/", "도형을 보내고, 편집 결과를 돌려받으세요"],
+  ["/ko/integration", "편집 창 연동하기"],
+  ["/ko/editing", "편집 도구 안내"],
 ];
 const selfHostingDocuments = [
-  ["/self-hosting", "직접 운영·커스텀"],
-  ["/self-hosting/boundaries", "경계 데이터 어댑터"],
-  ["/authentication", "Google·Supabase 구성 (선택)"],
+  ["/ko/self-hosting", "직접 운영·커스텀"],
+  ["/ko/self-hosting/boundaries", "경계 데이터 어댑터"],
+  ["/ko/authentication", "Google·Supabase 구성 (선택)"],
 ];
 const documents = [...integrationDocuments, ...selfHostingDocuments];
 
@@ -32,7 +32,7 @@ test("대상별 문서 목차의 모든 경로·앵커가 유효하며 비로그
     const audiences = page.getByRole("navigation", { name: "문서 대상 선택" });
     await expect(audiences.locator('a[aria-current="true"]')).toHaveAttribute(
       "href",
-      selfHosted ? "/self-hosting" : "/",
+      selfHosted ? "/ko/self-hosting" : "/ko/",
     );
     const anchors = await nav
       .locator('a[href^="#"]')
@@ -48,7 +48,7 @@ test("대상별 문서 목차의 모든 경로·앵커가 유효하며 비로그
 });
 
 test("사용자는 연동과 결과를 읽고 운영자는 별도 목차로 전환한다", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/ko/");
   const nav = page.getByRole("navigation", { name: "사용·연동 안내" });
   await expect(nav.getByRole("link", { name: /인증|Supabase|어댑터/ })).toHaveCount(0);
   await expect(
@@ -74,7 +74,7 @@ test("사용자는 연동과 결과를 읽고 운영자는 별도 목차로 전�
 });
 
 test("인증 문서는 공개 설정·callback·실제 권한 경계를 구분한다", async ({ page }) => {
-  await page.goto("/authentication");
+  await page.goto("/ko/authentication");
   await expect(
     page.getByRole("heading", { name: "경계를 선택할 때만 로그인" }),
   ).toBeVisible();
@@ -90,7 +90,7 @@ test("인증 문서는 공개 설정·callback·실제 권한 경계를 구분�
 
 test("예제 코드를 복사할 수 있다", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.goto("/integration");
+  await page.goto("/ko/integration");
   await page
     .getByText("지도 화면에 결과 반영하기 · bindMapEditor", { exact: true })
     .click();
@@ -119,7 +119,7 @@ test("좁은 화면에서도 본문이 화면 밖으로 넘치지 않는다", as
 test("다른 문서의 섹션 링크와 이전 screen 주소가 해당 본문으로 이동한다", async ({
   page,
 }) => {
-  await page.goto("/integration");
+  await page.goto("/ko/integration");
   await page.getByRole("link", { name: "편집 완료 조건", exact: true }).click();
   await expect(page).toHaveURL(/\/editing#finish$/);
   const finish = page.locator("#finish");

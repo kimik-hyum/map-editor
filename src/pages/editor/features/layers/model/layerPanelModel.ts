@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n/i18n";
 import { editorDefaultTheme } from "@/pages/editor/theme/editorTheme";
 import { resolvePolygonStyle } from "@/pages/editor/theme/editorStyleResolver";
 import {
@@ -133,7 +134,7 @@ export function createLayerPanelViewModel(
         isEmpty: true,
         canDraw: canDrawInEmptyLayer(layer),
         name: layer.name,
-        geometryKindLabel: "빈 레이어",
+        geometryKindLabel: t("빈 레이어"),
         visibility: layer.view.visibility,
         isVisible: layer.view.visibility !== VisibilityState.Hidden,
         isDimmed: layer.view.visibility === VisibilityState.Dimmed,

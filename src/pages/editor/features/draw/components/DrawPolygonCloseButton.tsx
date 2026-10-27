@@ -1,3 +1,4 @@
+import { useT } from "@/shared/i18n/useT";
 import { CircleDotDashed } from "lucide-react";
 
 type DrawPolygonCloseButtonProps = {
@@ -14,6 +15,7 @@ export function DrawPolygonCloseButton({
   vertexCount,
   onClose,
 }: DrawPolygonCloseButtonProps) {
+  const t = useT();
   if (!visible) {
     return null;
   }
@@ -21,15 +23,18 @@ export function DrawPolygonCloseButton({
   return (
     <div className="absolute bottom-7 left-1/2 z-40 -translate-x-1/2">
       <button
-        aria-label="폴리곤 시작점에서 닫기"
+        aria-label={t("폴리곤 시작점에서 닫기")}
         className="flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-extrabold text-white shadow-xl transition-colors enabled:hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-500"
         disabled={!enabled}
         onClick={onClose}
         type="button"
       >
         <CircleDotDashed aria-hidden className="h-4 w-4" strokeWidth={2.5} />
-        <span>시작점에서 닫기</span>
-        <span className="text-xs font-semibold text-white">{vertexCount}점</span>
+        <span>{t("시작점에서 닫기")}</span>
+        <span className="text-xs font-semibold text-white">
+          {vertexCount}
+          {t("점")}
+        </span>
       </button>
     </div>
   );

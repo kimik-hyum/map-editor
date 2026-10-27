@@ -1,3 +1,4 @@
+import { useT } from "@/shared/i18n/useT";
 import { useEditorStore } from "@/pages/editor/state/editorStore";
 import { drawShapeOptions } from "../model/drawShapeModel";
 import { ToolOptionsSection } from "./ToolOptionsSection";
@@ -8,6 +9,7 @@ type DrawShapeOptionsProps = {
 
 // 그리기(추가) 도구로 만들 도형(폴리곤/패스/마커)을 고르는 고정 옵션입니다. 공용 ToolOptionsSection에 store를 연결합니다.
 export function DrawShapeOptions({ confirmDiscardDraw }: DrawShapeOptionsProps) {
+  const t = useT();
   const activeDrawShape = useEditorStore((state) => state.activeDrawShape);
   const setActiveDrawShape = useEditorStore((state) => state.setActiveDrawShape);
 
@@ -34,7 +36,7 @@ export function DrawShapeOptions({ confirmDiscardDraw }: DrawShapeOptionsProps) 
         })();
       }}
       options={drawShapeOptions}
-      title="추가할 도형"
+      title={t("추가할 도형")}
     />
   );
 }
