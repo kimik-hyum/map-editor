@@ -1,3 +1,6 @@
+import type { Locale } from "@/shared/i18n/locale";
+import minimalSource from "./examples/minimal-service.example.ts?raw";
+import usMinimalSource from "./examples/minimal-service-us.example.ts?raw";
 import editorContractSource from "./examples/editor-contract.example.ts?raw";
 import inputSource from "./examples/input-scene.example.ts?raw";
 import { inputScene } from "./examples/input-scene.example";
@@ -12,3 +15,7 @@ export const resultUsageExample = parentPageSource;
 
 export { default as palaceStarterExample } from "./examples/gyeongbokgung.example.ts?raw";
 export { default as minimalServiceExample } from "./examples/minimal-service.example.ts?raw";
+
+export function getMinimalServiceExample(locale: Locale) {
+  return locale === "en" ? usMinimalSource : minimalSource;
+}

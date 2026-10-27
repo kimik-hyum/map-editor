@@ -24,7 +24,7 @@ test("영어 문서는 직접 진입하고 모든 메뉴가 언어를 보존한�
     page.getByRole("contentinfo").getByRole("link", { name: "About" }),
   ).toHaveAttribute("href", "/en/about");
   await expect(
-    page.getByRole("button", { name: "Edit the Gyeongbokgung example in a new tab" }),
+    page.getByRole("button", { name: "Edit the Central Park example in a new tab" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Select language: English" }).click();
   await page.getByRole("menuitemradio", { name: "한국어" }).click();
@@ -49,7 +49,7 @@ test("언어 전환은 지도·scene·편집 이력·국가·호스트 연결을
   ]);
   await expect(editor).toHaveURL(/\/en\/editor\/\?country=US$/);
   await expect(
-    editor.getByRole("button", { name: "Select 권역 A", exact: true }),
+    editor.getByRole("button", { name: "Select Area A", exact: true }),
   ).toBeVisible();
   await expect(editor.locator(".ol-zoom-in")).toHaveAttribute("title", "Zoom in");
   await editor.getByRole("button", { name: "Add layer", exact: true }).click();

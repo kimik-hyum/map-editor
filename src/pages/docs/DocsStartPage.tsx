@@ -10,7 +10,7 @@ import {
   DocsText,
 } from "./components";
 import { DocsTable } from "./components/DocsTable";
-import { DocsGyeongbokgungExample } from "./components/DocsGyeongbokgungExample";
+import { DocsSceneExample } from "./components/DocsSceneExample";
 
 export function DocsStartPage() {
   const t = useT();
@@ -162,7 +162,7 @@ export function DocsStartPage() {
             "아래 예제에서는 이 문서가 서비스 페이지 역할을 합니다. 편집 창으로 도형을 보내고, 편집을 완료하면 받은 결과로 아래 지도와 JSON을 갱신합니다. 실제 편집 창의 완료 버튼 이름은 ‘저장하고 편집 완료’입니다.",
           )}
         </DocsText>
-        <DocsGyeongbokgungExample />
+        <DocsSceneExample />
         <DocsText className="mt-3">
           {t(
             "직접 그리기와 보낸 도형 편집은 로그인 없이 사용할 수 있습니다. 공개 편집기의 참고 경계를 사용할 때 필요한 로그인은 편집 창에서 안내합니다.",

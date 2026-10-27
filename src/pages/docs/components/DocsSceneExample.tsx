@@ -1,79 +1,39 @@
-import { useLocation } from "react-router";
-import { getLocale, localizePath } from "@/shared/i18n/locale";
 import { useT } from "@/shared/i18n/useT";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useContext } from "react";
+import { LocaleContext } from "@/shared/i18n/localeContext";
+import { useEditorHost, type EditorHostStatus } from "@/pages/demo/host/useEditorHost";
+import { getDocsExample, getDocsScene } from "../content/localizedExamples";
 import { ExternalLink, RotateCcw } from "lucide-react";
-import { inputScene } from "../content/examples/input-scene.example";
-import inputSceneExplanation from "../content/examples/input-scene.example.jsonc?raw";
-import type { EditorSceneInput } from "../content/examples/editor-contract.example";
-import { createMapEditorHost } from "../content/examples/map-editor-host.example";
 import { DocsCodeBlock } from "./DocsCodeBlock";
 
 const DocsExampleMap = lazy(() =>
   import("./DocsExampleMap").then((module) => ({ default: module.DocsExampleMap })),
 );
 
-export function DocsGyeongbokgungExample() {
+const statusLabels: Record<EditorHostStatus, string> = {
+  idle: "폴리곤·선·마커가 각각 1개씩 준비되었습니다.",
+  opening:
+    "편집 창을 열었습니다. 권역·경로·마커를 선택해 편집한 뒤 ‘저장하고 편집 완료’를 눌러보세요.",
+  connected:
+    "편집 창을 열었습니다. 권역·경로·마커를 선택해 편집한 뒤 ‘저장하고 편집 완료’를 눌러보세요.",
+  submitted: "편집 결과를 받았습니다. 아래 지도와 JSON에 반영했습니다.",
+  cancelled: "취소했습니다. 기존 편집 데이터를 유지합니다.",
+  closed: "에디터 탭이 닫힘 · 서비스 데이터 유지",
+  error: "오류",
+};
+
+export function DocsSceneExample() {
   const t = useT();
-  const { pathname } = useLocation();
-  const [scene, setScene] = useState<EditorSceneInput>(() =>
-    structuredClone(inputScene),
-  );
-  const sceneRef = useRef(scene);
-  const [status, setStatus] = useState(
-    t("폴리곤·선·마커가 각각 1개씩 준비되었습니다."),
-  );
-  const [saved, setSaved] = useState(false);
-  const hostRef = useRef<ReturnType<typeof createMapEditorHost> | null>(null);
-  useEffect(() => {
-    const host = createMapEditorHost({
-      editorUrl: new URL(
-        localizePath("/editor/", getLocale(pathname)),
-        window.location.href,
-      ).href,
-      getScene: () => sceneRef.current,
-      onSubmit(next) {
-        sceneRef.current = next;
-        setScene(next);
-        setSaved(true);
-        setStatus("편집 결과를 받았습니다. 아래 지도와 JSON에 반영했습니다.");
-      },
-      onCancel() {
-        setStatus("취소했습니다. 기존 편집 데이터를 유지합니다.");
-      },
-      onError: setStatus,
-    });
-    hostRef.current = host;
-    return () => {
-      hostRef.current = null;
-      host.dispose();
-    };
-  }, [pathname]);
-  const open = () => {
-    try {
-      hostRef.current?.open();
-      setStatus(
-        t(
-          "편집 창을 열었습니다. 권역·경로·마커를 선택해 편집한 뒤 ‘저장하고 편집 완료’를 눌러보세요.",
-        ),
-      );
-    } catch (error) {
-      setStatus(
-        error instanceof Error ? error.message : t("편집 창을 열 수 없습니다."),
-      );
-    }
-  };
-  const reset = () => {
-    const next = structuredClone(inputScene);
-    sceneRef.current = next;
-    setScene(next);
-    setSaved(false);
-    setStatus(
-      t(
-        "이 페이지의 폴리곤·선·마커를 처음 상태로 되돌렸습니다. 이미 열린 편집 창의 데이터는 유지됩니다.",
-      ),
-    );
-  };
+  const locale = useContext(LocaleContext) ?? "ko";
+  const {
+    scene,
+    status,
+    errorMessage,
+    hasEdits: saved,
+    openEditor: open,
+    resetScene: reset,
+  } = useEditorHost(getDocsScene);
+  const inputSceneExplanation = getDocsExample(locale).explanation;
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-teal-50/60 p-4">
@@ -115,7 +75,7 @@ export function DocsGyeongbokgungExample() {
       </Suspense>
       <div className="border-t border-line p-4">
         <p className="m-0 text-sm font-bold text-brand-strong" role="status">
-          {t(status)}
+          {t(errorMessage ?? statusLabels[status])}
         </p>
         <p className="mb-0 mt-2 text-xs leading-5 text-ink-soft">
           {t(
@@ -143,7 +103,7 @@ export function DocsGyeongbokgungExample() {
             title={saved ? t("수신한 결과.json") : t("현재 입력.jsonc · 필드 설명")}
           />
         </details>
-        <span data-testid="palace-scene" hidden>
+        <span data-testid="example-scene" hidden>
           {JSON.stringify(scene)}
         </span>
       </div>

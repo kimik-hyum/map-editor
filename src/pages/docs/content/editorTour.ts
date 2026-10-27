@@ -1,3 +1,5 @@
+import type { Locale } from "@/shared/i18n/locale";
+import englishCapture from "./editorTourCapture.en.json";
 import capture from "./editorTourCapture.json";
 
 export const editorTourSteps = [
@@ -72,3 +74,12 @@ export const editorTourSteps = [
     action: "예제: 문서로 돌아오면 지도와 ‘돌려받은 편집 결과 JSON’을 확인하세요.",
   },
 ] as const;
+
+export function getEditorTourSteps(locale: Locale) {
+  if (locale === "ko") return editorTourSteps;
+  return editorTourSteps.map((step) => ({
+    ...step,
+    image: step.id === "draw" ? "editor-draw-tools-en.jpg" : "editor-central-park.jpg",
+    bounds: englishCapture.bounds[step.id],
+  }));
+}

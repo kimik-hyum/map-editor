@@ -44,7 +44,7 @@ test("전송 예제에는 주석을 표시하고 복사하면 전송 가능한 J
   ).toBeVisible();
   const copied = await page.evaluate(() => navigator.clipboard.readText());
   expect(JSON.parse(copied)).toEqual(
-    JSON.parse(await page.getByTestId("palace-scene").innerText()),
+    JSON.parse(await page.getByTestId("example-scene").innerText()),
   );
 });
 
@@ -101,7 +101,7 @@ test("경복궁 도형의 실제 편집 결과를 받고 다음 창에 수정본
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/ko/integration");
-  const original = JSON.parse(await page.getByTestId("palace-scene").innerText());
+  const original = JSON.parse(await page.getByTestId("example-scene").innerText());
   expect(
     original.features.map(
       (feature: { geometry: { type: string } }) => feature.geometry.type,
@@ -141,7 +141,7 @@ test("경복궁 도형의 실제 편집 결과를 받고 다음 창에 수정본
   await expect(
     page.getByRole("status").filter({ hasText: "편집 결과를 받았습니다" }),
   ).toBeVisible();
-  const result = JSON.parse(await page.getByTestId("palace-scene").innerText());
+  const result = JSON.parse(await page.getByTestId("example-scene").innerText());
   expect(result.features[0].id).toBe("gyeongbokgung-area");
   expect(result.features[0].properties).toEqual({ serviceAreaId: "palace-001" });
   expect(result.features[0].geometry).not.toEqual(original.features[0].geometry);
@@ -164,11 +164,11 @@ test("경복궁 도형의 실제 편집 결과를 받고 다음 창에 수정본
   await expect(
     page.getByRole("status").filter({ hasText: "취소했습니다" }),
   ).toBeVisible();
-  expect(JSON.parse(await page.getByTestId("palace-scene").innerText())).toEqual(
+  expect(JSON.parse(await page.getByTestId("example-scene").innerText())).toEqual(
     result,
   );
   await page.getByRole("button", { name: "초기화", exact: true }).click();
-  expect(JSON.parse(await page.getByTestId("palace-scene").innerText())).toEqual(
+  expect(JSON.parse(await page.getByTestId("example-scene").innerText())).toEqual(
     original,
   );
 });

@@ -14,15 +14,15 @@ import {
   DocsText,
 } from "./components";
 import { DocsTable } from "./components/DocsTable";
-import { DocsGyeongbokgungExample } from "./components/DocsGyeongbokgungExample";
+import { DocsSceneExample } from "./components/DocsSceneExample";
 import {
-  inputSceneSource,
   messageSchemaExample,
-  minimalServiceExample,
+  getMinimalServiceExample,
   parentHostExample,
   resultUsageExample,
 } from "./content/parentIntegrationExamples";
-import { initMessageExample, submitMessageExample } from "./content/roundtripExamples";
+import { getRoundtripExamples } from "./content/roundtripExamples";
+import { getDocsExample } from "./content/localizedExamples";
 
 const exampleMarkup = `<button id="edit" type="button">도형 편집하기</button>
 <pre id="result"></pre>`;
@@ -40,6 +40,9 @@ if (button && result) {
 export function DocsIntegrationPage() {
   const t = useT();
   const locale = useContext(LocaleContext) ?? "ko";
+  const inputSceneSource = getDocsExample(locale).source;
+  const minimalServiceExample = getMinimalServiceExample(locale);
+  const { initMessageExample, submitMessageExample } = getRoundtripExamples(locale);
   return (
     <DocsArticle>
       <DocsHero
@@ -446,7 +449,7 @@ export function DocsIntegrationPage() {
           <Link to="/editing#screen">{t("편집 화면 안내")}</Link>
           {t("에서 확인하세요.")}
         </DocsText>
-        <DocsGyeongbokgungExample />
+        <DocsSceneExample />
         <details className="mt-4 rounded-lg border border-line p-4">
           <summary className="cursor-pointer font-bold text-ink">
             {t("실습의 전송 메시지와 편집 결과 예시")}

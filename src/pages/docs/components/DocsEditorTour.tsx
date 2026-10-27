@@ -1,11 +1,14 @@
 import { useT } from "@/shared/i18n/useT";
-import { useState } from "react";
+import { useContext, useState } from "react";
+import { LocaleContext } from "@/shared/i18n/localeContext";
 import { LocalizedLink as Link } from "@/shared/i18n/LocalizedLink";
-import { editorTourSteps } from "../content/editorTour";
+import { getEditorTourSteps } from "../content/editorTour";
 import { cn } from "@/shared/utils/cn";
 
 export function DocsEditorTour() {
   const t = useT();
+  const locale = useContext(LocaleContext) ?? "ko";
+  const editorTourSteps = getEditorTourSteps(locale);
   const [activeIndex, setActiveIndex] = useState(0);
   const step = editorTourSteps[activeIndex];
   const source = `/docs/${step.image}`;

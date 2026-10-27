@@ -1,3 +1,5 @@
+import type { Locale } from "@/shared/i18n/locale";
+import { usSampleSceneInput } from "./usSampleEditorScene";
 import type { EditorSceneInput } from "@/pages/editor/types/editorTypes";
 
 // 호스트가 보내는 "최소 입력"(v2) 샘플 — 헬퍼 없이 손으로 작성합니다.
@@ -138,3 +140,7 @@ export const sampleSceneInput: EditorSceneInput = {
     },
   ],
 };
+
+export function getSampleEditorScene(locale: Locale): EditorSceneInput {
+  return locale === "en" ? usSampleSceneInput : sampleSceneInput;
+}

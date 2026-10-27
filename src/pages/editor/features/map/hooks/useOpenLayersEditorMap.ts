@@ -1,3 +1,4 @@
+import { createInitialViewportSync } from "@/pages/editor/adapters/openlayers/createInitialViewportSync";
 import { useT } from "@/shared/i18n/useT";
 import { useEffect, useRef, useState } from "react";
 import type OpenLayersMap from "ol/Map";
@@ -172,6 +173,10 @@ export function useOpenLayersEditorMap() {
     typeof attachGeometryOpOverlays
   > | null>(null);
 
+  const initialViewportRef = useRef<ReturnType<
+    typeof createInitialViewportSync
+  > | null>(null);
+
   // 생성된 OL Map 인스턴스를 외부(예: 경계 레이어)에서 쓸 수 있게 노출한다.
   const [map, setMap] = useState<OpenLayersMap | null>(null);
 
@@ -217,6 +222,7 @@ export function useOpenLayersEditorMap() {
     }
 
     const map = createOpenLayersMap({ target: mapElementRef.current });
+    initialViewportRef.current = createInitialViewportSync(map);
     const annotationNavigation = attachMapAnnotationNavigation(map);
     const cursor = attachMapCursor(map);
     cursorRef.current = cursor;
@@ -370,6 +376,7 @@ export function useOpenLayersEditorMap() {
       unByKey(viewportMoveEndKey);
       map.setTarget(undefined);
       mapRef.current = null;
+      initialViewportRef.current = null;
       setMap(null);
       vertexLayerRef.current = null;
       detailLayerRef.current = null;
@@ -397,6 +404,8 @@ export function useOpenLayersEditorMap() {
     if (!map) {
       return;
     }
+
+    initialViewportRef.current?.sync(scene as EditorScene | null);
 
     // 씬(콘텐츠 레이어) 렌더는 모드와 무관하게 항상 동기화한다.
     syncOpenLayersMapScene(map, scene as EditorScene | null, renderStateRef.current);
