@@ -9,7 +9,7 @@ import {
   EditorMessageType,
   type EditorSceneInput,
 } from "@/pages/editor/types/editorTypes";
-import { readBoundaryCountry } from "@/shared/config/boundaryCountries";
+import { resolveBoundaryCountry } from "@/shared/config/boundaryCountries";
 
 export type EditorHostStatus =
   | "idle"
@@ -33,9 +33,13 @@ export function createEditorHost(options: EditorHostOptions) {
   const editorUrl = new URL("/editor/", window.location.href);
   const updateEditorUrl = () => {
     editorUrl.pathname = localizePath("/editor/", getLocale(window.location.pathname));
-    const country = readBoundaryCountry(window.location.search);
+    const country = resolveBoundaryCountry(
+      window.location.search,
+      window.location.pathname,
+    );
     editorUrl.search = "";
-    if (country) editorUrl.searchParams.set("country", country.code);
+    // 팝업에서 표시 언어만 바꾸어도 이번 편집 회차의 경계 선택은 유지합니다.
+    editorUrl.searchParams.set("country", country.code);
   };
   let child: Window | null = null;
   let sessionId: string | null = null;

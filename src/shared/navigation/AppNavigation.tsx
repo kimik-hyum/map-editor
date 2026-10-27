@@ -67,7 +67,7 @@ export function AppNavigation({ className }: AppNavigationProps) {
               }
               end={link.to === "/"}
               key={link.to}
-              // 편집기 진입은 Cloudflare의 접속 국가 기본값 판정을 거칩니다.
+              // 새 편집 회차는 현재 언어의 기본 국가로 초기화합니다.
               reloadDocument={link.to === "/editor"}
               to={link.to}
             >

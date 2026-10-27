@@ -42,6 +42,7 @@ const DEFAULT_EDITOR_MODE = EditorMode.Select;
 function initialBoundarySelection() {
   const country = resolveBoundaryCountry(
     typeof window === "undefined" ? "" : window.location.search,
+    typeof window === "undefined" ? "/" : window.location.pathname,
   );
   return {
     activeBoundaryCountry: country.code,

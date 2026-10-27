@@ -66,6 +66,12 @@ export function DocsIntegrationPage() {
         </div>
         <DocsList className="mt-4">
           <DocsListItem>
+            {t(
+              "기본 경계는 한국어에서 대한민국 행정동, 영어에서 미국 카운티입니다. 미국 경계는 로그인 없이 사용할 수 있으며, 한국 경계는 Google 로그인이 필요합니다.",
+            )}{" "}
+            {t("주소에 country=KR 또는 country=US를 추가하면 해당 국가를 우선합니다.")}
+          </DocsListItem>
+          <DocsListItem>
             <strong>{t("다른 HTTPS 도메인에서도 연결할 수 있습니다.")}</strong>{" "}
             {t(
               "서비스 페이지에 자바스크립트를 추가할 수 있어야 하며, 공개 편집기의 기본 설정에서는 별도 도메인 등록이 필요하지 않습니다. 지도 라이브러리 없이도 연결할 수 있습니다.",

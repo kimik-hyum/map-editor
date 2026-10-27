@@ -1,11 +1,9 @@
-import { readBoundaryCountry } from "../src/shared/config/boundaryCountries";
-
-type CountryContext = {
-  request: Request & { cf?: { country?: string | null } };
+type PageContext = {
+  request: Request;
   next: () => Promise<Response>;
 };
 
-export function onRequest({ request, next }: CountryContext) {
+export function onRequest({ request, next }: PageContext) {
   const url = new URL(request.url);
   if (!["GET", "HEAD"].includes(request.method)) return next();
 
@@ -19,21 +17,7 @@ export function onRequest({ request, next }: CountryContext) {
     url.pathname = `/ko${url.pathname === "/" ? "/" : url.pathname}`;
     return Response.redirect(url.href, 308);
   }
-  if (
-    !/^\/(ko|en)\/(demo|editor)(\/|\/index\.html)?$/.test(url.pathname) ||
-    readBoundaryCountry(url.search)
-  )
-    return next();
-
-  // Country chooses boundary data, independently of UI language. Geographical
-  // defaults must never be cached as a permanent language redirect.
-  url.searchParams.set("country", request.cf?.country === "KR" ? "KR" : "US");
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: url.href,
-      "Cache-Control": "private, no-store",
-      "Cloudflare-CDN-Cache-Control": "no-store",
-    },
-  });
+  // Infer boundary defaults from the locale in the client. Adding an inferred
+  // country query here would pin that country when the host switches language.
+  return next();
 }
