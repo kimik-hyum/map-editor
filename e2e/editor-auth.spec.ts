@@ -408,11 +408,12 @@ test("액세스 토큰을 갱신해도 로그인 기한을 늘리지 않고 탭 
   await mockAuthAndRegions(context, false, signedInAt);
   const session = createGoogleSession(signedInAt);
   session.expires_at = Math.floor(now / 1000) - 1;
-  await saveSession(page, session);
-  const refreshed = page.waitForRequest(
-    (request) =>
+  // 저장 직후 부모나 편집기 어느 탭에서 갱신해도 요청을 놓치지 않습니다.
+  const refreshed = context.waitForEvent("request", {
+    predicate: (request) =>
       new URL(request.url()).searchParams.get("grant_type") === "refresh_token",
-  );
+  });
+  await saveSession(page, session);
   const editor = await openEditor(page);
   await refreshed;
   await expect(editor.getByRole("button", { name: "Google 로그아웃" })).toBeVisible();
