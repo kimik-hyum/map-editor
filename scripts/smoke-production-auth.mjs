@@ -1,33 +1,59 @@
 // Fresh anonymous browser: verify the real Google entry page without signing in.
 import assert from "node:assert/strict";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 
-const origin = "https://maps-editor.pages.dev";
-const browser = await chromium.launch({ headless: true });
-try {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+/**
+ * The deployment and PR regression test run the same browser flow.
+ * @param {import('@playwright/test').BrowserContext} context
+ * @param {{ origin?: string, supabaseUrl?: string }} options
+ */
+export async function runProductionAuthSmoke(
+  context,
+  {
+    origin = "https://maps-editor.pages.dev",
+    supabaseUrl = "https://wmfidaawutwavlwvqauh.supabase.co",
+  } = {},
+) {
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(`${origin}/demo/`);
-  const [editor] = await Promise.all([
-    page.waitForEvent("popup"),
-    page.getByRole("button", { name: "편집기 새 창으로 열기" }).click(),
-  ]);
+  // Authentication applies to Korean boundaries, regardless of the runner's location.
+  await page.goto(`${origin}/ko/demo?country=KR`);
+  const openEditor = page.getByRole("button", {
+    name: "편집기 새 탭으로 열기",
+    exact: true,
+  });
+  await expect(openEditor).toBeVisible();
+  const [editor] = await Promise.all([page.waitForEvent("popup"), openEditor.click()]);
   editor.on("pageerror", (error) => errors.push(error.message));
+  await expect(editor).toHaveURL(
+    (url) => url.pathname === "/ko/editor/" && url.searchParams.get("country") === "KR",
+  );
   await expect(editor.getByText("권역 A", { exact: true })).toBeVisible();
-  await editor.getByRole("button", { name: "행정동 경계", exact: true }).click();
-  await editor.getByRole("button", { name: "한국 경계 불러오기", exact: true }).click();
+  const editedName = "상용 비로그인 편집 확인";
+  await editor.getByRole("button", { name: "권역 A 이름 변경", exact: true }).click();
+  const nameInput = editor.getByRole("textbox", {
+    name: "권역 A 새 이름",
+    exact: true,
+  });
+  await nameInput.fill(editedName);
+  await nameInput.press("Enter");
+  await expect(editor.getByText(editedName, { exact: true })).toBeVisible();
+
+  await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
   const dialog = editor.getByRole("alertdialog");
   await expect(dialog).toContainText("경계 데이터를 사용하려면 로그인해주세요");
+  const authorizeEndpoint = new URL(`${supabaseUrl}/auth/v1/authorize`);
   const [popup, authorizeRequest] = await Promise.all([
     editor.waitForEvent("popup"),
     context.waitForEvent("request", {
       predicate: (request) => {
         const url = new URL(request.url());
         return (
-          url.hostname === "wmfidaawutwavlwvqauh.supabase.co" &&
-          url.pathname === "/auth/v1/authorize"
+          url.origin === authorizeEndpoint.origin &&
+          url.pathname === authorizeEndpoint.pathname
         );
       },
       timeout: 20000,
@@ -37,6 +63,7 @@ try {
   const authorize = new URL(authorizeRequest.url());
   assert.equal(authorize.searchParams.get("provider"), "google");
   assert.equal(authorize.searchParams.get("redirect_to"), `${origin}/auth/callback`);
+  assert.equal(authorize.searchParams.get("code_challenge_method"), "s256");
   await popup.waitForURL((url) => url.hostname === "accounts.google.com", {
     timeout: 20000,
   });
@@ -49,24 +76,33 @@ try {
     }),
   ).toHaveCount(0);
   await editor.getByRole("button", { name: "로그인 취소", exact: true }).click();
-  await expect(editor.getByText("권역 A", { exact: true })).toBeVisible();
+  await expect(editor.getByText(editedName, { exact: true })).toBeVisible();
   const closed = editor.waitForEvent("close");
   await editor.getByRole("button", { name: "저장하고 편집 완료" }).click();
   await closed;
-  await expect(page.getByTestId("submitted-scene")).toContainText("권역 A");
+  await expect(page.getByTestId("submitted-scene")).toContainText(editedName);
   assert.deepEqual(errors, []);
-  console.log(
-    JSON.stringify({
-      url: origin,
-      missingConfigurationError: false,
-      googleAuthorizeRequest: true,
-      correctCallback: true,
-      realGoogleEmailFormVisible: true,
-      loginCompleted: false,
-      cancelAndParentSave: true,
-      appPageErrors: 0,
-    }),
-  );
-} finally {
-  await browser.close();
+  return {
+    url: origin,
+    missingConfigurationError: false,
+    googleAuthorizeRequest: true,
+    correctCallback: true,
+    googleEmailFormVisible: true,
+    loginCompleted: false,
+    cancelAndParentSave: true,
+    anonymousEditReturned: true,
+    appPageErrors: 0,
+  };
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 1000 },
+    });
+    console.log(JSON.stringify(await runProductionAuthSmoke(context)));
+  } finally {
+    await browser.close();
+  }
 }
