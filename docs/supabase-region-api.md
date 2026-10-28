@@ -14,6 +14,16 @@
 
 로그인 취소·실패에도 기존 편집은 유지합니다. 로그인 대기 중에 새 편집 시작 데이터(`MAP_EDITOR_INIT`)를 받거나 편집·도구 변경이 발생하면, 로그인 후 실행하려던 이전 도구 전환을 취소합니다. 로그아웃 시 참고 경계만 숨기고 이미 편집 데이터에 반영한 도형은 보존합니다.
 
+### 브라우저 로그인 유지 기간
+
+로그인은 **해당 세션의 Google 인증 시점부터 최대 7일** 유지합니다. Supabase가 브라우저에 저장한 세션의 JWT `amr`에서 OAuth 인증 시각을 읽으며, 액세스 토큰의 자동 갱신이나 탭 복귀로 이 기한을 연장하지 않습니다. 인증 이력이 없는 기존 세션은 `user.last_sign_in_at`을 사용하고, 기준 시각도 없으면 재로그인을 요구합니다.
+
+페이지 진입·탭 복귀·사용 중 만료 및 인증이 필요한 API 요청 전에 기한을 확인합니다. 만료 시 `signOut({ scope: "local" })`으로 현재 브라우저 세션을 종료하며 다른 기기의 로그인과 편집 중인 지도 데이터는 유지합니다. 닫힌 브라우저에서는 코드가 실행되지 않으므로 다음 접속 시 처리합니다. 미사용 기간과 관계없이 로그인 후 7일이 기준입니다.
+
+이 정책은 Supabase Free에서도 동작하는 **프런트엔드 재로그인 처리**입니다. 서버가 세션 수명을 7일로 강제하는 설정은 아니며, 운영 Supabase의 액세스 토큰 1시간·자동 갱신과 기존 서버 권한 검증을 사용합니다. 이미 발급한 액세스 토큰의 서버 유효기간을 즉시 없애는 기능도 아닙니다.
+
+구현: [브라우저 세션 기한](../src/features/auth/model/browserSessionLifetime.ts), [만료 확인과 로그아웃](../src/features/auth/api/browserSession.ts). 참고: [Supabase JWT 인증 이력](https://supabase.com/docs/guides/auth/jwt-fields#authentication-methods-amrmethod), [로그아웃 범위](https://supabase.com/docs/guides/auth/signout).
+
 ### 공개 서비스의 한국 접속 제한
 
 행정동·법정동·우편번호의 목록, 검색, 원본 경계와 표시용 타일은 모두 Cloudflare Pages Function을 거칩니다. Cloudflare가 확인한 `request.cf.country`가 `KR`일 때만 전달하며, 해외 IP와 국가를 확인할 수 없는 요청은 **403 `REGION_COUNTRY_BLOCKED`**로 거부합니다. 브라우저가 보낸 국가 헤더는 신뢰하지 않습니다. 일반 편집과 소개·문서 페이지에는 이 제한을 적용하지 않습니다.

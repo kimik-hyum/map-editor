@@ -1,6 +1,7 @@
 import { t } from "@/shared/i18n/i18n";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { regionEndpoint } from "./regionEndpoint";
+import { getBrowserSession } from "./browserSession";
 
 type SupabaseBrowserConfig = {
   publishableKey: string;
@@ -57,11 +58,8 @@ export async function getAuthenticatedFunctionRequest(): Promise<{
     };
   }
 
-  const { data, error } = await getSupabaseClient().auth.getSession();
-  if (error) {
-    throw new Error(t("로그인 세션을 확인하지 못했습니다."));
-  }
-  if (!data.session) {
+  const session = await getBrowserSession(getSupabaseClient());
+  if (!session) {
     throw new Error(t("Google 로그인이 필요합니다."));
   }
 
@@ -69,7 +67,7 @@ export async function getAuthenticatedFunctionRequest(): Promise<{
     url: regionEndpoint(url),
     headers: {
       apikey: publishableKey,
-      Authorization: `Bearer ${data.session.access_token}`,
+      Authorization: `Bearer ${session.access_token}`,
       "Content-Type": "application/json",
     },
   };

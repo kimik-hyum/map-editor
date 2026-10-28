@@ -19,7 +19,11 @@ async function renameFeature(editor: Page, name: string) {
   await expect(editor.getByText(name, { exact: true })).toBeVisible();
 }
 
-async function mockAuthAndRegions(context: BrowserContext, failLogin = false) {
+async function mockAuthAndRegions(
+  context: BrowserContext,
+  failLogin = false,
+  refreshSignedInAt = Date.now(),
+) {
   const session = createGoogleSession();
   const calls: string[] = [];
   await context.route("**/region-api/auth/v1/**", async (route) => {
@@ -35,6 +39,10 @@ async function mockAuthAndRegions(context: BrowserContext, failLogin = false) {
         body: `<html><body><h1>OAuth test provider</h1><a href="${callback.href}">테스트 Google 로그인 완료</a></body></html>`,
       });
     } else if (url.pathname.endsWith("/token")) {
+      if (url.searchParams.get("grant_type") === "refresh_token") {
+        await route.fulfill({ json: createGoogleSession(refreshSignedInAt) });
+        return;
+      }
       expect(url.searchParams.get("grant_type")).toBe("pkce");
       const body = route.request().postDataJSON() as {
         auth_code: string;
@@ -322,4 +330,97 @@ test("미국에서 한국 선택 시 즉시 로그인하고 성공한 뒤 국가
   await expect(
     editor.getByRole("button", { name: "국가 변경 전 편집 선택", exact: true }),
   ).toBeVisible();
+});
+
+const sevenDays = 7 * 24 * 60 * 60 * 1000;
+
+async function saveSession(
+  page: Page,
+  session: ReturnType<typeof createGoogleSession>,
+) {
+  await page.goto("/ko/demo");
+  await page.evaluate((value) => {
+    localStorage.setItem("sb-127-auth-token", JSON.stringify(value));
+    localStorage.setItem("unrelated-preference", "keep");
+  }, session);
+}
+
+test("7일 지난 저장 세션은 재접속 시 현재 브라우저만 로그아웃하고 다시 로그인할 수 있다", async ({
+  page,
+  context,
+}) => {
+  await mockAuthAndRegions(context);
+  await saveSession(page, createGoogleSession(Date.now() - sevenDays - 1000));
+  const logout = page.waitForRequest((request) =>
+    new URL(request.url()).pathname.endsWith("/logout"),
+  );
+  const editor = await openEditor(page);
+  expect(new URL((await logout).url()).searchParams.get("scope")).toBe("local");
+  await expect(editor.getByRole("button", { name: "Google 로그아웃" })).toHaveCount(0);
+  await expect
+    .poll(() => editor.evaluate(() => localStorage.getItem("sb-127-auth-token")))
+    .toBe(null);
+  expect(
+    await editor.evaluate(() => localStorage.getItem("unrelated-preference")),
+  ).toBe("keep");
+  const popup = await startLogin(editor);
+  await popup.getByRole("link", { name: "테스트 Google 로그인 완료" }).click();
+  await expect(editor.getByRole("button", { name: "Google 로그아웃" })).toBeVisible();
+});
+
+test("사용 중 7일이 되면 모든 같은 브라우저 탭에서 로그아웃하고 편집 결과를 보존한다", async ({
+  page,
+  context,
+}) => {
+  await mockAuthAndRegions(context);
+  const start = Math.floor(Date.now() / 1000) * 1000;
+  await page.clock.install({ time: start });
+  await page.clock.pauseAt(start);
+  await saveSession(page, createGoogleSession(start - sevenDays + 60_000));
+  const editor = await openEditor(page);
+  await expect(editor.getByRole("button", { name: "Google 로그아웃" })).toBeVisible();
+  await renameFeature(editor, "세션 만료 후에도 보존");
+  await page.clock.fastForward(60_001);
+  await expect(editor.getByRole("button", { name: "Google 로그아웃" })).toHaveCount(0);
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("sb-127-auth-token")))
+    .toBe(null);
+  await expect(
+    editor.getByText("세션 만료 후에도 보존", { exact: true }),
+  ).toBeVisible();
+  await editor.getByRole("button", { name: "경계 데이터" }).click();
+  await expect(editor.getByRole("alertdialog")).toBeVisible();
+  await editor.getByRole("button", { name: "취소", exact: true }).click();
+  const closed = editor.waitForEvent("close");
+  await editor.getByRole("button", { name: "저장하고 편집 완료" }).click();
+  await closed;
+  await expect(page.getByTestId("submitted-scene")).toContainText(
+    "세션 만료 후에도 보존",
+  );
+});
+
+test("액세스 토큰을 갱신해도 로그인 기한을 늘리지 않고 탭 복귀 때 만료를 확인한다", async ({
+  page,
+  context,
+}) => {
+  const now = Date.now();
+  const signedInAt = now - sevenDays + 120_000;
+  await mockAuthAndRegions(context, false, signedInAt);
+  const session = createGoogleSession(signedInAt);
+  session.expires_at = Math.floor(now / 1000) - 1;
+  await saveSession(page, session);
+  const refreshed = page.waitForRequest(
+    (request) =>
+      new URL(request.url()).searchParams.get("grant_type") === "refresh_token",
+  );
+  const editor = await openEditor(page);
+  await refreshed;
+  await expect(editor.getByRole("button", { name: "Google 로그아웃" })).toBeVisible();
+  // 타이머 실행 없이 시간만 바꿔 절전 상태에서 돌아오는 상황을 재현합니다.
+  await page.clock.setFixedTime(now + 180_000);
+  await editor.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(editor.getByRole("button", { name: "Google 로그아웃" })).toHaveCount(0);
+  await expect
+    .poll(() => editor.evaluate(() => localStorage.getItem("sb-127-auth-token")))
+    .toBe(null);
 });

@@ -1,6 +1,7 @@
 import { t } from "@/shared/i18n/i18n";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { isGoogleUser } from "../model/googleIdentity";
+import { getBrowserSession } from "./browserSession";
 
 const REQUEST_STORAGE_KEY = "maps-editor-google-popup-request";
 const CHANNEL_PREFIX = "maps-editor-google-popup:";
@@ -89,9 +90,9 @@ export async function signInWithGooglePopup(
       }
       checkingSession = true;
       try {
-        const { data, error } = await client.auth.getSession();
-        if (!error && isGoogleUser(data.session?.user ?? null)) {
-          finish(data.session);
+        const session = await getBrowserSession(client);
+        if (isGoogleUser(session?.user ?? null)) {
+          finish(session);
         }
       } catch {
         finish(
