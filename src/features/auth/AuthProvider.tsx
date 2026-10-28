@@ -4,6 +4,8 @@ import type { Session } from "@supabase/supabase-js";
 import { getSupabaseClient, isE2eAuthBypassed } from "./api/supabaseClient";
 import { authContext } from "./model/authContext";
 import { signInWithGooglePopup } from "./api/googleSignInPopup";
+import { getBrowserSession } from "./api/browserSession";
+import { getBrowserSessionExpiresAt } from "./model/browserSessionLifetime";
 
 type AuthProviderProps = {
   children: ReactNode;
@@ -22,36 +24,64 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     let active = true;
     let unsubscribe: (() => void) | undefined;
+    let expirationTimer: ReturnType<typeof setTimeout> | undefined;
+    let currentSession: Session | null = null;
+    let revision = 0;
+    let recheckSession = () => {};
 
     try {
       const supabase = getSupabaseClient();
-      void supabase.auth
-        .getSession()
-        .then(({ data, error: sessionError }) => {
-          if (!active) {
-            return;
-          }
-          setSession(data.session);
-          setError(sessionError ? t("로그인 세션을 확인하지 못했습니다.") : null);
-          setIsLoading(false);
-        })
-        .catch(() => {
-          if (active) {
+      const readSession = async () => {
+        const previousRevision = revision;
+        try {
+          const nextSession = await getBrowserSession(supabase);
+          if (active && revision === previousRevision) applySession(nextSession);
+        } catch {
+          if (active && revision === previousRevision) {
             setError(t("로그인 세션을 확인하지 못했습니다."));
             setIsLoading(false);
           }
-        });
+        }
+      };
+      const applySession = (nextSession: Session | null) => {
+        if (!active) return;
+        revision += 1;
+        currentSession = nextSession;
+        clearTimeout(expirationTimer);
+        const remaining = nextSession
+          ? getBrowserSessionExpiresAt(nextSession) - Date.now()
+          : 0;
+        setSession(nextSession && remaining > 0 ? nextSession : null);
+        setError(null);
+        setIsLoading(false);
+        if (nextSession) {
+          // 인증 이벤트에서 SDK를 await하지 않고 잠금이 풀린 뒤 만료를 처리합니다.
+          expirationTimer = setTimeout(
+            () => {
+              if (
+                currentSession &&
+                Date.now() >= getBrowserSessionExpiresAt(currentSession)
+              ) {
+                setSession(null);
+              }
+              void readSession();
+            },
+            Math.max(0, Math.min(remaining, 60_000)),
+          );
+        }
+      };
+      recheckSession = () => applySession(currentSession);
+      window.addEventListener("focus", recheckSession);
+      window.addEventListener("pageshow", recheckSession);
+      document.addEventListener("visibilitychange", recheckSession);
 
       const {
         data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-        if (active) {
-          setSession(nextSession);
-          setError(null);
-          setIsLoading(false);
-        }
-      });
+      } = supabase.auth.onAuthStateChange((_event, nextSession) =>
+        applySession(nextSession),
+      );
       unsubscribe = () => subscription.unsubscribe();
+      void readSession();
     } catch {
       // 인증 설정/서비스 오류가 비로그인 편집기까지 막아서는 안 됩니다.
       setError(t("로그인 서비스를 사용할 수 없습니다."));
@@ -61,6 +91,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       active = false;
       unsubscribe?.();
+      clearTimeout(expirationTimer);
+      window.removeEventListener("focus", recheckSession);
+      window.removeEventListener("pageshow", recheckSession);
+      document.removeEventListener("visibilitychange", recheckSession);
     };
   }, [bypassed]);
 

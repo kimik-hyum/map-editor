@@ -1,6 +1,6 @@
 import type { BrowserContext } from "@playwright/test";
 
-export function createGoogleSession() {
+export function createGoogleSession(signedInAt = Date.now()) {
   const user = {
     id: "11111111-1111-4111-8111-111111111111",
     aud: "authenticated",
@@ -9,12 +9,13 @@ export function createGoogleSession() {
     app_metadata: { provider: "google", providers: ["google"] },
     user_metadata: {},
     created_at: "2026-09-06T00:00:00Z",
+    last_sign_in_at: new Date(signedInAt).toISOString(),
   };
   const expiresAt = Math.floor(Date.now() / 1000) + 3600;
   const encode = (value: unknown) =>
     Buffer.from(JSON.stringify(value)).toString("base64url");
   return {
-    access_token: `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ sub: user.id, exp: expiresAt, aud: "authenticated" })}.test-signature`,
+    access_token: `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ sub: user.id, exp: expiresAt, aud: "authenticated", amr: [{ method: "oauth", timestamp: Math.floor(signedInAt / 1000) }] })}.test-signature`,
     refresh_token: "local-test-refresh-token",
     token_type: "bearer",
     expires_in: 3600,
