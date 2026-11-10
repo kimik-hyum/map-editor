@@ -283,7 +283,11 @@ test("서버 경계 카탈로그와 조회 상태를 경계 도구에 표시한�
     editorPage.getByRole("button", { name: "테스트 구역 z15부터 표시" }),
   ).toBeVisible();
   await expect(editorPage.getByText("현재 화면:")).toBeVisible();
-  await expect(editorPage.getByText("시군구")).toBeVisible();
+  await expect(
+    editorPage
+      .getByRole("region", { name: "도구 옵션", exact: true })
+      .getByText("시군구", { exact: true }),
+  ).toBeVisible();
   await expect(editorPage.getByText("일부만 표시됨 — 지도를 확대하세요")).toBeVisible();
 });
 
