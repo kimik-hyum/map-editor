@@ -50,7 +50,7 @@ export function MapZoomControl({
           </output>
         </button>
         <div className="relative my-1 h-[min(24vh,176px)] min-h-20 w-8">
-          <div aria-hidden className="pointer-events-none absolute inset-x-2 inset-y-2">
+          <div aria-hidden className="pointer-events-none absolute inset-x-2 inset-y-1">
             {Array.from(
               { length: Math.floor(maxZoom) - Math.ceil(minZoom) + 1 },
               (_, index) => {

@@ -1,53 +1,68 @@
 import { describe, expect, it } from "vitest";
 import { getBoundaryZoomGuide, isBoundaryZoomRangeActive } from "./boundaryZoomGuide";
-import { fallbackRegionKinds } from "../../regions/model/regionKindModel";
+import type { RegionKind } from "../../regions/api/regionsApi";
 
 const view = { minZoom: 0, maxZoom: 28 };
+const catalog: RegionKind[] = [
+  {
+    kind: "sigungu",
+    label: "시군구",
+    level: 1,
+    min_zoom: 0,
+    sort_order: 0,
+    selectable: false,
+  },
+  {
+    kind: "adminDong",
+    label: "행정동",
+    level: 2,
+    min_zoom: 15,
+    sort_order: 1,
+    selectable: true,
+  },
+  {
+    kind: "legalDong",
+    label: "법정동",
+    level: 3,
+    min_zoom: 12,
+    sort_order: 2,
+    selectable: true,
+  },
+];
 
 describe("경계 줌 안내", () => {
-  it("카탈로그가 없을 때만 한국 기본 기준을 추정값으로 안내한다", () => {
-    const guide = getBoundaryZoomGuide({ ...view, country: "KR", kind: "adminDong" });
-    expect(guide.estimated).toBe(true);
-    expect(guide.ranges).toEqual([
-      { kind: "sigungu", label: "시군구", minZoom: 0, maxZoom: 11 },
-      { kind: "adminDong", label: "행정동", minZoom: 12, maxZoom: 28 },
-    ]);
-    expect(isBoundaryZoomRangeActive(guide.ranges[0], 11.99)).toBe(true);
-    expect(isBoundaryZoomRangeActive(guide.ranges[1], 11.99)).toBe(false);
-    expect(isBoundaryZoomRangeActive(guide.ranges[1], 12)).toBe(true);
-  });
-  it("선택한 종류의 서버 최소 줌과 이름을 적용한다", () => {
-    const catalog = [
+  it("카탈로그를 확인하지 못하면 임의의 전환 기준을 표시하지 않는다", () => {
+    expect(getBoundaryZoomGuide({ ...view, country: "KR", kind: "adminDong" })).toEqual(
       {
-        ...fallbackRegionKinds[0],
-        kind: "sigungu",
-        label: "시군구",
-        min_zoom: 0,
-        selectable: false,
+        estimated: true,
+        ranges: [],
+        transitionZoom: null,
       },
-      { ...fallbackRegionKinds[2], label: "우편 경계", min_zoom: 15 },
-    ];
-    const guide = getBoundaryZoomGuide({
-      ...view,
-      country: "KR",
-      kind: "postalCode",
-      catalog,
-    });
-    expect(guide.estimated).toBe(false);
-    expect(guide.ranges[0].maxZoom).toBe(14);
-    expect(guide.ranges[1]).toEqual({
-      kind: "postalCode",
-      label: "우편 경계",
-      minZoom: 15,
-      maxZoom: 28,
-    });
+    );
+  });
+  it("행정동과 법정동에 각각 서버의 최소 줌과 이름을 적용한다", () => {
+    for (const [kind, label, threshold] of [
+      ["adminDong", "행정동", 15],
+      ["legalDong", "법정동", 12],
+    ] as const) {
+      const guide = getBoundaryZoomGuide({ ...view, country: "KR", kind, catalog });
+      expect(guide.estimated).toBe(false);
+      expect(guide.transitionZoom).toBe(threshold);
+      expect(guide.ranges).toEqual([
+        { kind: "sigungu", label: "시군구", minZoom: 0, maxZoom: threshold - 1 },
+        { kind, label, minZoom: threshold, maxZoom: 28 },
+      ]);
+      expect(isBoundaryZoomRangeActive(guide.ranges[0], threshold - 0.01)).toBe(true);
+      expect(isBoundaryZoomRangeActive(guide.ranges[1], threshold - 0.01)).toBe(false);
+      expect(isBoundaryZoomRangeActive(guide.ranges[1], threshold)).toBe(true);
+    }
   });
   it("알 수 없는 서버 상위 종류를 시군구로 단정하지 않는다", () => {
     const guide = getBoundaryZoomGuide({
       ...view,
       country: "KR",
       kind: "adminDong",
-      catalog: fallbackRegionKinds,
+      catalog: catalog.slice(1),
     });
     expect(guide.ranges[0].kind).toBeNull();
     expect(guide.ranges[0].label).toBe("상위 구역");
@@ -57,8 +72,9 @@ describe("경계 줌 안내", () => {
       ...view,
       country: "KR",
       kind: "adminDong",
-      catalog: [{ ...fallbackRegionKinds[0], min_zoom: 12.5 }],
+      catalog: [{ ...catalog[1], min_zoom: 12.5 }],
     });
+    expect(guide.transitionZoom).toBe(13);
     expect(guide.ranges[0].maxZoom).toBe(12);
     expect(guide.ranges[1].minZoom).toBe(13);
   });
@@ -68,15 +84,17 @@ describe("경계 줌 안내", () => {
         minZoom: 14,
         maxZoom: 18,
         country: "KR",
-        kind: "adminDong",
+        kind: "legalDong",
+        catalog,
       }).ranges,
-    ).toEqual([{ kind: "adminDong", label: "행정동", minZoom: 14, maxZoom: 18 }]);
+    ).toEqual([{ kind: "legalDong", label: "법정동", minZoom: 14, maxZoom: 18 }]);
     expect(
       getBoundaryZoomGuide({
         minZoom: 0,
         maxZoom: 10,
         country: "KR",
-        kind: "adminDong",
+        kind: "legalDong",
+        catalog,
       }).ranges,
     ).toEqual([{ kind: "sigungu", label: "시군구", minZoom: 0, maxZoom: 10 }]);
   });
@@ -86,20 +104,19 @@ describe("경계 줌 안내", () => {
       ["state", "주·특별구·영토"],
       ["zcta", "우편번호 통계구역"],
     ]) {
-      expect(
-        getBoundaryZoomGuide({
-          ...view,
-          country: "US",
-          kind,
-          catalog: fallbackRegionKinds,
-        }),
-      ).toEqual({ estimated: false, ranges: [{ kind, label, ...view }] });
+      expect(getBoundaryZoomGuide({ ...view, country: "US", kind, catalog })).toEqual({
+        estimated: false,
+        ranges: [{ kind, label, ...view }],
+        transitionZoom: null,
+      });
     }
   });
   it("선택이 없거나 알 수 없는 종류에는 표시 구간을 만들지 않는다", () => {
     for (const country of ["KR", "US"] as const) {
       for (const kind of [null, "unknown"]) {
-        expect(getBoundaryZoomGuide({ ...view, country, kind }).ranges).toEqual([]);
+        expect(
+          getBoundaryZoomGuide({ ...view, country, kind, catalog }).ranges,
+        ).toEqual([]);
       }
     }
   });

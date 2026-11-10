@@ -434,5 +434,7 @@
   "현재 표시: {{kind}} · {{count}}개": "Showing: {{kind}} · {{count}}",
   "현재 화면에 표시할 경계가 없습니다.": "No boundaries to display in this view.",
   "시군구": "Districts",
-  "상위 구역": "Parent boundaries"
+  "상위 구역": "Parent boundaries",
+  "경계 줌 기준 미확인": "Boundary zoom levels unconfirmed",
+  "모든 줌": "All zooms"
 }

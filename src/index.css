@@ -120,7 +120,7 @@
     0 0 8px white;
 }
 
-.editor-zoom-label svg {
+.editor-zoom-arrow {
   filter: drop-shadow(0 0 2px white);
 }
 

@@ -102,16 +102,25 @@ test("서버의 변경된 최소 줌과 실제 응답 종류를 안내하고 단
             sort_order: 1,
             selectable: true,
           },
+          {
+            kind: "legalDong",
+            label: "법정동",
+            level: 3,
+            min_zoom: 12,
+            sort_order: 2,
+            selectable: true,
+          },
         ],
       });
     } else if (body.operation === "byView") {
       requests.push(body.zoom);
+      const threshold = body.kind === "legalDong" ? 12 : 15;
       await route.fulfill({
         json: {
           type: "FeatureCollection",
           country: "KR",
-          kind: body.zoom >= 15 ? "adminDong" : "sigungu",
-          level: body.zoom >= 15 ? 2 : 1,
+          kind: body.zoom >= threshold ? body.kind : "sigungu",
+          level: body.zoom >= threshold ? 2 : 1,
           truncated: false,
           features: [
             {
@@ -139,9 +148,10 @@ test("서버의 변경된 최소 줌과 실제 응답 종류를 안내하고 단
   const editor = await openEditor(page);
   const guide = editor.getByRole("region", { name: "경계 표시 단계", exact: true });
   expect(catalogRequests).toBe(0);
+  await expect(guide.getByText("경계 줌 기준 미확인")).toBeVisible();
   await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
-  await expect(guide.getByText("Z15–28")).toBeVisible();
-  await expect(guide.getByText(/^Z\d+–14$/)).toBeVisible();
+  await expect(guide.getByText("Z≥15")).toBeVisible();
+  await expect(guide.getByText("Z<15")).toBeVisible();
   await expect(guide.getByRole("status")).toHaveText("현재 표시: 시군구 · 1개");
   await guide
     .getByRole("button", { name: "행정동 표시 단계로 이동: 줌 15", exact: true })
@@ -156,6 +166,37 @@ test("서버의 변경된 최소 줌과 실제 응답 종류를 안내하고 단
     .click();
   await expect(guide.getByRole("status")).toHaveText("현재 표시: 시군구 · 1개");
   expect(requests).toContain(14);
+  const slider = editor.getByRole("slider", { name: "줌 단계", exact: true });
+  // 전환 화살표의 높이를 슬라이더에서 클릭하면 그 줌에 도달해야 합니다.
+  const anchor = guide.getByTestId("boundary-zoom-anchor");
+  await expect(anchor).toHaveAttribute("data-zoom", "15");
+  const arrowBox = await anchor.boundingBox();
+  const sliderBox = await slider.boundingBox();
+  if (!arrowBox || !sliderBox) throw new Error("줌 안내 위치를 찾지 못했습니다.");
+  await editor.mouse.click(
+    sliderBox.x + sliderBox.width / 2,
+    arrowBox.y + arrowBox.height / 2,
+  );
+  await expect
+    .poll(async () => Math.abs(Number(await slider.inputValue()) - 15))
+    .toBeLessThan(0.16);
+
+  await editor.getByRole("button", { name: /법정동.*z12부터 표시/i }).click();
+  await expect(guide.getByText("Z≥12")).toBeVisible();
+  await expect(anchor).toHaveAttribute("data-zoom", "12");
+  await guide
+    .getByRole("button", { name: "법정동 표시 단계로 이동: 줌 12", exact: true })
+    .click();
+  await expect(guide.getByRole("status")).toHaveText("현재 표시: 법정동 · 1개");
+  await expect(
+    guide.getByRole("button", { name: "법정동 표시 단계로 이동: 줌 12", exact: true }),
+  ).toHaveAttribute("aria-current", "step");
+  await slider.fill("11.9");
+  await expect(guide.getByRole("status")).toHaveText("현재 표시: 시군구 · 1개");
+  await expect(
+    guide.getByRole("button", { name: "시군구 표시 단계로 이동: 줌 11", exact: true }),
+  ).toHaveAttribute("aria-current", "step");
+  expect(requests).toContain(11);
 });
 
 test("미국 영문 안내는 카테고리 유지와 조회 실패를 정확하게 구분한다", async ({
@@ -174,12 +215,12 @@ test("미국 영문 안내는 카테고리 유지와 조회 실패를 정확하�
     "title",
     /US boundaries keep the selected category at every zoom level\./,
   );
-  await expect(guide.getByText(/^Z\d+–28$/)).toBeVisible();
+  await expect(guide.getByText("All zooms")).toBeVisible();
   await editor.getByRole("button", { name: "Boundary data", exact: true }).click();
   await expect(guide.getByRole("status")).toHaveText(
     "Could not load boundaries. Check the tool options.",
   );
   await editor.getByRole("button", { name: "Zoom in", exact: true }).click();
   await expect(guide.getByRole("button")).toHaveCount(1);
-  await expect(guide.getByText(/^Z\d+–28$/)).toBeVisible();
+  await expect(guide.getByText("All zooms")).toBeVisible();
 });
