@@ -11,7 +11,12 @@ import { EditorRightDock } from "./components/EditorRightDock";
 import { useEditorTools } from "./features/modes/hooks/useEditorTools";
 import { EditorToolOptions } from "./features/modes/components/EditorToolOptions";
 import { LayerPanel } from "./features/layers";
-import { useOpenLayersEditorMap } from "./features/map";
+import {
+  MapZoomControl,
+  useBoundaryZoomGuide,
+  useMapZoom,
+  useOpenLayersEditorMap,
+} from "./features/map";
 import { EditorModePanel, getToolActivation } from "./features/modes";
 import { useBoundaryCountryView } from "./features/modes/hooks/useBoundaryCountryView";
 import { useRadiusTool } from "./features/radius";
@@ -38,6 +43,7 @@ const EDIT_HINTS: Record<EditAffordanceKind, string> = {
 export function EditorPage() {
   const t = useT();
   const { mapElementRef, map, editAffordance, geometryOp } = useOpenLayersEditorMap();
+  const zoomControl = useMapZoom(map);
   const drawTool = useDrawTool(map);
   const radiusTool = useRadiusTool(map);
   const isSceneReady = useEditorStore((state) => state.scene !== null);
@@ -73,6 +79,12 @@ export function EditorPage() {
   const { layer: regionLayer, status: regionStatus } = useRegionBoundaries(
     map,
     boundaryKind,
+  );
+  const zoomGuide = useBoundaryZoomGuide(
+    zoomControl.state,
+    activation.boundary,
+    regionStatus,
+    usPreview,
   );
   const boundarySearch = useBoundarySearchPanel(
     map,
@@ -150,6 +162,7 @@ export function EditorPage() {
             // biome-ignore lint/a11y/noNoninteractiveTabindex: OpenLayers 지도를 K·방향키·Space로 조작하는 application 위젯입니다.
             tabIndex={0}
           />
+          <MapZoomControl control={zoomControl} guide={zoomGuide} />
           <p className="sr-only" id="draw-keyboard-instructions">
             {t(
               "K 키로 키보드 조준 모드를 켠 뒤 방향키로 지도 중심을 이동하고 Space 키로 마커 또는 정점을 추가합니다. K 키를 다시 누르면 조준 모드가 꺼집니다. 패스와 정점 3개 이상의 폴리곤은 Enter 키로 완료할 수 있습니다.",
