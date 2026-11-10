@@ -79,9 +79,11 @@ test("서버의 변경된 최소 줌과 실제 응답 종류를 안내하고 단
 }) => {
   await seedGoogleSession(context);
   const requests: number[] = [];
+  let catalogRequests = 0;
   await context.route("**/region-api/functions/v1/regions", async (route) => {
     const body = route.request().postDataJSON();
     if (body.operation === "kinds") {
+      catalogRequests += 1;
       await route.fulfill({
         json: [
           {
@@ -136,9 +138,10 @@ test("서버의 변경된 최소 줌과 실제 응답 종류를 안내하고 단
   });
   const editor = await openEditor(page);
   const guide = editor.getByRole("region", { name: "경계 표시 단계", exact: true });
+  expect(catalogRequests).toBe(0);
+  await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
   await expect(guide.getByText("Z15–28")).toBeVisible();
   await expect(guide.getByText(/^Z\d+–14$/)).toBeVisible();
-  await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
   await expect(guide.getByRole("status")).toHaveText("현재 표시: 시군구 · 1개");
   await guide
     .getByRole("button", { name: "행정동 표시 단계로 이동: 줌 15", exact: true })
@@ -167,9 +170,10 @@ test("미국 영문 안내는 카테고리 유지와 조회 실패를 정확하�
     name: "Boundary zoom levels",
     exact: true,
   });
-  await expect(
-    guide.getByText("US boundaries keep the selected category at every zoom level."),
-  ).toBeVisible();
+  await expect(guide.getByRole("button")).toHaveAttribute(
+    "title",
+    /US boundaries keep the selected category at every zoom level\./,
+  );
   await expect(guide.getByText(/^Z\d+–28$/)).toBeVisible();
   await editor.getByRole("button", { name: "Boundary data", exact: true }).click();
   await expect(guide.getByRole("status")).toHaveText(

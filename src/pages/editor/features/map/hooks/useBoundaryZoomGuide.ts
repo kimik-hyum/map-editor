@@ -19,7 +19,9 @@ export function useBoundaryZoomGuide(
   const kind = useEditorStore((state) => state.activeBoundaryKind);
   const ready = useEditorStore((state) => state.scene !== null);
   const { allowed } = useBoundaryAccess();
-  const catalog = useRegionKinds("KR", country === "KR");
+  // 안내는 비활성 상태에서 캐시/기본 기준만 읽습니다. 경계 도구를 켜기 전에는
+  // 인증된 카탈로그 요청을 새로 시작하지 않습니다.
+  const catalog = useRegionKinds("KR", country === "KR" && active && ready);
   const guide = getBoundaryZoomGuide({
     country,
     kind,

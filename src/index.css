@@ -112,6 +112,18 @@
   border-radius: 4px;
 }
 
+/* 경계 안내는 작은 화살표·글자만 띄우고 옅은 그림자로 지도와 구분합니다. */
+.editor-zoom-label {
+  text-shadow:
+    0 1px 2px white,
+    0 0 4px white,
+    0 0 8px white;
+}
+
+.editor-zoom-label svg {
+  filter: drop-shadow(0 0 2px white);
+}
+
 /* 지도 탐색 → 선택 → 정점 편집. 그리기 도구의 inline 커서는 그대로 우선합니다. */
 .editor-map-viewport {
   cursor: var(--editor-hover-cursor, grab);
