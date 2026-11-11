@@ -290,6 +290,24 @@ test("패널을 접어도 드래그 후 범위를 자동 갱신하고 돌아오�
   expect(await readEditorEdits(editor)).toEqual(before);
 });
 
+// 높이 8px인 슬라이더 손잡이의 중심 이동 범위에서 목표 줌을 한 번에 클릭합니다.
+async function clickZoomLevel(editor: Page, level: number) {
+  const slider = editor.getByRole("slider", { name: "줌 단계", exact: true });
+  const box = await slider.boundingBox();
+  if (!box) throw new Error("줌 슬라이더가 없습니다.");
+  const min = Number(await slider.getAttribute("min"));
+  const max = Number(await slider.getAttribute("max"));
+  await slider.click({
+    position: {
+      x: box.width / 2,
+      y: 4 + ((max - level) / (max - min)) * (box.height - 8),
+    },
+  });
+  await expect
+    .poll(async () => Number(await slider.inputValue()))
+    .toBeCloseTo(level, 0);
+}
+
 test("줌 축소로 새 파일을 자동 조회하고 확대할 때 캐시에서 현재 화면만 표시한다", async ({
   context,
   page,
@@ -299,18 +317,77 @@ test("줌 축소로 새 파일을 자동 조회하고 확대할 때 캐시에서
   await editor.getByRole("button", { name: "경계 데이터" }).click();
   const menu = editor.getByRole("region", { name: "경계 데이터", exact: true });
   await expect(menu.getByRole("status")).toHaveText("카운티 1개 표시");
-  for (let i = 0; i < 4; i++)
-    await editor.getByTitle("지도 축소", { exact: true }).click();
+  const zoom = editor.getByRole("slider", { name: "줌 단계", exact: true });
+  const initialZoom = Number(await zoom.inputValue());
+  const expandedZoom = initialZoom - 4;
+  // 연속 버튼 조작 중 취소·재요청된 파일까지 1회로 제한하지 않도록
+  // 한 번에 최종 범위로 이동한 뒤 완료된 다운로드의 캐시 재사용을 검증합니다.
+  await clickZoomLevel(editor, expandedZoom);
   await expect.poll(() => files.includes("z15-plus/county/0002.json")).toBe(true);
   await editor.getByRole("button", { name: "경계 데이터" }).click();
   await expect(menu.getByRole("status")).toHaveText("카운티 2개 표시");
   const requests = files.length;
-  for (let i = 0; i < 4; i++)
-    await editor.getByTitle("지도 확대", { exact: true }).click();
+  await clickZoomLevel(editor, initialZoom);
   await editor.getByRole("button", { name: "경계 데이터" }).click();
   await expect(menu.getByRole("status")).toHaveText("카운티 1개 표시");
   expect(files).toHaveLength(requests);
   expect(files.filter((file) => file === "z15-plus/county/0002.json")).toHaveLength(1);
+  await clickZoomLevel(editor, expandedZoom);
+  await expect(menu.getByRole("status")).toHaveText("카운티 2개 표시");
+  expect(files).toHaveLength(requests);
+  expect(await readEditorEdits(editor)).toEqual(before);
+});
+
+test("취소된 미국 경계 파일은 다시 받고 완료 후에는 줌을 왕복해도 캐시를 재사용한다", async ({
+  context,
+  page,
+}) => {
+  const { editor, files } = await prepare(context, page, false, "US", true);
+  const before = await readEditorEdits(editor);
+  const shard = "z15-plus/county/0002.json";
+  let releaseFirst!: () => void;
+  const firstResponse = new Promise<void>((resolve) => {
+    releaseFirst = resolve;
+  });
+  let held = false;
+  // 첫 다운로드가 진행 중인 상태를 만들어 줌 이동에 의한 취소를 확정합니다.
+  await context.route(
+    (url) => url.searchParams.get("file") === shard,
+    async (route) => {
+      if (!held) {
+        held = true;
+        await firstResponse;
+      }
+      await route.fallback();
+    },
+  );
+  await editor.getByRole("button", { name: "경계 데이터" }).click();
+  const menu = editor.getByRole("region", { name: "경계 데이터", exact: true });
+  await expect(menu.getByRole("status")).toHaveText("카운티 1개 표시");
+  const zoom = editor.getByRole("slider", { name: "줌 단계", exact: true });
+  const initialZoom = Number(await zoom.inputValue());
+  const expandedZoom = initialZoom - 4;
+  await clickZoomLevel(editor, expandedZoom);
+  await expect.poll(() => held).toBe(true);
+  const cancelled = editor.waitForEvent("requestfailed", {
+    predicate: (request) => new URL(request.url()).searchParams.get("file") === shard,
+  });
+  try {
+    await clickZoomLevel(editor, expandedZoom - 1);
+    const request = await cancelled;
+    expect(request.failure()?.errorText).toBe("net::ERR_ABORTED");
+  } finally {
+    releaseFirst();
+  }
+  await expect(menu.getByRole("status")).toHaveText("카운티 2개 표시");
+  await expect.poll(() => files.filter((file) => file === shard).length).toBe(2);
+  const downloaded = [...files];
+  await clickZoomLevel(editor, initialZoom);
+  await expect(menu.getByRole("status")).toHaveText("카운티 1개 표시");
+  expect(files).toEqual(downloaded);
+  await clickZoomLevel(editor, expandedZoom);
+  await expect(menu.getByRole("status")).toHaveText("카운티 2개 표시");
+  expect(files).toEqual(downloaded);
   expect(await readEditorEdits(editor)).toEqual(before);
 });
 

@@ -8,7 +8,9 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: externalBaseUrl ?? "http://127.0.0.1:4174",
-    trace: "on-first-retry",
+    // 재시도가 없어도 최초 실패의 원인을 확인할 수 있도록 기록을 보존합니다.
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
   },
   webServer: externalBaseUrl
     ? undefined
