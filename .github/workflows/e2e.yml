@@ -24,6 +24,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Trust and verify checkout for container Git
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git rev-parse --is-inside-work-tree
+          git ls-remote --exit-code origin refs/heads/main
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
