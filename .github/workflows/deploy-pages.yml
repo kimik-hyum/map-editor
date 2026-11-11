@@ -19,8 +19,11 @@ jobs:
   deploy:
     name: deploy-production
     if: github.ref == 'refs/heads/main' && vars.CLOUDFLARE_DEPLOY_ENABLED == 'true'
-    # E2E와 동일하게 Playwright가 지원하는 OS에서 브라우저를 설치합니다.
     runs-on: ubuntu-24.04
+    # PR E2E 및 package-lock.json의 Playwright 버전과 함께 갱신합니다.
+    container:
+      image: mcr.microsoft.com/playwright:v1.60.0-noble
+      options: --ipc=host --init
     timeout-minutes: 25
 
     steps:
@@ -39,11 +42,20 @@ jobs:
       - name: Verify types, lint, formatting and unit tests
         run: npm run verify
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
       - name: Verify editor browser regressions
+        id: e2e
         run: npm run test:e2e
+
+      - name: Upload failed browser regression artifacts
+        if: failure() && steps.e2e.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-browser-regressions
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Build and verify production application
         env:
