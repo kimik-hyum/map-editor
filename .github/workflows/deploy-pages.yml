@@ -30,6 +30,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Trust and verify checkout for container Git
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git rev-parse --is-inside-work-tree
+          git ls-remote --exit-code origin refs/heads/main
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -74,8 +80,10 @@ jobs:
           fi
 
       - name: Prevent deployment of an outdated main commit
+        # 파이프 앞의 Git 조회 실패도 즉시 실패시켜 오래된 커밋으로 오인하지 않습니다.
+        shell: bash
         run: |
-          latest_main_sha="$(git ls-remote origin refs/heads/main | cut -f1)"
+          latest_main_sha="$(git ls-remote --exit-code origin refs/heads/main | cut -f1)"
           if [ "$latest_main_sha" != "$GITHUB_SHA" ]; then
             echo '::error::This run is not the latest main commit. Deploy the latest main run instead.'
             exit 1
