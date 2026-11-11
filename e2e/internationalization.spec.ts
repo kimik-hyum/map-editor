@@ -51,7 +51,12 @@ test("언어 전환은 지도·scene·편집 이력·국가·호스트 연결을
   await expect(
     editor.getByRole("button", { name: "Select Area A", exact: true }),
   ).toBeVisible();
-  await expect(editor.locator(".ol-zoom-in")).toHaveAttribute("title", "Zoom in");
+  await expect(
+    editor.getByRole("button", { name: "Zoom in", exact: true }),
+  ).toHaveAttribute("title", "Zoom in");
+  await expect(
+    editor.getByRole("slider", { name: "Zoom level", exact: true }),
+  ).toBeVisible();
   await editor.getByRole("button", { name: "Add layer", exact: true }).click();
   await expect(
     editor.getByRole("button", { name: "Select New layer 1", exact: true }),
@@ -66,7 +71,12 @@ test("언어 전환은 지도·scene·편집 이력·국가·호스트 연결을
   await expect(
     editor.getByRole("button", { name: "New layer 1 선택", exact: true }),
   ).toBeVisible();
-  await expect(editor.locator(".ol-zoom-in")).toHaveAttribute("title", "지도 확대");
+  await expect(
+    editor.getByRole("button", { name: "지도 확대", exact: true }),
+  ).toHaveAttribute("title", "지도 확대");
+  await expect(
+    editor.getByRole("slider", { name: "줌 단계", exact: true }),
+  ).toBeVisible();
   await expect(editor.locator(".ol-viewport")).toHaveAttribute(
     "data-retained-map",
     "yes",

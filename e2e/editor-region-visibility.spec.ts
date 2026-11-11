@@ -160,6 +160,8 @@ test("확대·축소에 따라 이름과 버튼이 커지고 상시 노출 및 �
   const editor = await openEditor(page);
   const name = card(editor).getByText("행정동 테스트", { exact: true });
   const add = card(editor).getByRole("button", { name: "행정동 테스트 추가" });
+  const zoom = editor.getByTitle("지도 확대", { exact: true });
+  const zoomWidth = await zoom.evaluate((element) => getComputedStyle(element).width);
   await expect(name).toHaveCSS("font-size", "14px");
   await expect(add).toHaveCSS("height", "26px");
   await expect(add).toHaveCSS("width", "26px");
@@ -175,8 +177,7 @@ test("확대·축소에 따라 이름과 버튼이 커지고 상시 노출 및 �
   await expect(name).toHaveCSS("font-size", "14px");
   await expect(add).toHaveCSS("height", "28px");
   await expect(add).toBeVisible();
-  const zoom = editor.getByTitle("지도 확대", { exact: true });
-  await expect(zoom).toHaveCSS("width", "36px");
+  await expect(zoom).toHaveCSS("width", zoomWidth);
 });
 
 test("선택 상태에 맞춰 추가와 합치기를 구분하고 겹칠 때만 빼기를 활성화한다", async ({

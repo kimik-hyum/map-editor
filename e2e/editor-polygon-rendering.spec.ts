@@ -65,7 +65,9 @@ test("에디터 지도에 샘플 폴리곤이 렌더링된다", async ({ page })
   await expect(map.locator(".osm-basemap")).toHaveCSS("filter", "saturate(0.35)");
   await expect(map.locator(".ol-layer")).toHaveCSS("filter", "none");
   await expect(map.locator(".ol-viewport")).toHaveCSS("filter", "none");
-  await expect(map.locator(".ol-zoom button").first()).toHaveCSS("filter", "none");
+  await expect(
+    editorPage.getByRole("button", { name: "지도 확대", exact: true }),
+  ).toHaveCSS("filter", "none");
 
   await editorPage.waitForFunction(() => {
     const canvas = document.querySelector<HTMLCanvasElement>(

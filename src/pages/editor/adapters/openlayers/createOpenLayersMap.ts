@@ -1,4 +1,3 @@
-import { t } from "@/shared/i18n/i18n";
 import OpenLayersMap from "ol/Map";
 import { defaults as defaultControls } from "ol/control/defaults";
 import { defaults as defaultInteractions } from "ol/interaction/defaults";
@@ -17,9 +16,7 @@ export function createOpenLayersMap({ target, scene }: CreateOpenLayersMapOption
     // 패널/버튼에 포커스가 있어도 첫 드래그부터 팬을 시작합니다.
     // OL Map의 암묵적 기본값(onFocusOnly: true)은 tabindex 지도의 첫 입력을 놓칩니다.
     interactions: defaultInteractions({ onFocusOnly: false }),
-    controls: defaultControls({
-      zoomOptions: { zoomInTipLabel: t("지도 확대"), zoomOutTipLabel: t("지도 축소") },
-    }),
+    controls: defaultControls({ zoom: false }),
     layers: [createOpenStreetMapLayer()],
     target,
     view: createOpenLayersMapView(scene),
