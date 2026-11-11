@@ -26,6 +26,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     let unsubscribe: (() => void) | undefined;
     let expirationTimer: ReturnType<typeof setTimeout> | undefined;
     let currentSession: Session | null = null;
+    let sessionResolved = false;
     let revision = 0;
     let recheckSession = () => {};
 
@@ -45,6 +46,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       };
       const applySession = (nextSession: Session | null) => {
         if (!active) return;
+        sessionResolved = true;
         revision += 1;
         currentSession = nextSession;
         clearTimeout(expirationTimer);
@@ -70,7 +72,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
           );
         }
       };
-      recheckSession = () => applySession(currentSession);
+      recheckSession = () => {
+        // OAuth 복귀 중의 초기 null을 확정된 비로그인 세션으로 처리하면
+        // 토큰 교환이 끝나기 전에 콜백이 실패를 알리고 팝업이 닫힙니다.
+        if (sessionResolved) applySession(currentSession);
+      };
       window.addEventListener("focus", recheckSession);
       window.addEventListener("pageshow", recheckSession);
       document.addEventListener("visibilitychange", recheckSession);

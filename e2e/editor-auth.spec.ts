@@ -186,6 +186,46 @@ test("팝업 로그인 뒤 같은 에디터와 부모 연결, 편집 내용을 �
   );
 });
 
+for (const event of ["focus", "pageshow", "visibilitychange"]) {
+  test(`로그인 콜백의 세션 확인 중 ${event} 이벤트가 와도 완료 전에 창을 닫지 않는다`, async ({
+    page,
+    context,
+  }) => {
+    const calls = await mockAuthAndRegions(context);
+    let releaseToken!: () => void;
+    const tokenGate = new Promise<void>((resolve) => {
+      releaseToken = resolve;
+    });
+    await context.route("**/auth/v1/token?grant_type=pkce", async (route) => {
+      await tokenGate;
+      await route.fallback();
+    });
+    const editor = await openEditor(page);
+    const popup = await startLogin(editor);
+    try {
+      await Promise.all([
+        popup.waitForRequest((request) => request.url().includes("grant_type=pkce")),
+        popup.getByRole("link", { name: "테스트 Google 로그인 완료" }).click(),
+      ]);
+      await expect(
+        popup.getByRole("heading", { name: "로그인 확인 중…" }),
+      ).toBeVisible();
+      await popup.evaluate((type) => {
+        const target = type === "visibilitychange" ? document : window;
+        target.dispatchEvent(new Event(type));
+      }, event);
+      await expect(
+        popup.getByRole("heading", { name: "로그인 확인 중…" }),
+      ).toBeVisible();
+      await expect(editor.getByRole("alert")).toHaveCount(0);
+    } finally {
+      releaseToken();
+    }
+    await expect(editor.getByRole("button", { name: "Google 로그아웃" })).toBeVisible();
+    await expect.poll(() => calls.includes("byView")).toBe(true);
+  });
+}
+
 test("팝업 차단에도 편집 내용과 이전 도구를 유지한다", async ({ page, context }) => {
   const calls = await mockAuthAndRegions(context, true);
   await context.addInitScript(() => {
