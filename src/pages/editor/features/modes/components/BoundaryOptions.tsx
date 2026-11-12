@@ -118,7 +118,7 @@ export function BoundaryOptions({
                         {t("(줌 아웃 → 상위 구역)")}
                       </span>
                     ) : null}
-                    {boundaryStatus.truncated ? (
+                    {boundaryStatus.truncated && !boundaryStatus.loading ? (
                       <span className="text-amber-600">
                         {" "}
                         {t("· 일부만 표시됨 — 지도를 확대하세요")}

@@ -4,7 +4,7 @@ export const REGION_CATALOG_CACHE_MS = 5 * 60_000;
 // 월별 경계 도형과 편집용 원본은 세션 내 재방문 때 네트워크 없이 재사용합니다.
 export const REGION_BOUNDARY_CACHE_MS = 30 * 60_000;
 
-// 전국 화면(z7) 실측에서 검증한 범위만 분할합니다. 확대 화면은 단일 조회 유지.
+// 전국 화면(z7)은 처음부터 분할합니다. 나머지는 단일 조회로 시작하고 잘린 응답만 재분할합니다.
 export const REGION_SPLIT_MAX_ZOOM = 7;
 export const REGION_VIEW_CONCURRENCY = 2;
 
