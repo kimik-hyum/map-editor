@@ -1,134 +1,64 @@
 import type { EditorSceneInput } from "@/pages/editor/types/editorTypes";
+import { newYorkDemoBoundaries } from "./newYorkDemoBoundaries";
 
-// 뉴욕 주변의 도형 편집 연습용 데이터이며 실제 행정 경계가 아닙니다.
+// 실제 지역의 위치를 유지한 데모 경계입니다. 출처·가공 방식: docs/demo-boundaries.md
+// 도형 순서·잠금·색상은 편집/참고 영역의 역할을 보여줍니다.
 export const usSampleSceneInput: EditorSceneInput = {
   version: 2,
   id: "sample-new-york-editor-scene",
-  name: "New York sample editing scene",
-  viewport: { center: [-73.98, 40.77], zoom: 12 },
+  name: "New York neighborhood sample editing scene",
+  viewport: { center: [-73.962, 40.735], zoom: 12.8 },
   features: [
     {
       name: "Mask example",
       locked: true,
       themeToken: "mask",
-      geometry: {
-        type: "Polygon",
-        coordinates: [
-          [
-            [-74.011, 40.759],
-            [-73.999, 40.759],
-            [-73.999, 40.751],
-            [-74.011, 40.751],
-          ],
-        ],
-      },
+      geometry: newYorkDemoBoundaries.mask.geometry,
+      properties: newYorkDemoBoundaries.mask.properties,
     },
     {
       name: "Snap example",
       locked: true,
       themeToken: "snapTarget",
-      geometry: {
-        type: "Polygon",
-        coordinates: [
-          [
-            [-73.986, 40.759],
-            [-73.974, 40.759],
-            [-73.974, 40.751],
-            [-73.986, 40.751],
-          ],
-        ],
-      },
+      geometry: newYorkDemoBoundaries.snap.geometry,
+      properties: newYorkDemoBoundaries.snap.properties,
     },
     {
       name: "Invalid example",
       locked: true,
       themeToken: "invalid",
-      geometry: {
-        type: "Polygon",
-        coordinates: [
-          [
-            [-73.936, 40.759],
-            [-73.924, 40.759],
-            [-73.924, 40.751],
-            [-73.936, 40.751],
-          ],
-        ],
-      },
+      geometry: newYorkDemoBoundaries.invalid.geometry,
+      properties: newYorkDemoBoundaries.invalid.properties,
     },
     {
       name: "Reference 1",
       locked: true,
       themeToken: "reference",
-      geometry: {
-        type: "Polygon",
-        coordinates: [
-          [
-            [-73.961, 40.789],
-            [-73.949, 40.789],
-            [-73.949, 40.781],
-            [-73.961, 40.781],
-          ],
-        ],
-      },
+      geometry: newYorkDemoBoundaries.reference.geometry,
+      properties: newYorkDemoBoundaries.reference.properties,
     },
-    // 가장 단순한 형태: geometry만(잠금도 생략 = 편집 가능). 이름·id는 에디터가 채움.
     {
-      geometry: {
-        type: "Polygon",
-        coordinates: [
-          [
-            [-73.936, 40.789],
-            [-73.924, 40.789],
-            [-73.924, 40.781],
-            [-73.936, 40.781],
-          ],
-        ],
-      },
+      name: "Long Island City",
+      geometry: newYorkDemoBoundaries.unnamed.geometry,
+      properties: newYorkDemoBoundaries.unnamed.properties,
     },
     {
       name: "Area A",
       themeToken: "editable",
-      geometry: {
-        type: "Polygon",
-        coordinates: [
-          [
-            [-74.036, 40.789],
-            [-74.024, 40.789],
-            [-74.024, 40.781],
-            [-74.036, 40.781],
-          ],
-        ],
-      },
+      geometry: newYorkDemoBoundaries.a.geometry,
+      properties: newYorkDemoBoundaries.a.properties,
     },
     {
       name: "Area B",
       themeToken: "active",
-      geometry: {
-        type: "Polygon",
-        coordinates: [
-          [
-            [-74.011, 40.789],
-            [-73.999, 40.789],
-            [-73.999, 40.781],
-            [-74.011, 40.781],
-          ],
-        ],
-      },
+      geometry: newYorkDemoBoundaries.b.geometry,
+      properties: newYorkDemoBoundaries.b.properties,
     },
     {
       name: "Area C",
       themeToken: "selected",
-      geometry: {
-        type: "Polygon",
-        coordinates: [
-          [
-            [-73.986, 40.789],
-            [-73.974, 40.789],
-            [-73.974, 40.781],
-            [-73.986, 40.781],
-          ],
-        ],
-      },
+      geometry: newYorkDemoBoundaries.c.geometry,
+      properties: newYorkDemoBoundaries.c.properties,
     },
   ],
 };

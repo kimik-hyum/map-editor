@@ -148,10 +148,9 @@ async function openZoom10(page: Page) {
     page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
   await expect(editor.getByText("권역 A", { exact: true })).toBeVisible();
-  for (let i = 0; i < 2; i++) {
-    await editor.getByTitle("지도 축소", { exact: true }).click();
-    await editor.waitForTimeout(350);
-  }
+  const zoom = editor.getByRole("slider", { name: "줌 단계", exact: true });
+  await zoom.fill("10");
+  await expect(zoom).toHaveValue("10");
   await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
   return editor;
 }

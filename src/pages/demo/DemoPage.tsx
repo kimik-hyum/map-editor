@@ -9,6 +9,7 @@ import {
   DocsSection,
 } from "@/pages/docs/components";
 import { useEditorHost, type EditorHostStatus } from "./host/useEditorHost";
+import { DemoBoundaryAttribution } from "./DemoBoundaryAttribution";
 
 // 문서를 읽을 때는 Demo 미리보기용 OpenLayers 코드까지 불러오지 않습니다.
 const DemoSceneMap = lazy(() =>
@@ -66,6 +67,7 @@ export function DemoPage() {
         >
           <DemoSceneMap scene={scene} />
         </Suspense>
+        <DemoBoundaryAttribution />
         <p className="mb-0 mt-3 text-sm leading-6 text-ink-soft">
           {t(
             "지도에서 이동·확대할 수 있습니다. 도형 수정은 편집기에서 진행하며, 취소하거나 탭만 닫으면 서비스 데이터는 유지됩니다.",
