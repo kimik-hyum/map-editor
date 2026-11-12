@@ -55,6 +55,9 @@ async function openEditor(page: Page) {
     page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
   await expect(editor.getByText("권역 A", { exact: true })).toBeVisible();
+  // 데모의 시작 배율과 독립적으로 종류별 최소 줌을 검증합니다.
+  await editor.getByRole("slider", { name: "줌 단계", exact: true }).fill("12");
+  await expect(editor.getByLabel("현재 줌 단계")).toHaveText("Z12");
   await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
   return editor;
 }
