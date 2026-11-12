@@ -67,6 +67,31 @@ describe("경계 줌 안내", () => {
     expect(guide.ranges[0].kind).toBeNull();
     expect(guide.ranges[0].label).toBe("상위 구역");
   });
+  it("우편번호는 별도 최소 줌 15를 따르고 14.99까지 시군구로 안내한다", () => {
+    const guide = getBoundaryZoomGuide({
+      ...view,
+      country: "KR",
+      kind: "postalCode",
+      catalog: [
+        ...catalog,
+        {
+          kind: "postalCode",
+          label: "우편번호",
+          min_zoom: 15,
+          level: 3,
+          sort_order: 3,
+          selectable: true,
+        },
+      ],
+    });
+    expect(guide.transitionZoom).toBe(15);
+    expect(guide.ranges).toEqual([
+      { kind: "sigungu", label: "시군구", minZoom: 0, maxZoom: 14 },
+      { kind: "postalCode", label: "우편번호", minZoom: 15, maxZoom: 28 },
+    ]);
+    expect(isBoundaryZoomRangeActive(guide.ranges[0], 14.99)).toBe(true);
+    expect(isBoundaryZoomRangeActive(guide.ranges[1], 15)).toBe(true);
+  });
   it("서버의 소수 최소 줌을 조회 API와 같은 정수 단계로 해석한다", () => {
     const guide = getBoundaryZoomGuide({
       ...view,
