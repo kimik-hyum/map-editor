@@ -75,7 +75,7 @@ test("데모가 새 창 에디터에 postMessage로 scene을 전달하고 에디
 
   expect(initData?.sessionId).toBeTruthy();
   expect(initData?.scene?.id).toBe("sample-seoul-editor-scene");
-  expect(initData?.scene?.name).toBe("서울 샘플 편집 씬");
+  expect(initData?.scene?.name).toBe("서울 행정동 샘플 편집 씬");
   expect(initData?.scene?.features?.length ?? 0).toBeGreaterThan(0);
 
   if (process.env.E2E_BASE_URL) {

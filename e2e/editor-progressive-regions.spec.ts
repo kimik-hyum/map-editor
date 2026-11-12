@@ -141,11 +141,10 @@ async function openNationalEditor(page: Page) {
     page.getByRole("button", { name: "편집기 새 탭으로 열기" }).click(),
   ]);
   await expect(editor.getByText("권역 A", { exact: true })).toBeVisible();
-  // 기본 z12에서 z7로 이동한 뒤 경계를 켜서 초기 지도 애니메이션과 요청을 분리합니다.
-  for (let i = 0; i < 5; i++) {
-    await editor.getByTitle("지도 축소", { exact: true }).click();
-    await editor.waitForTimeout(350);
-  }
+  // 데모의 초기 배율과 무관하게 분할 조회를 검증할 z7로 이동합니다.
+  const zoom = editor.getByRole("slider", { name: "줌 단계", exact: true });
+  await zoom.fill("7");
+  await expect(zoom).toHaveValue("7");
   await editor.getByRole("button", { name: "경계 데이터", exact: true }).click();
   return editor;
 }

@@ -158,6 +158,8 @@ test("확대·축소에 따라 이름과 버튼이 커지고 상시 노출 및 �
 }) => {
   await mockBoundaries(context);
   const editor = await openEditor(page);
+  await editor.getByRole("slider", { name: "줌 단계", exact: true }).fill("12");
+  await expect(card(editor)).toHaveAttribute("data-map-zoom", "12");
   const name = card(editor).getByText("행정동 테스트", { exact: true });
   const add = card(editor).getByRole("button", { name: "행정동 테스트 추가" });
   const zoom = editor.getByTitle("지도 확대", { exact: true });
